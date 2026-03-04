@@ -443,6 +443,7 @@
 
     <script>
         const BLOCKS = {{ blocks | tojson }};
+        const JIRA_SERVER = "{{ JIRA_SERVER }}";
         let sortState = { column: null, direction: 'asc' };
         let debugData = { request: null, response: null };
 

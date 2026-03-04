@@ -1,7 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 from flask import Flask, render_template, request, jsonify, send_file
 from jira_report import generate_report, generate_excel, get_jira_connection
-from config import REPORT_BLOCKS, EXCLUDED_PROJECTS, ACTIVE_PORT, FLASK_HOST, IS_PRODUCTION
+from config import REPORT_BLOCKS, EXCLUDED_PROJECTS, ACTIVE_PORT, FLASK_HOST, IS_PRODUCTION, JIRA_SERVER
 from datetime import datetime
 import io
 import os
@@ -11,7 +11,7 @@ app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'))
 
 @app.route('/')
 def index():
-    return render_template('index.html', blocks=REPORT_BLOCKS)
+    return render_template('index.html', blocks=REPORT_BLOCKS, JIRA_SERVER=JIRA_SERVER)
 
 @app.route('/api/projects')
 def api_projects():
@@ -103,6 +103,19 @@ def api_report():
             response['issues'] = report['issues'].to_dict(orient='records')
         if 'internal' in report:
             response['internal'] = report['internal'].to_dict(orient='records')
+
+        # Добавляем debug-информацию
+        response['debug'] = {
+            'jira_server': JIRA_SERVER,
+            'query_params': {
+                'project': project,
+                'start_date': start_date,
+                'days': days,
+                'assignee': assignee,
+                'blocks': blocks,
+                'extra_verbose': extra_verbose
+            }
+        }
 
         return jsonify(response)
         
