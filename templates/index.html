@@ -133,7 +133,7 @@
         .stat-value { font-size: 1.8em; font-weight: bold; margin-bottom: 5px; }
         .stat-label { font-size: 0.85em; opacity: 0.9; }
 
-        /* Р’РєР»Р°РґРєРё */
+        /* Вкладки */
         .tabs {
             display: flex;
             gap: 2px;
@@ -170,7 +170,7 @@
             display: block;
         }
 
-        /* РўР°Р±Р»РёС†С‹ */
+        /* Таблицы */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -198,8 +198,8 @@
             border-bottom: 2px solid #ddd;
         }
         th:hover { background: #e8e8e8; }
-        th.sort-asc::after { content: ' в–І'; }
-        th.sort-desc::after { content: ' в–ј'; }
+        th.sort-asc::after { content: ' ▲'; }
+        th.sort-desc::after { content: ' ▼'; }
         tr:hover { background: #f9f9f9; }
 
         .section-title {
@@ -314,38 +314,38 @@
 </head>
 <body>
     <div class="container">
-        <h1>рџ“Љ Jira Report Generator</h1>
+        <h1>📊 Jira Report Generator</h1>
         
-        <!-- Р¤РѕСЂРјР° -->
+        <!-- Форма -->
         <div class="card">
-            <h2 style="margin-bottom: 20px;">рџ”§ РџР°СЂР°РјРµС‚СЂС‹ РѕС‚С‡С‘С‚Р°</h2>
+            <h2 style="margin-bottom: 20px;">🔧 Параметры отчёта</h2>
             <div class="form-row">
                 <div class="form-group">
-                    <label for="project">РџСЂРѕРµРєС‚</label>
+                    <label for="project">Проект</label>
                     <select id="project">
-                        <option value="">Р’СЃРµ РїСЂРѕРµРєС‚С‹</option>
+                        <option value="">Все проекты</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="assignee">РСЃРїРѕР»РЅРёС‚РµР»СЊ</label>
+                    <label for="assignee">Исполнитель</label>
                     <select id="assignee">
-                        <option value="">Р’СЃРµ РёСЃРїРѕР»РЅРёС‚РµР»Рё</option>
+                        <option value="">Все исполнители</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="start_date">Р”Р°С‚Р° РЅР°С‡Р°Р»Р°</label>
+                    <label for="start_date">Дата начала</label>
                     <input type="date" id="start_date">
                 </div>
                 <div class="form-group">
-                    <label for="days">РџРµСЂРёРѕРґ (РґРЅРµР№)</label>
+                    <label for="days">Период (дней)</label>
                     <input type="number" id="days" value="30" min="1" max="365">
                 </div>
             </div>
             
             <div class="form-group">
-                <label>рџ“¦ Р‘Р»РѕРєРё РѕС‚С‡С‘С‚Р° 
-                    <button class="btn btn-select" onclick="selectAllBlocks()">Р’СЃРµ</button>
-                    <button class="btn btn-select" onclick="deselectAllBlocks()">РќРёС‡РµРіРѕ</button>
+                <label>📦 Блоки отчёта 
+                    <button class="btn btn-select" onclick="selectAllBlocks()">Все</button>
+                    <button class="btn btn-select" onclick="deselectAllBlocks()">Ничего</button>
                 </label>
                 <div class="checkbox-group" id="blocks_container"></div>
             </div>
@@ -353,87 +353,87 @@
             <div class="form-group">
                 <label class="checkbox-item">
                     <input type="checkbox" id="extra_verbose">
-                    <span>РџРѕРєР°Р·С‹РІР°С‚СЊ ID РІ РєРІР°РґСЂР°С‚РЅС‹С… СЃРєРѕР±РєР°С… (-vv)</span>
+                    <span>Показывать ID в квадратных скобках (-vv)</span>
                 </label>
             </div>
             
             <div>
-                <button class="btn btn-primary" id="generate_btn" onclick="generateReport()">рџ“‹ РЎРіРµРЅРµСЂРёСЂРѕРІР°С‚СЊ РѕС‚С‡С‘С‚</button>
-                <button class="btn btn-success" id="download_btn" onclick="downloadExcel()">рџ’ѕ РЎРєР°С‡Р°С‚СЊ Excel</button>
+                <button class="btn btn-primary" id="generate_btn" onclick="generateReport()">📋 Сгенерировать отчёт</button>
+                <button class="btn btn-success" id="download_btn" onclick="downloadExcel()">💾 Скачать Excel</button>
             </div>
             <div id="error" class="error hidden"></div>
 
-            <!-- Debug СЃРµРєС†РёСЏ -->
+            <!-- Debug секция -->
             <div class="debug-section">
-                <h3>рџ”Ќ РћС‚Р»Р°РґРєР°</h3>
-                <button class="debug-btn" onclick="showDebugRequest()">РџРѕРєР°Р·Р°С‚СЊ Р·Р°РїСЂРѕСЃ</button>
-                <button class="debug-btn" onclick="showDebugResponse()">РџРѕРєР°Р·Р°С‚СЊ РѕС‚РІРµС‚</button>
+                <h3>🔍 Отладка</h3>
+                <button class="debug-btn" onclick="showDebugRequest()">Показать запрос</button>
+                <button class="debug-btn" onclick="showDebugResponse()">Показать ответ</button>
                 <div id="debug_content" class="debug-content hidden"></div>
             </div>
 
-            <!-- РРЅРґРёРєР°С‚РѕСЂ Р·Р°РіСЂСѓР·РєРё -->
+            <!-- Индикатор загрузки -->
             <div id="loading" class="loading hidden">
                 <div class="spinner"></div>
-                <div>Р“РµРЅРµСЂР°С†РёСЏ РѕС‚С‡С‘С‚Р°... РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРґРѕР¶РґРёС‚Рµ</div>
+                <div>Генерация отчёта... Пожалуйста, подождите</div>
             </div>
         </div>
         
-        <!-- РЎС‚Р°С‚РёСЃС‚РёРєР° -->
+        <!-- Статистика -->
         <div id="stats" class="stats hidden">
             <div class="stat-card">
                 <div class="stat-value" id="stat_projects">0</div>
-                <div class="stat-label">РџСЂРѕРµРєС‚РѕРІ</div>
+                <div class="stat-label">Проектов</div>
             </div>
             <div class="stat-card success">
                 <div class="stat-value" id="stat_correct">0</div>
-                <div class="stat-label">РљРѕСЂСЂРµРєС‚РЅС‹С…</div>
+                <div class="stat-label">Корректных</div>
             </div>
             <div class="stat-card warning">
                 <div class="stat-value" id="stat_issues">0</div>
-                <div class="stat-label">РџСЂРѕР±Р»РµРјРЅС‹С…</div>
+                <div class="stat-label">Проблемных</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="stat_spent">0</div>
-                <div class="stat-label">Р¤Р°РєС‚ (С‡)</div>
+                <div class="stat-label">Факт (ч)</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="stat_estimated">0</div>
-                <div class="stat-label">РћС†РµРЅРєР° (С‡)</div>
+                <div class="stat-label">Оценка (ч)</div>
             </div>
         </div>
         
-        <!-- Р’РєР»Р°РґРєРё СЃ РѕС‚С‡С‘С‚Р°РјРё -->
+        <!-- Вкладки с отчётами -->
         <div id="reports_container" class="card hidden">
             <div class="tabs">
-                <button class="tab-btn active" id="tab-btn-summary" onclick="switchTab('summary')">рџ“‹ РЎРІРѕРґРєР°</button>
-                <button class="tab-btn" id="tab-btn-assignees" onclick="switchTab('assignees')">рџ‘¤ РСЃРїРѕР»РЅРёС‚РµР»Рё</button>
-                <button class="tab-btn" id="tab-btn-detail" onclick="switchTab('detail')">рџ“ќ Р”РµС‚Р°Р»Рё</button>
-                <button class="tab-btn" id="tab-btn-issues" onclick="switchTab('issues')">вљ пёЏ РџСЂРѕР±Р»РµРјС‹</button>
+                <button class="tab-btn active" id="tab-btn-summary" onclick="switchTab('summary')">📋 Сводка</button>
+                <button class="tab-btn" id="tab-btn-assignees" onclick="switchTab('assignees')">👤 Исполнители</button>
+                <button class="tab-btn" id="tab-btn-detail" onclick="switchTab('detail')">📝 Детали</button>
+                <button class="tab-btn" id="tab-btn-issues" onclick="switchTab('issues')">⚠️ Проблемы</button>
             </div>
             
             <div id="tab-summary" class="tab-content active">
-                <h2 class="section-title">РЎРІРѕРґРєР° РїРѕ РїСЂРѕРµРєС‚Р°Рј <span class="badge" id="summary_count">0</span></h2>
+                <h2 class="section-title">Сводка по проектам <span class="badge" id="summary_count">0</span></h2>
                 <div class="table-container">
                     <table id="summary_table"><thead></thead><tbody></tbody></table>
                 </div>
             </div>
             
             <div id="tab-assignees" class="tab-content">
-                <h2 class="section-title">РќР°РіСЂСѓР·РєР° РїРѕ РёСЃРїРѕР»РЅРёС‚РµР»СЏРј <span class="badge" id="assignees_count">0</span></h2>
+                <h2 class="section-title">Нагрузка по исполнителям <span class="badge" id="assignees_count">0</span></h2>
                 <div class="table-container">
                     <table id="assignees_table"><thead></thead><tbody></tbody></table>
                 </div>
             </div>
             
             <div id="tab-detail" class="tab-content">
-                <h2 class="section-title">Р”РµС‚Р°Р»РёР·Р°С†РёСЏ РїРѕ Р·Р°РґР°С‡Р°Рј <span class="badge" id="detail_count">0</span></h2>
+                <h2 class="section-title">Детализация по задачам <span class="badge" id="detail_count">0</span></h2>
                 <div class="table-container">
                     <table id="detail_table"><thead></thead><tbody></tbody></table>
                 </div>
             </div>
             
             <div id="tab-issues" class="tab-content">
-                <h2 class="section-title">РџСЂРѕР±Р»РµРјРЅС‹Рµ Р·Р°РґР°С‡Рё <span class="badge warning" id="issues_count">0</span></h2>
+                <h2 class="section-title">Проблемные задачи <span class="badge warning" id="issues_count">0</span></h2>
                 <div class="table-container">
                     <table id="issues_table"><thead></thead><tbody></tbody></table>
                 </div>
@@ -448,7 +448,7 @@
         let debugData = { request: null, response: null };
 
         window.onload = async function() {
-            // РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј РґР°С‚Сѓ: 1 С‡РёСЃР»Рѕ РїСЂРѕС€Р»РѕРіРѕ РјРµСЃСЏС†Р°
+            // Устанавливаем дату: 1 число прошлого месяца
             const today = new Date();
             const year = today.getFullYear();
             const month = today.getMonth(); // 0-11
@@ -501,7 +501,7 @@
                 if (data.success && data.assignees.length > 0) {
                     data.assignees.forEach(a => {
                         const opt = document.createElement('option');
-                        opt.value = a.name;  // РџРµСЂРµРґР°С‘Рј displayName РґР»СЏ С„РёР»СЊС‚СЂР°С†РёРё
+                        opt.value = a.name;  // Передаём displayName для фильтрации
                         opt.textContent = a.name;
                         select.appendChild(opt);
                     });
@@ -546,7 +546,7 @@
             debugContent.classList.add('hidden');
 
             const params = getParams();
-            // РЎРѕС…СЂР°РЅСЏРµРј Р·Р°РїСЂРѕСЃ РґР»СЏ РѕС‚Р»Р°РґРєРё
+            // Сохраняем запрос для отладки
             debugData.request = {
                 url: '/api/report',
                 method: 'POST',
@@ -563,7 +563,7 @@
 
                 const data = await response.json();
 
-                // РЎРѕС…СЂР°РЅСЏРµРј РѕС‚РІРµС‚ РґР»СЏ РѕС‚Р»Р°РґРєРё
+                // Сохраняем ответ для отладки
                 debugData.response = {
                     status: response.status,
                     statusText: response.statusText,
@@ -578,7 +578,7 @@
                 reportsContainer.classList.remove('hidden');
 
             } catch (error) {
-                errorDiv.textContent = 'вќЊ РћС€РёР±РєР°: ' + error.message;
+                errorDiv.textContent = '❌ Ошибка: ' + error.message;
                 errorDiv.classList.remove('hidden');
             } finally {
                 loading.classList.add('hidden');
@@ -635,9 +635,9 @@
             tbody.innerHTML = data.map(row => {
                 return '<tr>' + Object.entries(row).map(([key, val]) => {
                     if (key === 'URL' && val) {
-                        return `<td><a href="${val}" target="_blank" class="problem-link" title="РћС‚РєСЂС‹С‚СЊ Р·Р°РґР°С‡Сѓ">рџ“Ћ</a></td>`;
+                        return `<td><a href="${val}" target="_blank" class="problem-link" title="Открыть задачу">📎</a></td>`;
                     }
-                    if (key === 'РџСЂРѕР±Р»РµРјС‹' && val) {
+                    if (key === 'Проблемы' && val) {
                         return `<td class="problems-cell" title="${val}">${val}</td>`;
                     }
                     return `<td title="${val || ''}">${val !== null && val !== '' ? val : '-'}</td>`;
@@ -694,7 +694,7 @@
                     body: JSON.stringify(params)
                 });
 
-                if (!response.ok) throw new Error('РћС€РёР±РєР° РїСЂРё СЃРєР°С‡РёРІР°РЅРёРё');
+                if (!response.ok) throw new Error('Ошибка при скачивании');
 
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
@@ -707,7 +707,7 @@
                 document.body.removeChild(a);
 
             } catch (error) {
-                alert('вќЊ РћС€РёР±РєР°: ' + error.message);
+                alert('❌ Ошибка: ' + error.message);
             }
         }
 
@@ -717,7 +717,7 @@
                 debugContent.textContent = JSON.stringify(debugData.request, null, 2);
                 debugContent.classList.remove('hidden');
             } else {
-                debugContent.textContent = 'Р—Р°РїСЂРѕСЃ РµС‰С‘ РЅРµ РІС‹РїРѕР»РЅСЏР»СЃСЏ';
+                debugContent.textContent = 'Запрос ещё не выполнялся';
                 debugContent.classList.remove('hidden');
             }
         }
@@ -728,7 +728,7 @@
                 debugContent.textContent = JSON.stringify(debugData.response, null, 2);
                 debugContent.classList.remove('hidden');
             } else {
-                debugContent.textContent = 'РћС‚РІРµС‚ РµС‰С‘ РЅРµ РїРѕР»СѓС‡РµРЅ';
+                debugContent.textContent = 'Ответ ещё не получен';
                 debugContent.classList.remove('hidden');
             }
         }
