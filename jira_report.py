@@ -15,35 +15,31 @@ import argparse
 import os
 import sys
 import logging
-from dotenv import load_dotenv
 import io
 from dateutil.relativedelta import relativedelta
 
-# --- ЗАГРУЗКА ПЕРЕМЕННЫХ ИЗ .ENV ---
-load_dotenv()
+# Импортируем настройки из config.py
+from config import (
+    JIRA_SERVER,
+    JIRA_USER,
+    JIRA_PASS,
+    EXCLUDED_PROJECTS,
+    CLOSED_STATUS_IDS,
+    EXCLUDED_ASSIGNEE_CLOSE,
+    SSL_VERIFY,
+    REPORT_BLOCKS,
+    LOG_LEVEL,
+    LOG_FORMAT,
+    LOG_DATE_FORMAT
+)
 
 # --- НАСТРОЙКА ЛОГИРОВАНИЯ ---
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s — %(levelname)s — %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    level=getattr(logging, LOG_LEVEL),
+    format=LOG_FORMAT,
+    datefmt=LOG_DATE_FORMAT
 )
 logger = logging.getLogger(__name__)
-
-# --- КОНФИГУРАЦИЯ ---
-JIRA_SERVER = os.getenv('JIRA_SERVER')
-JIRA_USER = os.getenv('JIRA_USER')
-JIRA_PASS = os.getenv('JIRA_PASS')
-EXCLUDED_PROJECTS = os.getenv('EXCLUDED_PROJECTS', '').split(',') if os.getenv('EXCLUDED_PROJECTS') else []
-
-# ID статуса "Закрыт" (авто-определение или из .env)
-CLOSED_STATUS_IDS = os.getenv('CLOSED_STATUS_IDS', '').split(',') if os.getenv('CLOSED_STATUS_IDS') else []
-
-# Исполнитель, для которого "Закрыт" не считается ошибкой
-EXCLUDED_ASSIGNEE_CLOSE = os.getenv('EXCLUDED_ASSIGNEE_CLOSE', 'holin').split(',')
-
-# SSL проверка
-SSL_VERIFY = os.getenv('SSL_VERIFY', 'true').lower() == 'true'
 
 # --- НАСТРОЙКА SSL ---
 if not SSL_VERIFY:
@@ -53,16 +49,6 @@ if not SSL_VERIFY:
     warnings.simplefilter('ignore', InsecureRequestWarning)
 else:
     logger.info("✅ Проверка SSL включена")
-
-# =============================================
-REPORT_BLOCKS = {
-    'summary': 'Сводка по проектам',
-    'assignees': 'Нагрузка по исполнителям',
-    'detail': 'Детализация по задачам',
-    'issues': 'Проблемные задачи'
-}
-
-# =============================================
 
 def validate_config() -> Tuple[bool, List[str]]:
     """

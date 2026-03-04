@@ -9,6 +9,7 @@ Group=kit02
 WorkingDirectory=/home/kit02/jira_report
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONUNBUFFERED=1"
+Environment="FLASK_ENV=production"
 ExecStart=/usr/bin/python3 /home/kit02/jira_report/app.py
 Restart=always
 RestartSec=10

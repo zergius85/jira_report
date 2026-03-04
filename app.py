@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, render_template, request, jsonify, send_file
-from jira_report import generate_report, generate_excel, REPORT_BLOCKS, EXCLUDED_PROJECTS, get_jira_connection
+from jira_report import generate_report, generate_excel, get_jira_connection
+from config import REPORT_BLOCKS, EXCLUDED_PROJECTS, ACTIVE_PORT, FLASK_HOST, IS_PRODUCTION
 from datetime import datetime
 import io
 import os
@@ -146,11 +147,9 @@ def api_download():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    host = os.getenv('FLASK_HOST', '0.0.0.0')
-    port = int(os.getenv('FLASK_PORT', '5000'))
-    
+    mode = "prod" if IS_PRODUCTION else "dev"
     print("🚀 Запуск веб-интерфейса...")
-    print(f"📍 Откройте в браузере: http://localhost:{port}")
+    print(f"📍 Откройте в браузере: http://localhost:{ACTIVE_PORT}")
     print(f"📦 Доступные блоки: {', '.join(REPORT_BLOCKS.keys())}")
-    print(f"🔧 Хост: {host}, Порт: {port}")
-    app.run(host=host, port=port, debug=False)
+    print(f"🔧 Режим: {mode}, Хост: {FLASK_HOST}, Порт: {ACTIVE_PORT}")
+    app.run(host=FLASK_HOST, port=ACTIVE_PORT, debug=not IS_PRODUCTION)

@@ -26,6 +26,13 @@ if [ ! -f "$SCRIPT_DIR/.env" ]; then
     exit 1
 fi
 
+# Проверка config.py
+if [ ! -f "$SCRIPT_DIR/config.py" ]; then
+    echo "❌ Файл config.py не найден!"
+    echo "   Убедитесь, что config.py существует в директории службы"
+    exit 1
+fi
+
 # Копирование файла службы
 cp "$SCRIPT_DIR/${SERVICE_NAME}.service" "/etc/systemd/system/${SERVICE_NAME}.service"
 

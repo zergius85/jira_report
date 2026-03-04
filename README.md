@@ -42,8 +42,15 @@ JIRA_PASS=your_password_or_token
 
 ### 3. Запуск
 
-**Web-интерфейс:**
+**Web-интерфейс (dev-режим, порт 5001):**
 ```bash
+python app.py
+```
+Откройте в браузере: http://localhost:5001
+
+**Web-интерфейс (prod-режим, порт 5000):**
+```bash
+# В .env добавьте: FLASK_ENV=production
 python app.py
 ```
 Откройте в браузере: http://localhost:5000
@@ -102,7 +109,9 @@ python jira_report.py -b issues -vv
 
 ---
 
-## ⚙️ Конфигурация (.env)
+## ⚙️ Конфигурация
+
+### Файл `.env` (секреты, не хранить в git)
 
 | Переменная | Обязательна | Описание |
 |------------|-------------|----------|
@@ -113,6 +122,25 @@ python jira_report.py -b issues -vv
 | `CLOSED_STATUS_IDS` | ❌ | ID статуса "Закрыт" (авто) |
 | `EXCLUDED_ASSIGNEE_CLOSE` | ❌ | Пользователи-исключения |
 | `SSL_VERIFY` | ❌ | Проверка SSL (false для внутренних серверов) |
+
+### Файл `config.py` (общие настройки, хранить в git)
+
+| Переменная | По умолчанию | Описание |
+|------------|--------------|----------|
+| `FLASK_ENV` | `development` | Режим работы (`production` / `development`) |
+| `DEV_PORT` | `5001` | Порт для dev-режима |
+| `PROD_PORT` | `5000` | Порт для prod-режима |
+| `FLASK_HOST` | `0.0.0.0` | Хост для веб-сервера |
+| `LOG_LEVEL` | `DEBUG`/`INFO` | Уровень логирования (зависит от режима) |
+
+### Переключение режимов
+
+Для **продакшена** добавьте в `.env`:
+```ini
+FLASK_ENV=production
+```
+
+После этого приложение запустится на порту **5000** с отключённым debug-режимом.
 
 ---
 
@@ -162,6 +190,7 @@ python jira_report.py -b issues -vv
 jira_report/
 ├── app.py              # Web-сервер (Flask)
 ├── jira_report.py      # Ядро отчётов
+├── config.py           # Общие настройки (dev/prod)
 ├── requirements.txt    # Зависимости Python
 ├── .env.example        # Шаблон конфигурации
 ├── .env                # Конфигурация (не в git!)
@@ -224,6 +253,7 @@ python -m py_compile app.py jira_report.py
    ```bash
    cp .env.example .env
    # Отредактируйте .env (укажите JIRA_SERVER, JIRA_USER, JIRA_PASS)
+   # Для продакшена добавьте: FLASK_ENV=production
    ```
 
 2. **Установите службу:**
@@ -255,6 +285,8 @@ python -m py_compile app.py jira_report.py
 ```
 http://<server-ip>:5000
 ```
+
+**Примечание:** Служба запускается в режиме `production` (порт 5000).
 
 ---
 
