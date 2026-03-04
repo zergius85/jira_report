@@ -15,11 +15,11 @@ def index():
 
 @app.route('/api/projects')
 def api_projects():
-    """РџРѕР»СѓС‡РёС‚СЊ СЃРїРёСЃРѕРє РїСЂРѕРµРєС‚РѕРІ"""
+    """Получить список проектов"""
     try:
         jira = get_jira_connection()
         projects = jira.projects()
-        
+
         result = []
         for proj in projects:
             if proj.key in EXCLUDED_PROJECTS:
@@ -27,24 +27,21 @@ def api_projects():
             if hasattr(proj, 'archived') and proj.archived:
                 continue
             result.append({'key': proj.key, 'name': proj.name})
-        
+
         return jsonify({'success': True, 'projects': result})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/assignees')
 def api_assignees():
-    """РџРѕР»СѓС‡РёС‚СЊ СЃРїРёСЃРѕРє РёСЃРїРѕР»РЅРёС‚РµР»РµР№ С‡РµСЂРµР· Jira Users API"""
+    """Получить список исполнителей через Jira Users API"""
     try:
         jira = get_jira_connection()
-
-        # РСЃРїРѕР»СЊР·СѓРµРј API РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ вЂ” РЅР°РјРЅРѕРіРѕ СЌС„С„РµРєС‚РёРІРЅРµРµ
-        # РџРѕР»СѓС‡Р°РµРј РІСЃРµС… Р°РєС‚РёРІРЅС‹С… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ СЃ РїСЂР°РІР°РјРё РЅР° РїСЂРѕСЃРјРѕС‚СЂ Р·Р°РґР°С‡
         users = jira.search_assignable_users_for_projects('')
 
         assignees = {}
         for user in users:
-            if user.get('active', True):  # РўРѕР»СЊРєРѕ Р°РєС‚РёРІРЅС‹Рµ
+            if user.get('active', True):
                 key = user.get('name') or user.get('accountId') or user.get('key')
                 name = user.get('displayName', key)
                 if key:
@@ -53,6 +50,53 @@ def api_assignees():
         result = [{'key': k, 'name': v} for k, v in sorted(assignees.items(), key=lambda x: x[1])]
         return jsonify({'success': True, 'assignees': result})
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/task-info', methods=['POST'])
+def api_task_info():
+    """Получить полную информацию о задаче со всеми полями"""
+    try:
+        data = request.json
+        task_key = data.get('task_key', '')
+        
+        if not task_key:
+            return jsonify({'success': False, 'error': 'Не указан ключ задачи'}), 400
+        
+        jira = get_jira_connection()
+        issue = jira.issue(task_key, expand='changelog,renderedFields')
+        
+        task_info = {'key': issue.key, 'id': issue.id, 'fields': {}}
+        
+        if hasattr(issue, 'fields') and issue.fields:
+            for field_name in dir(issue.fields):
+                if not field_name.startswith('_'):
+                    try:
+                        value = getattr(issue.fields, field_name)
+                        if value is not None:
+                            task_info['fields'][field_name] = str(value)
+                    except:
+                        pass
+        
+        if hasattr(issue, 'changelog') and issue.changelog:
+            task_info['changelog'] = []
+            for history in issue.changelog.histories:
+                history_item = {
+                    'author': history.author.displayName if hasattr(history.author, 'displayName') else str(history.author),
+                    'created': history.created,
+                    'items': []
+                }
+                for item in history.items:
+                    history_item['items'].append({
+                        'field': item.field,
+                        'from': item.fromString,
+                        'to': item.toString
+                    })
+                task_info['changelog'].append(history_item)
+        
+        return jsonify({'success': True, 'task_info': task_info})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/report', methods=['POST'])
@@ -65,10 +109,10 @@ def api_report():
         assignee = data.get('assignee', '').strip() or None
         blocks = data.get('blocks', None)
         extra_verbose = data.get('extra_verbose', False)
-        
+
         if days < 1 or days > 365:
-            return jsonify({'error': 'РџРµСЂРёРѕРґ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РѕС‚ 1 РґРѕ 365 РґРЅРµР№'}), 400
-        
+            return jsonify({'error': 'Период должен быть от 1 до 365 дней'}), 400
+
         report = generate_report(
             project_key=project,
             start_date=start_date,
@@ -78,7 +122,7 @@ def api_report():
             verbose=False,
             extra_verbose=extra_verbose
         )
-        
+
         response = {
             'success': True,
             'period': report['period'],
@@ -92,7 +136,7 @@ def api_report():
             },
             'blocks': report['blocks']
         }
-        
+
         if 'summary' in report:
             response['summary'] = report['summary'].to_dict(orient='records')
         if 'assignees' in report:
@@ -104,7 +148,7 @@ def api_report():
         if 'internal' in report:
             response['internal'] = report['internal'].to_dict(orient='records')
 
-        # Добавляем debug-информацию
+        # Debug-информация
         response['debug'] = {
             'jira_server': JIRA_SERVER,
             'query_params': {
@@ -118,7 +162,7 @@ def api_report():
         }
 
         return jsonify(response)
-        
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -134,7 +178,7 @@ def api_download():
         assignee = data.get('assignee', '').strip() or None
         blocks = data.get('blocks', None)
         extra_verbose = data.get('extra_verbose', False)
-        
+
         report = generate_report(
             project_key=project,
             start_date=start_date,
@@ -144,27 +188,27 @@ def api_download():
             verbose=False,
             extra_verbose=extra_verbose
         )
-        
+
         output = io.BytesIO()
         generate_excel(report, output)
         output.seek(0)
-        
-        filename = f"jira_report_{report['period'].replace(' вЂ” ', '_to_').replace(' ', '')}.xlsx"
-        
+
+        filename = f"jira_report_{report['period'].replace(' — ', '_to_').replace(' ', '')}.xlsx"
+
         return send_file(
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
             download_name=filename
         )
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     mode = "prod" if IS_PRODUCTION else "dev"
-    print("рџљЂ Р—Р°РїСѓСЃРє РІРµР±-РёРЅС‚РµСЂС„РµР№СЃР°...")
-    print(f"рџ“Ќ РћС‚РєСЂРѕР№С‚Рµ РІ Р±СЂР°СѓР·РµСЂРµ: http://localhost:{ACTIVE_PORT}")
-    print(f"рџ“¦ Р”РѕСЃС‚СѓРїРЅС‹Рµ Р±Р»РѕРєРё: {', '.join(REPORT_BLOCKS.keys())}")
-    print(f"рџ”§ Р РµР¶РёРј: {mode}, РҐРѕСЃС‚: {FLASK_HOST}, РџРѕСЂС‚: {ACTIVE_PORT}")
+    print("🚀 Запуск веб-интерфейса...")
+    print(f"📍 Откройте в браузере: http://localhost:{ACTIVE_PORT}")
+    print(f"📦 Доступные блоки: {', '.join(REPORT_BLOCKS.keys())}")
+    print(f"🔧 Режим: {mode}, Хост: {FLASK_HOST}, Порт: {ACTIVE_PORT}")
     app.run(host=FLASK_HOST, port=ACTIVE_PORT, debug=not IS_PRODUCTION)
