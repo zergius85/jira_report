@@ -101,7 +101,9 @@ def api_report():
             response['detail'] = report['detail'].to_dict(orient='records')
         if 'issues' in report:
             response['issues'] = report['issues'].to_dict(orient='records')
-        
+        if 'internal' in report:
+            response['internal'] = report['internal'].to_dict(orient='records')
+
         return jsonify(response)
         
     except Exception as e:

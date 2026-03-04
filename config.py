@@ -45,6 +45,12 @@ EXCLUDED_PROJECTS = [
     if x.strip()
 ]
 
+# Р’РЅСѓС‚СЂРµРЅРЅРёРµ РїСЂРѕРµРєС‚С‹ РґР»СЏ РІРєР»Р°РґРєРё "РќРµРїРѕРЅСЏС‚РЅРѕРµ" (СЃРїРёСЃРѕРє РєР»СЋС‡РµР№)
+INTERNAL_PROJECTS = [
+    x.strip() for x in os.getenv('INTERNAL_PROJECTS', 'NEW,local').split(',')
+    if x.strip()
+]
+
 # ID СЃС‚Р°С‚СѓСЃРѕРІ "Р—Р°РєСЂС‹С‚"/"Closed" (Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё РѕРїСЂРµРґРµР»СЏРµС‚СЃСЏ РёР»Рё РёР· .env)
 CLOSED_STATUS_IDS = [
     x.strip() for x in os.getenv('CLOSED_STATUS_IDS', '').split(',')

@@ -24,6 +24,7 @@ from config import (
     JIRA_USER,
     JIRA_PASS,
     EXCLUDED_PROJECTS,
+    INTERNAL_PROJECTS,
     CLOSED_STATUS_IDS,
     EXCLUDED_ASSIGNEE_CLOSE,
     SSL_VERIFY,
@@ -567,7 +568,50 @@ def generate_report(
         cols = get_column_order('issues', extra_verbose)
         available_cols = [c for c in cols if c in result['issues'].columns]
         result['issues'] = result['issues'][available_cols]
-    
+
+    # Р“РµРЅРµСЂР°С†РёСЏ РѕС‚С‡С‘С‚Р° РїРѕ РІРЅСѓС‚СЂРµРЅРЅРёРј РїСЂРѕРµРєС‚Р°Рј (NEW, local)
+    if INTERNAL_PROJECTS:
+        internal_issues = []
+        for proj_key in INTERNAL_PROJECTS:
+            jql_internal = (f"project = {proj_key} "
+                          f"AND resolved >= '{start_date_str}' "
+                          f"AND resolved <= '{end_date_str}' "
+                          f"ORDER BY resolved ASC")
+            try:
+                issues = jira.search_issues(jql_internal, maxResults=False,
+                                           fields='summary, assignee, timespent, resolutiondate, issuetype, status, created')
+                for issue in issues:
+                    spent = convert_seconds_to_hours(issue.fields.timespent)
+                    issue_type = issue.fields.issuetype.name if issue.fields.issuetype else 'Р—Р°РґР°С‡Р°'
+                    assignee = issue.fields.assignee.displayName if issue.fields.assignee else 'Р‘РµР· РёСЃРїРѕР»РЅРёС‚РµР»СЏ'
+                    resolved = issue.fields.resolutiondate[:10] if issue.fields.resolutiondate else '-'
+                    created = issue.fields.created[:10] if issue.fields.created else '-'
+                    status_name = issue.fields.status.name if issue.fields.status else '-'
+                    issue_url = f"{JIRA_SERVER}/browse/{issue.key}"
+                    
+                    internal_data = {
+                        'URL': issue_url,
+                        'РџСЂРѕРµРєС‚': proj_key,
+                        'РљР»СЋС‡': issue.key,
+                        'Р—Р°РґР°С‡Р°': issue.fields.summary,
+                        'РСЃРїРѕР»РЅРёС‚РµР»СЊ': assignee,
+                        'РЎС‚Р°С‚СѓСЃ': status_name,
+                        'Р”Р°С‚Р° СЃРѕР·РґР°РЅРёСЏ': created,
+                        'Р”Р°С‚Р° РёСЃРїРѕР»РЅРµРЅРёСЏ': resolved,
+                        'Р¤Р°РєС‚ (С‡)': spent,
+                        'РўРёРї': issue_type
+                    }
+                    if extra_verbose:
+                        internal_data.insert(1, 'ID', issue.id)
+                        proj_id = getattr(getattr(issue.fields, 'project', None), 'id', '')
+                        internal_data.insert(2, 'РџСЂРѕРµРєС‚ ID', proj_id)
+                    internal_issues.append(internal_data)
+            except Exception as e:
+                logger.warning(f"вљ  РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ Р·Р°РґР°С‡Рё РёР· РїСЂРѕРµРєС‚Р° {proj_key}: {e}")
+        
+        if internal_issues:
+            result['internal'] = pd.DataFrame(internal_issues)
+
     return result
 
 def generate_excel(report_data: Dict[str, Any], output: Optional[Union[str, io.BytesIO]] = None) -> Union[str, io.BytesIO]:
