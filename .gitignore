@@ -52,3 +52,8 @@ Thumbs.db
 .coverage
 htmlcov/
 
+# Qwen context
+.qwen/
+!.qwen/QWEN.md
+.qwenignore
+
