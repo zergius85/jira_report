@@ -426,8 +426,9 @@ def generate_report(
             if assignee_filter and assignee_filter.lower() not in assignee.lower():
                 continue
             
-            # Р¤РѕСЂРјРёСЂСѓРµРј РѕС‚РѕР±СЂР°Р¶Р°РµРјС‹Рµ Р·РЅР°С‡РµРЅРёСЏ СЃ ID РµСЃР»Рё РЅСѓР¶РЅРѕ
-            project_display = f"{proj_name} [{issue.fields.project.id}]" if extra_verbose and hasattr(issue.fields, 'project') and hasattr(issue.fields.project, 'id') else proj_name
+            # Формируем отображаемые значения с ID если нужно
+            project_id = getattr(getattr(issue.fields, 'project', None), 'id', None)
+            project_display = f"{proj_name} [{project_id}]" if extra_verbose and project_id else proj_name
             status_display = f"{status_full} [{issue.fields.status.id}]" if extra_verbose and issue.fields.status and hasattr(issue.fields.status, 'id') else status_full
             issue_type_display = f"{issue_type} [{issue.fields.issuetype.id}]" if extra_verbose and issue.fields.issuetype and hasattr(issue.fields.issuetype, 'id') else issue_type
             assignee_display = f"{assignee} [{issue.fields.assignee.id}]" if extra_verbose and issue.fields.assignee and hasattr(issue.fields.assignee, 'id') else assignee
@@ -497,10 +498,10 @@ def generate_report(
                 'Р¤Р°РєС‚ (С‡)': round(proj_spent, 2),
                 'РћС‚РєР»РѕРЅРµРЅРёРµ': round(proj_estimated - proj_spent, 2)
             }
-            # Р”РѕР±Р°РІР»СЏРµРј ID РїСЂРѕРµРєС‚Р° РґР»СЏ extra_verbose
+            # Добавляем ID проекта для extra_verbose
             if extra_verbose:
-                # Р‘РµСЂС‘Рј ID РїСЂРѕРµРєС‚Р° РёР· РїРµСЂРІРѕР№ Р·Р°РґР°С‡Рё
-                proj_id = issues_normal[0].fields.project.id if issues_normal else ''
+                # Берём ID проекта из первой задачи
+                proj_id = getattr(getattr(issues_normal[0].fields, 'project', None), 'id', '') if issues_normal else ''
                 summary_row.insert(1, 'ID', proj_id)
             summary_data.append(summary_row)
     
