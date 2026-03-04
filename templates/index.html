@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jira Report Generator</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1800px; margin: 0 auto; }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .form-group { margin-bottom: 20px; }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .checkbox-item input { width: auto; margin-right: 10px; }
+        .checkbox-item:hover { background: #e8e8e8; }
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+            color: white;
+        }
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(86, 171, 47, 0.4);
+        }
+        .btn-select {
+            background: #f0f0f0;
+            color: #333;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-card.warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .stat-card.success {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+        }
+        .stat-value { font-size: 2em; font-weight: bold; margin-bottom: 5px; }
+        .stat-label { font-size: 0.9em; opacity: 0.9; }
+        
+        /* Вкладки */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 0;
+            border-bottom: 3px solid #e0e0e0;
+        }
+        .tab-btn {
+            padding: 12px 24px;
+            border: none;
+            background: #f5f5f5;
+            color: #666;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.3s;
+        }
+        .tab-btn:hover {
+            background: #e8e8e8;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            background: white;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Таблицы - динамическая ширина */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 13px;
+            table-layout: auto;
+        }
+        th, td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 300px;
+        }
+        th {
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #333;
+            position: sticky;
+            top: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+        th:hover { background: #e8e8e8; }
+        th.sort-asc::after { content: ' ▲'; }
+        th.sort-desc::after { content: ' ▼'; }
+        tr:hover { background: #f9f9f9; }
+        
+        .section-title {
+            font-size: 1.5em;
+            margin: 0 0 15px 0;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .section-title .badge {
+            font-size: 0.6em;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: #667eea;
+            color: white;
+        }
+        .section-title .badge.warning { background: #f5576c; }
+        
+        .table-container {
+            height: 500px;
+            overflow-y: scroll;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c33;
+        }
+        .hidden { display: none; }
+        
+        .problem-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 1.2em;
+        }
+        .problem-link:hover { color: #764ba2; }
+        .problems-cell { color: #f5576c; font-weight: 600; }
+        
+        @media (max-width: 768px) {
+            .form-row { grid-template-columns: 1fr; }
+            .tabs { flex-wrap: wrap; }
+            .tab-btn { flex: 1 1 auto; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Jira Report Generator</h1>
+        
+        <!-- Форма -->
+        <div class="card">
+            <h2 style="margin-bottom: 20px;">🔧 Параметры отчёта</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="project">Проект</label>
+                    <select id="project">
+                        <option value="">Все проекты</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="assignee">Исполнитель</label>
+                    <select id="assignee">
+                        <option value="">Все исполнители</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="start_date">Дата начала</label>
+                    <input type="date" id="start_date">
+                </div>
+                <div class="form-group">
+                    <label for="days">Период (дней)</label>
+                    <input type="number" id="days" value="30" min="1" max="365">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>📦 Блоки отчёта 
+                    <button class="btn btn-select" onclick="selectAllBlocks()">Все</button>
+                    <button class="btn btn-select" onclick="deselectAllBlocks()">Ничего</button>
+                </label>
+                <div class="checkbox-group" id="blocks_container"></div>
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-item">
+                    <input type="checkbox" id="extra_verbose">
+                    <span>Показывать ID в квадратных скобках (-vv)</span>
+                </label>
+            </div>
+            
+            <div>
+                <button class="btn btn-primary" id="generate_btn" onclick="generateReport()">📋 Сгенерировать отчёт</button>
+                <button class="btn btn-success" id="download_btn" onclick="downloadExcel()">💾 Скачать Excel</button>
+            </div>
+            <div id="error" class="error hidden"></div>
+            
+            <!-- Индикатор загрузки -->
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <div>Генерация отчёта... Пожалуйста, подождите</div>
+            </div>
+        </div>
+        
+        <!-- Статистика -->
+        <div id="stats" class="stats hidden">
+            <div class="stat-card">
+                <div class="stat-value" id="stat_projects">0</div>
+                <div class="stat-label">Проектов</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-value" id="stat_correct">0</div>
+                <div class="stat-label">Корректных</div>
+            </div>
+            <div class="stat-card warning">
+                <div class="stat-value" id="stat_issues">0</div>
+                <div class="stat-label">Проблемных</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat_spent">0</div>
+                <div class="stat-label">Факт (ч)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat_estimated">0</div>
+                <div class="stat-label">Оценка (ч)</div>
+            </div>
+        </div>
+        
+        <!-- Вкладки с отчётами -->
+        <div id="reports_container" class="card hidden">
+            <div class="tabs">
+                <button class="tab-btn active" id="tab-btn-summary" onclick="switchTab('summary')">📋 Сводка</button>
+                <button class="tab-btn" id="tab-btn-assignees" onclick="switchTab('assignees')">👤 Исполнители</button>
+                <button class="tab-btn" id="tab-btn-detail" onclick="switchTab('detail')">📝 Детали</button>
+                <button class="tab-btn" id="tab-btn-issues" onclick="switchTab('issues')">⚠️ Проблемы</button>
+            </div>
+            
+            <div id="tab-summary" class="tab-content active">
+                <h2 class="section-title">Сводка по проектам <span class="badge" id="summary_count">0</span></h2>
+                <div class="table-container">
+                    <table id="summary_table"><thead></thead><tbody></tbody></table>
+                </div>
+            </div>
+            
+            <div id="tab-assignees" class="tab-content">
+                <h2 class="section-title">Нагрузка по исполнителям <span class="badge" id="assignees_count">0</span></h2>
+                <div class="table-container">
+                    <table id="assignees_table"><thead></thead><tbody></tbody></table>
+                </div>
+            </div>
+            
+            <div id="tab-detail" class="tab-content">
+                <h2 class="section-title">Детализация по задачам <span class="badge" id="detail_count">0</span></h2>
+                <div class="table-container">
+                    <table id="detail_table"><thead></thead><tbody></tbody></table>
+                </div>
+            </div>
+            
+            <div id="tab-issues" class="tab-content">
+                <h2 class="section-title">Проблемные задачи <span class="badge warning" id="issues_count">0</span></h2>
+                <div class="table-container">
+                    <table id="issues_table"><thead></thead><tbody></tbody></table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BLOCKS = {{ blocks | tojson }};
+        let sortState = { column: null, direction: 'asc' };
+        
+        window.onload = async function() {
+            const today = new Date();
+            const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            document.getElementById('start_date').value = firstDayLastMonth.toISOString().split('T')[0];
+            
+            const container = document.getElementById('blocks_container');
+            for (const [key, label] of Object.entries(BLOCKS)) {
+                const item = document.createElement('label');
+                item.className = 'checkbox-item';
+                item.innerHTML = `<input type="checkbox" value="${key}" checked><span>${label}</span>`;
+                container.appendChild(item);
+            }
+            
+            await loadProjects();
+            await loadAssignees();
+        };
+        
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            document.getElementById(`tab-btn-${tabName}`).classList.add('active');
+        }
+        
+        async function loadProjects() {
+            try {
+                const resp = await fetch('/api/projects');
+                const data = await resp.json();
+                const select = document.getElementById('project');
+                if (data.success) {
+                    data.projects.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.key;
+                        opt.textContent = `${p.name} (${p.key})`;
+                        select.appendChild(opt);
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+        
+        async function loadAssignees() {
+            try {
+                const resp = await fetch('/api/assignees');
+                const data = await resp.json();
+                const select = document.getElementById('assignee');
+                if (data.success && data.assignees.length > 0) {
+                    data.assignees.forEach(a => {
+                        const opt = document.createElement('option');
+                        opt.value = a.name;
+                        opt.textContent = a.name;
+                        select.appendChild(opt);
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+        
+        function selectAllBlocks() {
+            document.querySelectorAll('#blocks_container input[type="checkbox"]').forEach(cb => cb.checked = true);
+        }
+        
+        function deselectAllBlocks() {
+            document.querySelectorAll('#blocks_container input[type="checkbox"]').forEach(cb => cb.checked = false);
+        }
+        
+        function getSelectedBlocks() {
+            return Array.from(document.querySelectorAll('#blocks_container input[type="checkbox"]:checked')).map(cb => cb.value);
+        }
+        
+        function getParams() {
+            return {
+                project: document.getElementById('project').value,
+                assignee: document.getElementById('assignee').value,
+                start_date: document.getElementById('start_date').value,
+                days: parseInt(document.getElementById('days').value),
+                blocks: getSelectedBlocks(),
+                extra_verbose: document.getElementById('extra_verbose').checked
+            };
+        }
+        
+        async function generateReport() {
+            const errorDiv = document.getElementById('error');
+            const loading = document.getElementById('loading');
+            const generateBtn = document.getElementById('generate_btn');
+            const reportsContainer = document.getElementById('reports_container');
+            
+            errorDiv.classList.add('hidden');
+            loading.classList.remove('hidden');
+            generateBtn.disabled = true;
+            reportsContainer.classList.add('hidden');
+            
+            try {
+                const response = await fetch('/api/report', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(getParams())
+                });
+                
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error);
+                }
+                
+                displayReport(data);
+                reportsContainer.classList.remove('hidden');
+                
+            } catch (error) {
+                errorDiv.textContent = '❌ Ошибка: ' + error.message;
+                errorDiv.classList.remove('hidden');
+            } finally {
+                loading.classList.add('hidden');
+                generateBtn.disabled = false;
+            }
+        }
+        
+        function displayReport(data) {
+            document.getElementById('stat_projects').textContent = data.totals.projects;
+            document.getElementById('stat_correct').textContent = data.totals.correct;
+            document.getElementById('stat_issues').textContent = data.totals.issues;
+            document.getElementById('stat_spent').textContent = data.totals.spent;
+            document.getElementById('stat_estimated').textContent = data.totals.estimated;
+            document.getElementById('stats').classList.remove('hidden');
+            
+            if (data.summary?.length > 0) {
+                renderTable('summary_table', data.summary);
+                document.getElementById('summary_count').textContent = data.summary.length;
+            }
+            if (data.assignees?.length > 0) {
+                renderTable('assignees_table', data.assignees);
+                document.getElementById('assignees_count').textContent = data.assignees.length;
+            }
+            if (data.detail?.length > 0) {
+                renderTable('detail_table', data.detail);
+                document.getElementById('detail_count').textContent = data.detail.length;
+            }
+            if (data.issues?.length > 0) {
+                renderTable('issues_table', data.issues, true);
+                document.getElementById('issues_count').textContent = data.issues.length;
+            }
+            
+            const tabs = ['summary', 'assignees', 'detail', 'issues'];
+            for (const tab of tabs) {
+                if (data[tab]?.length > 0) {
+                    switchTab(tab);
+                    break;
+                }
+            }
+        }
+        
+        function renderTable(tableId, data, hasLinks = false) {
+            const table = document.getElementById(tableId);
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            
+            if (data.length > 0) {
+                const headers = Object.keys(data[0]);
+                thead.innerHTML = '<tr>' + headers.map(h => 
+                    `<th onclick="sortTable('${tableId}', '${h}')">${h}</th>`
+                ).join('') + '</tr>';
+            }
+            
+            tbody.innerHTML = data.map(row => {
+                return '<tr>' + Object.entries(row).map(([key, val]) => {
+                    if (key === 'URL' && val) {
+                        return `<td><a href="${val}" target="_blank" class="problem-link" title="Открыть задачу">📎</a></td>`;
+                    }
+                    if (key === 'Проблемы' && val) {
+                        return `<td class="problems-cell" title="${val}">${val}</td>`;
+                    }
+                    return `<td title="${val || ''}">${val !== null && val !== '' ? val : '-'}</td>`;
+                }).join('') + '</tr>';
+            }).join('');
+        }
+        
+        function sortTable(tableId, column) {
+            const table = document.getElementById(tableId);
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const headers = table.querySelectorAll('th');
+            
+            if (sortState.column === column) {
+                sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortState.column = column;
+                sortState.direction = 'asc';
+            }
+            
+            headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+            const currentHeader = Array.from(headers).find(h => h.textContent.trim() === column);
+            if (currentHeader) {
+                currentHeader.classList.add(sortState.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+            }
+            
+            rows.sort((a, b) => {
+                const colIndex = Array.from(headers).findIndex(h => h.textContent.trim() === column);
+                const aText = a.children[colIndex]?.textContent || '';
+                const bText = b.children[colIndex]?.textContent || '';
+                
+                const aNum = parseFloat(aText.replace(',', '.'));
+                const bNum = parseFloat(bText.replace(',', '.'));
+                
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return sortState.direction === 'asc' ? aNum - bNum : bNum - aNum;
+                }
+                
+                return sortState.direction === 'asc' 
+                    ? aText.localeCompare(bText, 'ru') 
+                    : bText.localeCompare(aText, 'ru');
+            });
+            
+            rows.forEach(row => tbody.appendChild(row));
+        }
+        
+        async function downloadExcel() {
+            const params = getParams();
+            
+            try {
+                const response = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(params)
+                });
+                
+                if (!response.ok) throw new Error('Ошибка при скачивании');
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `jira_report_${params.start_date || 'last_month'}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+            } catch (error) {
+                alert('❌ Ошибка: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
