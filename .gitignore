@@ -52,6 +52,3 @@ Thumbs.db
 .coverage
 htmlcov/
 
-# Service files (systemd)
-*.service
-install-service.sh
