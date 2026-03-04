@@ -200,11 +200,11 @@ def save_closed_status_ids(status_ids: List[str]) -> None:
 def validate_issue(issue: Any, jira: Optional[JIRA] = None) -> List[str]:
     """
     Проверяет задачу на корректность заполнения.
-    
+
     Args:
         issue: Объект задачи Jira
-        jira: Объект подключения к Jira (не используется)
-        
+        jira: Объект подключения к Jira (нужен для проверки changelog)
+
     Returns:
         List[str]: Список проблем
     """
@@ -223,19 +223,50 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None) -> List[str]:
         status_id = issue.fields.status.id
         status_name = issue.fields.status.name
 
+        # Проверяем changelog ТОЛЬКО если статус "Закрыт"
         if status_id in CLOSED_STATUS_IDS:
-            # Проверяем, не является ли исполнитель исключением
+            is_correct_close = False
+            
+            # Проверяем, не является ли исполнитель исключением (holin и т.п.)
             assignee_name = ''
             if issue.fields.assignee:
                 assignee_name = issue.fields.assignee.name if hasattr(issue.fields.assignee, 'name') else issue.fields.assignee.displayName
 
-            is_exception = False
             for exc in EXCLUDED_ASSIGNEE_CLOSE:
                 if exc.lower() in assignee_name.lower():
-                    is_exception = True
+                    is_correct_close = True
                     break
+            
+            # Если не исключение, проверяем changelog (кто перевёл в "Закрыт")
+            if not is_correct_close and jira:
+                try:
+                    # Получаем историю переходов задачи
+                    issue_with_changelog = jira.issue(issue.key, expand='changelog')
+                    if hasattr(issue_with_changelog, 'changelog') and issue_with_changelog.changelog:
+                        # Ищем последний переход в статус "Закрыт"
+                        for history in reversed(issue_with_changelog.changelog.histories):
+                            for item in history.items:
+                                if item.field == 'status' and item.toString:
+                                    # Проверяем, был ли это переход в закрытый статус
+                                    if hasattr(item, 'to') and item.to in CLOSED_STATUS_IDS:
+                                        # Проверяем, кто сделал переход
+                                        author_name = ''
+                                        if hasattr(history, 'author') and history.author:
+                                            author_name = history.author.name if hasattr(history.author, 'name') else history.author.displayName
+                                        
+                                        # Если переход сделал пользователь демона — это корректно
+                                        if JIRA_USER and JIRA_USER.lower() in author_name.lower():
+                                            is_correct_close = True
+                                        break
+                            if is_correct_close or (hasattr(item, 'to') and item.to in CLOSED_STATUS_IDS):
+                                break
+                except Exception as e:
+                    # Если не удалось получить changelog, считаем это проблемой
+                    logger.warning(f"⚠️  Не удалось получить changelog для {issue.key}: {e}")
+                    problems.append('Не удалось проверить историю переходов')
 
-            if not is_exception:
+            # Если статус "Закрыт" и не корректно закрыт — это проблема
+            if not is_correct_close:
                 problems.append(f"Статус '{status_name}' (ID: {status_id})")
 
     return problems
@@ -244,21 +275,29 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None) -> List[str]:
 def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
     """
     Возвращает порядок колонок для каждого блока.
-    
+
     Args:
         block: Название блока отчёта
         extra_verbose: Показывать ли ID объектов
-        
+
     Returns:
         List[str]: Список названий колонок
     """
     if block == 'summary':
+        if extra_verbose:
+            return ['Клиент (Проект)', 'ID', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
         return ['Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
     elif block == 'assignees':
+        if extra_verbose:
+            return ['Исполнитель', 'ID', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
         return ['Исполнитель', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
     elif block == 'detail':
+        if extra_verbose:
+            return ['URL', 'ID', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
         return ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
     elif block == 'issues':
+        if extra_verbose:
+            return ['URL', 'ID', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
         return ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
     else:
         return ['Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Дата создания', 'Дата исполнения', 'Факт (ч)', 'Оценка (ч)']
@@ -422,11 +461,11 @@ def generate_report(
                 elif hasattr(issue.fields, 'author') and issue.fields.author:
                     author = issue.fields.author.displayName if hasattr(issue.fields.author, 'displayName') else str(issue.fields.author)
                     author_id = issue.fields.author.id if hasattr(issue.fields.author, 'id') else ''
-                
+
                 # Формируем имя автора с ID если нужно
                 author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
-                
-                issues_with_problems.append({
+
+                issue_data = {
                     'URL': issue_url,
                     'Проект': proj_name,
                     'Задача': issue.fields.summary,
@@ -435,10 +474,14 @@ def generate_report(
                     'Дата создания': created,
                     'Дата исполнения': duedate,
                     'Проблемы': ', '.join(problems)
-                })
+                }
+                # Добавляем ID задачи для extra_verbose
+                if extra_verbose:
+                    issue_data.insert(1, 'ID', issue.id)
+                issues_with_problems.append(issue_data)
         
         if proj_correct > 0 or proj_issues > 0:
-            summary_data.append({
+            summary_row = {
                 'Клиент (Проект)': proj_name,
                 'Задач закрыто': proj_correct + proj_issues,
                 'Корректных': proj_correct,
@@ -446,7 +489,13 @@ def generate_report(
                 'Оценка (ч)': round(proj_estimated, 2),
                 'Факт (ч)': round(proj_spent, 2),
                 'Отклонение': round(proj_estimated - proj_spent, 2)
-            })
+            }
+            # Добавляем ID проекта для extra_verbose
+            if extra_verbose:
+                # Берём ID проекта из первой задачи
+                proj_id = issues_normal[0].fields.project.id if issues_normal else ''
+                summary_row.insert(1, 'ID', proj_id)
+            summary_data.append(summary_row)
     
     df_detail = pd.DataFrame(all_issues_data)
     df_summary = pd.DataFrame(summary_data)
@@ -455,7 +504,7 @@ def generate_report(
     # Сортировка и группировка
     if not df_detail.empty:
         df_detail = df_detail.sort_values(by=['Тип', 'Проект', 'Дата решения'], ascending=[True, True, True])
-        
+
         # Группировка по исполнителям - СЧИТАЕМ ВСЕ ЗАДАЧИ (разделяем на корректные и с ошибками)
         if not df_detail.empty:
             df_assignees = df_detail.groupby('Исполнитель').agg(
@@ -467,6 +516,14 @@ def generate_report(
             df_assignees['Отклонение'] = df_assignees['Оценка (ч)'] - df_assignees['Факт (ч)']
             df_assignees = df_assignees.round(2)
             df_assignees = df_assignees.sort_values(by='Факт (ч)', ascending=False)
+            
+            # Добавляем колонку ID для extra_verbose (извлекаем из "Исполнитель [ID]")
+            if extra_verbose:
+                def extract_id(name):
+                    if '[' in name and ']' in name:
+                        return name.split('[')[-1].split(']')[0]
+                    return ''
+                df_assignees.insert(1, 'ID', df_assignees['Исполнитель'].apply(extract_id))
         else:
             df_assignees = pd.DataFrame()
     else:

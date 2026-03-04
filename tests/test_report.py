@@ -77,11 +77,23 @@ class TestGetColumnOrder:
         assert 'Факт (ч)' in cols
         assert len(cols) == 7
 
+    def test_summary_columns_extra_verbose(self):
+        cols = get_column_order('summary', extra_verbose=True)
+        assert 'Клиент (Проект)' in cols
+        assert 'ID' in cols
+        assert len(cols) == 8
+
     def test_assignees_columns(self):
         cols = get_column_order('assignees')
         assert 'Исполнитель' in cols
         assert 'Задач' in cols
         assert len(cols) == 7
+
+    def test_assignees_columns_extra_verbose(self):
+        cols = get_column_order('assignees', extra_verbose=True)
+        assert 'Исполнитель' in cols
+        assert 'ID' in cols
+        assert len(cols) == 8
 
     def test_detail_columns(self):
         cols = get_column_order('detail')
@@ -89,11 +101,23 @@ class TestGetColumnOrder:
         assert 'Задача' in cols
         assert len(cols) == 9
 
+    def test_detail_columns_extra_verbose(self):
+        cols = get_column_order('detail', extra_verbose=True)
+        assert 'URL' in cols
+        assert 'ID' in cols
+        assert len(cols) == 10
+
     def test_issues_columns(self):
         cols = get_column_order('issues')
         assert 'URL' in cols
         assert 'Проблемы' in cols
         assert len(cols) == 8
+
+    def test_issues_columns_extra_verbose(self):
+        cols = get_column_order('issues', extra_verbose=True)
+        assert 'URL' in cols
+        assert 'ID' in cols
+        assert len(cols) == 9
 
     def test_unknown_block(self):
         cols = get_column_order('unknown')
@@ -168,7 +192,8 @@ class TestValidateIssue:
         problems = validate_issue(mock_issue)
         assert 'Нет фактического времени' in problems
 
-    def test_closed_status_is_problem(self):
+    def test_closed_status_without_changelog_is_problem(self):
+        """Если статус 'Закрыт' и нет changelog (jira=None) — это проблема"""
         mock_issue = Mock()
         mock_issue.fields.resolutiondate = '2024-01-01'
         mock_issue.fields.timespent = 3600
@@ -180,10 +205,12 @@ class TestValidateIssue:
         mock_issue.fields.assignee.displayName = 'Ivanov Ivan'
 
         with patch('jira_report.CLOSED_STATUS_IDS', ['10001']):
-            problems = validate_issue(mock_issue)
+            # jira=None, changelog проверить нельзя
+            problems = validate_issue(mock_issue, jira=None)
             assert any('Статус' in p for p in problems)
 
     def test_excluded_assignee_closed_status_ok(self):
+        """Для исполнителя из EXCLUDED_ASSIGNEE_CLOSE статус 'Закрыт' — ОК"""
         mock_issue = Mock()
         mock_issue.fields.resolutiondate = '2024-01-01'
         mock_issue.fields.timespent = 3600
@@ -195,9 +222,86 @@ class TestValidateIssue:
         mock_issue.fields.assignee.displayName = 'Holin Petr'
 
         with patch('jira_report.CLOSED_STATUS_IDS', ['10001']):
-            problems = validate_issue(mock_issue)
+            problems = validate_issue(mock_issue, jira=None)
             # Для holin статус "Закрыт" не должен быть проблемой
             assert not any('Статус' in p for p in problems)
+
+    def test_closed_by_jira_user_is_ok(self):
+        """Если задача закрыта пользователем демона (JIRA_USER) — это ОК"""
+        mock_issue = Mock()
+        mock_issue.fields.resolutiondate = '2024-01-01'
+        mock_issue.fields.timespent = 3600
+        mock_issue.fields.status = Mock()
+        mock_issue.fields.status.id = '10001'
+        mock_issue.fields.status.name = 'Закрыт'
+        mock_issue.fields.assignee = Mock()
+        mock_issue.fields.assignee.name = 'ivanov'
+        mock_issue.fields.assignee.displayName = 'Ivanov Ivan'
+        
+        # Ключ задачи
+        mock_issue.key = 'TEST-123'
+        
+        # Создаём mock changelog с переходом от jira_user
+        mock_changelog = Mock()
+        mock_history = Mock()
+        mock_history_item = Mock()
+        mock_history_item.field = 'status'
+        mock_history_item.toString = 'Закрыт'
+        mock_history_item.to = '10001'
+        mock_history.items = [mock_history_item]
+        mock_history.author = Mock()
+        mock_history.author.name = 'jira_user'  # Пользователь демона
+        mock_changelog.histories = [mock_history]
+        
+        mock_issue_with_changelog = Mock()
+        mock_issue_with_changelog.changelog = mock_changelog
+        
+        mock_jira = Mock()
+        mock_jira.issue.return_value = mock_issue_with_changelog
+
+        with patch('jira_report.CLOSED_STATUS_IDS', ['10001']):
+            with patch('jira_report.JIRA_USER', 'jira_user'):
+                problems = validate_issue(mock_issue, jira=mock_jira)
+                # Закрыто пользователем демона — проблем нет
+                assert not any('Статус' in p for p in problems)
+
+    def test_closed_by_other_user_is_problem(self):
+        """Если задача закрыта не пользователем демона — это проблема"""
+        mock_issue = Mock()
+        mock_issue.fields.resolutiondate = '2024-01-01'
+        mock_issue.fields.timespent = 3600
+        mock_issue.fields.status = Mock()
+        mock_issue.fields.status.id = '10001'
+        mock_issue.fields.status.name = 'Закрыт'
+        mock_issue.fields.assignee = Mock()
+        mock_issue.fields.assignee.name = 'ivanov'
+        mock_issue.fields.assignee.displayName = 'Ivanov Ivan'
+        
+        mock_issue.key = 'TEST-123'
+        
+        # Changelog с переходом от другого пользователя
+        mock_changelog = Mock()
+        mock_history = Mock()
+        mock_history_item = Mock()
+        mock_history_item.field = 'status'
+        mock_history_item.toString = 'Закрыт'
+        mock_history_item.to = '10001'
+        mock_history.items = [mock_history_item]
+        mock_history.author = Mock()
+        mock_history.author.name = 'petrov'  # Другой пользователь
+        mock_changelog.histories = [mock_history]
+        
+        mock_issue_with_changelog = Mock()
+        mock_issue_with_changelog.changelog = mock_changelog
+        
+        mock_jira = Mock()
+        mock_jira.issue.return_value = mock_issue_with_changelog
+
+        with patch('jira_report.CLOSED_STATUS_IDS', ['10001']):
+            with patch('jira_report.JIRA_USER', 'jira_user'):
+                problems = validate_issue(mock_issue, jira=mock_jira)
+                # Закрыто не пользователем демона — это проблема
+                assert any('Статус' in p for p in problems)
 
     def test_correct_issue_no_problems(self):
         mock_issue = Mock()
