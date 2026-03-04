@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
-Jira Report System — Ядро отчётов
+Jira Report System вЂ” РЇРґСЂРѕ РѕС‚С‡С‘С‚РѕРІ
 
-Модуль для сбора, обработки и выгрузки данных из Jira.
-Поддерживает консольный режим и работу через Web-интерфейс.
+РњРѕРґСѓР»СЊ РґР»СЏ СЃР±РѕСЂР°, РѕР±СЂР°Р±РѕС‚РєРё Рё РІС‹РіСЂСѓР·РєРё РґР°РЅРЅС‹С… РёР· Jira.
+РџРѕРґРґРµСЂР¶РёРІР°РµС‚ РєРѕРЅСЃРѕР»СЊРЅС‹Р№ СЂРµР¶РёРј Рё СЂР°Р±РѕС‚Сѓ С‡РµСЂРµР· Web-РёРЅС‚РµСЂС„РµР№СЃ.
 """
 from typing import Optional, List, Dict, Any, Tuple, Union
 from jira import JIRA, JIRAError
@@ -18,7 +18,7 @@ import logging
 import io
 from dateutil.relativedelta import relativedelta
 
-# Импортируем настройки из config.py
+# РРјРїРѕСЂС‚РёСЂСѓРµРј РЅР°СЃС‚СЂРѕР№РєРё РёР· config.py
 from config import (
     JIRA_SERVER,
     JIRA_USER,
@@ -33,7 +33,7 @@ from config import (
     LOG_DATE_FORMAT
 )
 
-# --- НАСТРОЙКА ЛОГИРОВАНИЯ ---
+# --- РќРђРЎРўР РћР™РљРђ Р›РћР“РР РћР’РђРќРРЇ ---
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL),
     format=LOG_FORMAT,
@@ -41,46 +41,46 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# --- НАСТРОЙКА SSL ---
+# --- РќРђРЎРўР РћР™РљРђ SSL ---
 if not SSL_VERIFY:
-    logger.warning("⚠️  Проверка SSL отключена (SSL_VERIFY=false)")
+    logger.warning("вљ пёЏ  РџСЂРѕРІРµСЂРєР° SSL РѕС‚РєР»СЋС‡РµРЅР° (SSL_VERIFY=false)")
     os.environ['REQUESTS_CA_BUNDLE'] = ''
     os.environ['CURL_CA_BUNDLE'] = ''
     warnings.simplefilter('ignore', InsecureRequestWarning)
 else:
-    logger.info("✅ Проверка SSL включена")
+    logger.info("вњ… РџСЂРѕРІРµСЂРєР° SSL РІРєР»СЋС‡РµРЅР°")
 
 def validate_config() -> Tuple[bool, List[str]]:
     """
-    Проверяет корректность конфигурации.
+    РџСЂРѕРІРµСЂСЏРµС‚ РєРѕСЂСЂРµРєС‚РЅРѕСЃС‚СЊ РєРѕРЅС„РёРіСѓСЂР°С†РёРё.
     
     Returns:
-        Tuple[bool, List[str]]: (успех, список ошибок)
+        Tuple[bool, List[str]]: (СѓСЃРїРµС…, СЃРїРёСЃРѕРє РѕС€РёР±РѕРє)
     """
     errors = []
     
     if not JIRA_SERVER:
-        errors.append("Не указан JIRA_SERVER в .env")
+        errors.append("РќРµ СѓРєР°Р·Р°РЅ JIRA_SERVER РІ .env")
     if not JIRA_USER:
-        errors.append("Не указан JIRA_USER в .env")
+        errors.append("РќРµ СѓРєР°Р·Р°РЅ JIRA_USER РІ .env")
     if not JIRA_PASS:
-        errors.append("Не указан JIRA_PASS в .env")
+        errors.append("РќРµ СѓРєР°Р·Р°РЅ JIRA_PASS РІ .env")
     
     return (len(errors) == 0, errors)
 
 
 def get_jira_connection() -> JIRA:
     """
-    Устанавливает соединение с Jira.
+    РЈСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ СЃРѕРµРґРёРЅРµРЅРёРµ СЃ Jira.
     
     Returns:
-        JIRA: Объект подключения к Jira
+        JIRA: РћР±СЉРµРєС‚ РїРѕРґРєР»СЋС‡РµРЅРёСЏ Рє Jira
         
     Raises:
-        ConnectionError: При ошибке подключения
+        ConnectionError: РџСЂРё РѕС€РёР±РєРµ РїРѕРґРєР»СЋС‡РµРЅРёСЏ
     """
     try:
-        logger.info(f"🔌 Подключение к Jira: {JIRA_SERVER}")
+        logger.info(f"рџ”Њ РџРѕРґРєР»СЋС‡РµРЅРёРµ Рє Jira: {JIRA_SERVER}")
         
         if not SSL_VERIFY:
             jira = JIRA(
@@ -94,24 +94,24 @@ def get_jira_connection() -> JIRA:
                 basic_auth=(JIRA_USER, JIRA_PASS)
             )
         
-        # Проверка подключения
+        # РџСЂРѕРІРµСЂРєР° РїРѕРґРєР»СЋС‡РµРЅРёСЏ
         jira.myself()
-        logger.info("✅ Успешное подключение к Jira")
+        logger.info("вњ… РЈСЃРїРµС€РЅРѕРµ РїРѕРґРєР»СЋС‡РµРЅРёРµ Рє Jira")
         return jira
         
     except JIRAError as e:
-        logger.error(f"❌ Ошибка подключения к Jira: {e.text}")
-        raise ConnectionError(f"Не удалось подключиться к Jira: {e.text}")
+        logger.error(f"вќЊ РћС€РёР±РєР° РїРѕРґРєР»СЋС‡РµРЅРёСЏ Рє Jira: {e.text}")
+        raise ConnectionError(f"РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґРєР»СЋС‡РёС‚СЊСЃСЏ Рє Jira: {e.text}")
     except Exception as e:
-        logger.error(f"❌ Неизвестная ошибка подключения: {e}")
-        raise ConnectionError(f"Ошибка подключения: {e}")
+        logger.error(f"вќЊ РќРµРёР·РІРµСЃС‚РЅР°СЏ РѕС€РёР±РєР° РїРѕРґРєР»СЋС‡РµРЅРёСЏ: {e}")
+        raise ConnectionError(f"РћС€РёР±РєР° РїРѕРґРєР»СЋС‡РµРЅРёСЏ: {e}")
 
 def get_default_start_date() -> datetime:
     """
-    Возвращает дату начала по умолчанию (1 число прошлого месяца).
+    Р’РѕР·РІСЂР°С‰Р°РµС‚ РґР°С‚Сѓ РЅР°С‡Р°Р»Р° РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ (1 С‡РёСЃР»Рѕ РїСЂРѕС€Р»РѕРіРѕ РјРµСЃСЏС†Р°).
     
     Returns:
-        datetime: Дата начала
+        datetime: Р”Р°С‚Р° РЅР°С‡Р°Р»Р°
     """
     today = datetime.now()
     if today.month == 1:
@@ -122,13 +122,13 @@ def get_default_start_date() -> datetime:
 
 def convert_seconds_to_hours(seconds: Optional[int]) -> float:
     """
-    Конвертирует секунды в часы.
+    РљРѕРЅРІРµСЂС‚РёСЂСѓРµС‚ СЃРµРєСѓРЅРґС‹ РІ С‡Р°СЃС‹.
     
     Args:
-        seconds: Время в секундах
+        seconds: Р’СЂРµРјСЏ РІ СЃРµРєСѓРЅРґР°С…
         
     Returns:
-        float: Время в часах
+        float: Р’СЂРµРјСЏ РІ С‡Р°СЃР°С…
     """
     if seconds is None:
         return 0.0
@@ -137,17 +137,17 @@ def convert_seconds_to_hours(seconds: Optional[int]) -> float:
 
 def get_closed_status_ids() -> List[str]:
     """
-    Автоматически определяет ID статуса "Закрыт" в Jira.
-    Кэширует результат в .env для последующих запусков.
+    РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРё РѕРїСЂРµРґРµР»СЏРµС‚ ID СЃС‚Р°С‚СѓСЃР° "Р—Р°РєСЂС‹С‚" РІ Jira.
+    РљСЌС€РёСЂСѓРµС‚ СЂРµР·СѓР»СЊС‚Р°С‚ РІ .env РґР»СЏ РїРѕСЃР»РµРґСѓСЋС‰РёС… Р·Р°РїСѓСЃРєРѕРІ.
     
     Returns:
-        List[str]: Список ID статусов
+        List[str]: РЎРїРёСЃРѕРє ID СЃС‚Р°С‚СѓСЃРѕРІ
     """
     if CLOSED_STATUS_IDS and CLOSED_STATUS_IDS[0] != '':
-        logger.info(f"✅ ID статуса 'Закрыт' загружен из .env: {CLOSED_STATUS_IDS}")
+        logger.info(f"вњ… ID СЃС‚Р°С‚СѓСЃР° 'Р—Р°РєСЂС‹С‚' Р·Р°РіСЂСѓР¶РµРЅ РёР· .env: {CLOSED_STATUS_IDS}")
         return CLOSED_STATUS_IDS
 
-    logger.info("🔍 Определение ID статуса 'Закрыт' в Jira...")
+    logger.info("рџ”Ќ РћРїСЂРµРґРµР»РµРЅРёРµ ID СЃС‚Р°С‚СѓСЃР° 'Р—Р°РєСЂС‹С‚' РІ Jira...")
 
     try:
         jira = get_jira_connection()
@@ -155,35 +155,35 @@ def get_closed_status_ids() -> List[str]:
 
         closed_ids = []
         for status in statuses:
-            if status.name.lower() in ['закрыт', 'closed', 'закрыто']:
+            if status.name.lower() in ['Р·Р°РєСЂС‹С‚', 'closed', 'Р·Р°РєСЂС‹С‚Рѕ']:
                 closed_ids.append(status.id)
-                logger.info(f"   📌 Найден статус: {status.name} (ID: {status.id})")
+                logger.info(f"   рџ“Њ РќР°Р№РґРµРЅ СЃС‚Р°С‚СѓСЃ: {status.name} (ID: {status.id})")
 
         if closed_ids:
             save_closed_status_ids(closed_ids)
-            logger.info(f"✅ ID сохранены в .env: {closed_ids}")
+            logger.info(f"вњ… ID СЃРѕС…СЂР°РЅРµРЅС‹ РІ .env: {closed_ids}")
             return closed_ids
         else:
-            logger.warning("⚠️  Статус 'Закрыт' не найден.")
+            logger.warning("вљ пёЏ  РЎС‚Р°С‚СѓСЃ 'Р—Р°РєСЂС‹С‚' РЅРµ РЅР°Р№РґРµРЅ.")
             return []
 
     except Exception as e:
-        logger.error(f"❌ Ошибка определения статуса: {e}")
+        logger.error(f"вќЊ РћС€РёР±РєР° РѕРїСЂРµРґРµР»РµРЅРёСЏ СЃС‚Р°С‚СѓСЃР°: {e}")
         return []
 
 
 def save_closed_status_ids(status_ids: List[str]) -> None:
     """
-    Сохраняет ID статусов в файл .env.
+    РЎРѕС…СЂР°РЅСЏРµС‚ ID СЃС‚Р°С‚СѓСЃРѕРІ РІ С„Р°Р№Р» .env.
 
     Args:
-        status_ids: Список ID для сохранения
+        status_ids: РЎРїРёСЃРѕРє ID РґР»СЏ СЃРѕС…СЂР°РЅРµРЅРёСЏ
     """
     env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 
     env_content = ''
     if os.path.exists(env_path):
-        # Читаем в UTF-8, если не получается — пробуем cp1251 (Windows)
+        # Р§РёС‚Р°РµРј РІ UTF-8, РµСЃР»Рё РЅРµ РїРѕР»СѓС‡Р°РµС‚СЃСЏ вЂ” РїСЂРѕР±СѓРµРј cp1251 (Windows)
         for encoding in ['utf-8', 'cp1251']:
             try:
                 with open(env_path, 'r', encoding=encoding) as f:
@@ -200,41 +200,41 @@ def save_closed_status_ids(status_ids: List[str]) -> None:
     else:
         env_content += f"\nCLOSED_STATUS_IDS={','.join(status_ids)}"
 
-    # Пишем в UTF-8 (стандарт для python-dotenv)
+    # РџРёС€РµРј РІ UTF-8 (СЃС‚Р°РЅРґР°СЂС‚ РґР»СЏ python-dotenv)
     with open(env_path, 'w', encoding='utf-8') as f:
         f.write(env_content)
 
 def validate_issue(issue: Any, jira: Optional[JIRA] = None) -> List[str]:
     """
-    Проверяет задачу на корректность заполнения.
+    РџСЂРѕРІРµСЂСЏРµС‚ Р·Р°РґР°С‡Сѓ РЅР° РєРѕСЂСЂРµРєС‚РЅРѕСЃС‚СЊ Р·Р°РїРѕР»РЅРµРЅРёСЏ.
 
     Args:
-        issue: Объект задачи Jira
-        jira: Объект подключения к Jira (нужен для проверки changelog)
+        issue: РћР±СЉРµРєС‚ Р·Р°РґР°С‡Рё Jira
+        jira: РћР±СЉРµРєС‚ РїРѕРґРєР»СЋС‡РµРЅРёСЏ Рє Jira (РЅСѓР¶РµРЅ РґР»СЏ РїСЂРѕРІРµСЂРєРё changelog)
 
     Returns:
-        List[str]: Список проблем
+        List[str]: РЎРїРёСЃРѕРє РїСЂРѕР±Р»РµРј
     """
     problems = []
 
-    # Проверка даты решения
+    # РџСЂРѕРІРµСЂРєР° РґР°С‚С‹ СЂРµС€РµРЅРёСЏ
     if not issue.fields.resolutiondate:
-        problems.append('Нет даты решения')
+        problems.append('РќРµС‚ РґР°С‚С‹ СЂРµС€РµРЅРёСЏ')
 
-    # Проверка фактического времени
+    # РџСЂРѕРІРµСЂРєР° С„Р°РєС‚РёС‡РµСЃРєРѕРіРѕ РІСЂРµРјРµРЅРё
     if issue.fields.timespent is None or issue.fields.timespent == 0:
-        problems.append('Нет фактического времени')
+        problems.append('РќРµС‚ С„Р°РєС‚РёС‡РµСЃРєРѕРіРѕ РІСЂРµРјРµРЅРё')
 
-    # Проверка статуса "Закрыт" по ID
+    # РџСЂРѕРІРµСЂРєР° СЃС‚Р°С‚СѓСЃР° "Р—Р°РєСЂС‹С‚" РїРѕ ID
     if issue.fields.status:
         status_id = issue.fields.status.id
         status_name = issue.fields.status.name
 
-        # Проверяем changelog ТОЛЬКО если статус "Закрыт"
+        # РџСЂРѕРІРµСЂСЏРµРј changelog РўРћР›Р¬РљРћ РµСЃР»Рё СЃС‚Р°С‚СѓСЃ "Р—Р°РєСЂС‹С‚"
         if status_id in CLOSED_STATUS_IDS:
             is_correct_close = False
             
-            # Проверяем, не является ли исполнитель исключением (holin и т.п.)
+            # РџСЂРѕРІРµСЂСЏРµРј, РЅРµ СЏРІР»СЏРµС‚СЃСЏ Р»Рё РёСЃРїРѕР»РЅРёС‚РµР»СЊ РёСЃРєР»СЋС‡РµРЅРёРµРј (holin Рё С‚.Рї.)
             assignee_name = ''
             if issue.fields.assignee:
                 assignee_name = issue.fields.assignee.name if hasattr(issue.fields.assignee, 'name') else issue.fields.assignee.displayName
@@ -244,70 +244,70 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None) -> List[str]:
                     is_correct_close = True
                     break
             
-            # Если не исключение, проверяем changelog (кто перевёл в "Закрыт")
+            # Р•СЃР»Рё РЅРµ РёСЃРєР»СЋС‡РµРЅРёРµ, РїСЂРѕРІРµСЂСЏРµРј changelog (РєС‚Рѕ РїРµСЂРµРІС‘Р» РІ "Р—Р°РєСЂС‹С‚")
             if not is_correct_close and jira:
                 try:
-                    # Получаем историю переходов задачи
+                    # РџРѕР»СѓС‡Р°РµРј РёСЃС‚РѕСЂРёСЋ РїРµСЂРµС…РѕРґРѕРІ Р·Р°РґР°С‡Рё
                     issue_with_changelog = jira.issue(issue.key, expand='changelog')
                     if hasattr(issue_with_changelog, 'changelog') and issue_with_changelog.changelog:
-                        # Ищем последний переход в статус "Закрыт"
+                        # РС‰РµРј РїРѕСЃР»РµРґРЅРёР№ РїРµСЂРµС…РѕРґ РІ СЃС‚Р°С‚СѓСЃ "Р—Р°РєСЂС‹С‚"
                         for history in reversed(issue_with_changelog.changelog.histories):
                             for item in history.items:
                                 if item.field == 'status' and item.toString:
-                                    # Проверяем, был ли это переход в закрытый статус
+                                    # РџСЂРѕРІРµСЂСЏРµРј, Р±С‹Р» Р»Рё СЌС‚Рѕ РїРµСЂРµС…РѕРґ РІ Р·Р°РєСЂС‹С‚С‹Р№ СЃС‚Р°С‚СѓСЃ
                                     if hasattr(item, 'to') and item.to in CLOSED_STATUS_IDS:
-                                        # Проверяем, кто сделал переход
+                                        # РџСЂРѕРІРµСЂСЏРµРј, РєС‚Рѕ СЃРґРµР»Р°Р» РїРµСЂРµС…РѕРґ
                                         author_name = ''
                                         if hasattr(history, 'author') and history.author:
                                             author_name = history.author.name if hasattr(history.author, 'name') else history.author.displayName
                                         
-                                        # Если переход сделал пользователь демона — это корректно
+                                        # Р•СЃР»Рё РїРµСЂРµС…РѕРґ СЃРґРµР»Р°Р» РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РґРµРјРѕРЅР° вЂ” СЌС‚Рѕ РєРѕСЂСЂРµРєС‚РЅРѕ
                                         if JIRA_USER and JIRA_USER.lower() in author_name.lower():
                                             is_correct_close = True
                                         break
                             if is_correct_close or (hasattr(item, 'to') and item.to in CLOSED_STATUS_IDS):
                                 break
                 except Exception as e:
-                    # Если не удалось получить changelog, считаем это проблемой
-                    logger.warning(f"⚠️  Не удалось получить changelog для {issue.key}: {e}")
-                    problems.append('Не удалось проверить историю переходов')
+                    # Р•СЃР»Рё РЅРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ changelog, СЃС‡РёС‚Р°РµРј СЌС‚Рѕ РїСЂРѕР±Р»РµРјРѕР№
+                    logger.warning(f"вљ пёЏ  РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ changelog РґР»СЏ {issue.key}: {e}")
+                    problems.append('РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕРІРµСЂРёС‚СЊ РёСЃС‚РѕСЂРёСЋ РїРµСЂРµС…РѕРґРѕРІ')
 
-            # Если статус "Закрыт" и не корректно закрыт — это проблема
+            # Р•СЃР»Рё СЃС‚Р°С‚СѓСЃ "Р—Р°РєСЂС‹С‚" Рё РЅРµ РєРѕСЂСЂРµРєС‚РЅРѕ Р·Р°РєСЂС‹С‚ вЂ” СЌС‚Рѕ РїСЂРѕР±Р»РµРјР°
             if not is_correct_close:
-                problems.append(f"Статус '{status_name}' (ID: {status_id})")
+                problems.append(f"РЎС‚Р°С‚СѓСЃ '{status_name}' (ID: {status_id})")
 
     return problems
 
 
 def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
     """
-    Возвращает порядок колонок для каждого блока.
+    Р’РѕР·РІСЂР°С‰Р°РµС‚ РїРѕСЂСЏРґРѕРє РєРѕР»РѕРЅРѕРє РґР»СЏ РєР°Р¶РґРѕРіРѕ Р±Р»РѕРєР°.
 
     Args:
-        block: Название блока отчёта
-        extra_verbose: Показывать ли ID объектов
+        block: РќР°Р·РІР°РЅРёРµ Р±Р»РѕРєР° РѕС‚С‡С‘С‚Р°
+        extra_verbose: РџРѕРєР°Р·С‹РІР°С‚СЊ Р»Рё ID РѕР±СЉРµРєС‚РѕРІ
 
     Returns:
-        List[str]: Список названий колонок
+        List[str]: РЎРїРёСЃРѕРє РЅР°Р·РІР°РЅРёР№ РєРѕР»РѕРЅРѕРє
     """
     if block == 'summary':
         if extra_verbose:
-            return ['Клиент (Проект)', 'ID', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
-        return ['Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
+            return ['РљР»РёРµРЅС‚ (РџСЂРѕРµРєС‚)', 'ID', 'Р—Р°РґР°С‡ Р·Р°РєСЂС‹С‚Рѕ', 'РљРѕСЂСЂРµРєС‚РЅС‹С…', 'РЎ РѕС€РёР±РєР°РјРё', 'РћС†РµРЅРєР° (С‡)', 'Р¤Р°РєС‚ (С‡)', 'РћС‚РєР»РѕРЅРµРЅРёРµ']
+        return ['РљР»РёРµРЅС‚ (РџСЂРѕРµРєС‚)', 'Р—Р°РґР°С‡ Р·Р°РєСЂС‹С‚Рѕ', 'РљРѕСЂСЂРµРєС‚РЅС‹С…', 'РЎ РѕС€РёР±РєР°РјРё', 'РћС†РµРЅРєР° (С‡)', 'Р¤Р°РєС‚ (С‡)', 'РћС‚РєР»РѕРЅРµРЅРёРµ']
     elif block == 'assignees':
         if extra_verbose:
-            return ['Исполнитель', 'ID', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
-        return ['Исполнитель', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
+            return ['РСЃРїРѕР»РЅРёС‚РµР»СЊ', 'ID', 'Р—Р°РґР°С‡', 'РљРѕСЂСЂРµРєС‚РЅС‹С…', 'РЎ РѕС€РёР±РєР°РјРё', 'РћС†РµРЅРєР° (С‡)', 'Р¤Р°РєС‚ (С‡)', 'РћС‚РєР»РѕРЅРµРЅРёРµ']
+        return ['РСЃРїРѕР»РЅРёС‚РµР»СЊ', 'Р—Р°РґР°С‡', 'РљРѕСЂСЂРµРєС‚РЅС‹С…', 'РЎ РѕС€РёР±РєР°РјРё', 'РћС†РµРЅРєР° (С‡)', 'Р¤Р°РєС‚ (С‡)', 'РћС‚РєР»РѕРЅРµРЅРёРµ']
     elif block == 'detail':
         if extra_verbose:
-            return ['URL', 'ID', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
-        return ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
+            return ['URL', 'ID', 'Р”Р°С‚Р° РёСЃРїРѕР»РЅРµРЅРёСЏ', 'Р”Р°С‚Р° СЃРѕР·РґР°РЅРёСЏ', 'РџСЂРѕРµРєС‚', 'РЎС‚Р°С‚СѓСЃ', 'Р—Р°РґР°С‡Р°', 'РСЃРїРѕР»РЅРёС‚РµР»СЊ', 'Р¤Р°РєС‚ (С‡)', 'РўРёРї']
+        return ['URL', 'Р”Р°С‚Р° РёСЃРїРѕР»РЅРµРЅРёСЏ', 'Р”Р°С‚Р° СЃРѕР·РґР°РЅРёСЏ', 'РџСЂРѕРµРєС‚', 'РЎС‚Р°С‚СѓСЃ', 'Р—Р°РґР°С‡Р°', 'РСЃРїРѕР»РЅРёС‚РµР»СЊ', 'Р¤Р°РєС‚ (С‡)', 'РўРёРї']
     elif block == 'issues':
         if extra_verbose:
-            return ['URL', 'ID', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
-        return ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
+            return ['URL', 'ID', 'Р”Р°С‚Р° РёСЃРїРѕР»РЅРµРЅРёСЏ', 'Р”Р°С‚Р° СЃРѕР·РґР°РЅРёСЏ', 'РџСЂРѕРµРєС‚', 'Р—Р°РґР°С‡Р°', 'РСЃРїРѕР»РЅРёС‚РµР»СЊ', 'РђРІС‚РѕСЂ', 'РџСЂРѕР±Р»РµРјС‹']
+        return ['URL', 'Р”Р°С‚Р° РёСЃРїРѕР»РЅРµРЅРёСЏ', 'Р”Р°С‚Р° СЃРѕР·РґР°РЅРёСЏ', 'РџСЂРѕРµРєС‚', 'Р—Р°РґР°С‡Р°', 'РСЃРїРѕР»РЅРёС‚РµР»СЊ', 'РђРІС‚РѕСЂ', 'РџСЂРѕР±Р»РµРјС‹']
     else:
-        return ['Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Дата создания', 'Дата исполнения', 'Факт (ч)', 'Оценка (ч)']
+        return ['РџСЂРѕРµРєС‚', 'РљР»СЋС‡', 'Р—Р°РґР°С‡Р°', 'РСЃРїРѕР»РЅРёС‚РµР»СЊ', 'РЎС‚Р°С‚СѓСЃ', 'Р”Р°С‚Р° СЃРѕР·РґР°РЅРёСЏ', 'Р”Р°С‚Р° РёСЃРїРѕР»РЅРµРЅРёСЏ', 'Р¤Р°РєС‚ (С‡)', 'РћС†РµРЅРєР° (С‡)']
         
 def generate_report(
     project_key: Optional[str] = None,
@@ -319,26 +319,26 @@ def generate_report(
     extra_verbose: bool = False
 ) -> Dict[str, Any]:
     """
-    Генерирует отчёт по задачам Jira.
+    Р“РµРЅРµСЂРёСЂСѓРµС‚ РѕС‚С‡С‘С‚ РїРѕ Р·Р°РґР°С‡Р°Рј Jira.
     
     Args:
-        project_key: Ключ проекта (None = все проекты)
-        start_date: Дата начала в формате ГГГГ-ММ-ДД (None = прошлый месяц)
-        days: Количество дней для отчёта
-        assignee_filter: Фильтр по исполнителю
-        blocks: Список блоков отчёта (None = все)
-        verbose: Режим отладки
-        extra_verbose: Показывать ID объектов
+        project_key: РљР»СЋС‡ РїСЂРѕРµРєС‚Р° (None = РІСЃРµ РїСЂРѕРµРєС‚С‹)
+        start_date: Р”Р°С‚Р° РЅР°С‡Р°Р»Р° РІ С„РѕСЂРјР°С‚Рµ Р“Р“Р“Р“-РњРњ-Р”Р” (None = РїСЂРѕС€Р»С‹Р№ РјРµСЃСЏС†)
+        days: РљРѕР»РёС‡РµСЃС‚РІРѕ РґРЅРµР№ РґР»СЏ РѕС‚С‡С‘С‚Р°
+        assignee_filter: Р¤РёР»СЊС‚СЂ РїРѕ РёСЃРїРѕР»РЅРёС‚РµР»СЋ
+        blocks: РЎРїРёСЃРѕРє Р±Р»РѕРєРѕРІ РѕС‚С‡С‘С‚Р° (None = РІСЃРµ)
+        verbose: Р РµР¶РёРј РѕС‚Р»Р°РґРєРё
+        extra_verbose: РџРѕРєР°Р·С‹РІР°С‚СЊ ID РѕР±СЉРµРєС‚РѕРІ
         
     Returns:
-        Dict[str, Any]: Словарь с данными отчёта
+        Dict[str, Any]: РЎР»РѕРІР°СЂСЊ СЃ РґР°РЅРЅС‹РјРё РѕС‚С‡С‘С‚Р°
     """
-    # Авто-определение ID статуса "Закрыт"
+    # РђРІС‚Рѕ-РѕРїСЂРµРґРµР»РµРЅРёРµ ID СЃС‚Р°С‚СѓСЃР° "Р—Р°РєСЂС‹С‚"
     global CLOSED_STATUS_IDS
     if not CLOSED_STATUS_IDS or CLOSED_STATUS_IDS[0] == '':
         CLOSED_STATUS_IDS = get_closed_status_ids()
 
-    # Обработка дат
+    # РћР±СЂР°Р±РѕС‚РєР° РґР°С‚
     if start_date:
         start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
     else:
@@ -348,13 +348,13 @@ def generate_report(
     end_date_obj = start_date_obj + timedelta(days=days - 1)
     end_date_str = end_date_obj.strftime('%Y-%m-%d')
 
-    # Для проблемных задач: +2 месяца к концу периода
+    # Р”Р»СЏ РїСЂРѕР±Р»РµРјРЅС‹С… Р·Р°РґР°С‡: +2 РјРµСЃСЏС†Р° Рє РєРѕРЅС†Сѓ РїРµСЂРёРѕРґР°
     issues_end_obj = start_date_obj + timedelta(days=days) + relativedelta(months=2)
     issues_end_str = issues_end_obj.strftime('%Y-%m-%d')
 
     jira = get_jira_connection()
     
-    # Список проектов
+    # РЎРїРёСЃРѕРє РїСЂРѕРµРєС‚РѕРІ
     if project_key:
         projects_keys = [project_key.upper()]
         projects_map = {}
@@ -378,27 +378,27 @@ def generate_report(
     for proj_key in projects_keys:
         proj_name = projects_map.get(proj_key, proj_key)
         
-        # Обычные отчёты - фильтр по resolved (дата закрытия)
+        # РћР±С‹С‡РЅС‹Рµ РѕС‚С‡С‘С‚С‹ - С„РёР»СЊС‚СЂ РїРѕ resolved (РґР°С‚Р° Р·Р°РєСЂС‹С‚РёСЏ)
         jql_normal = (f"project = {proj_key} "
                       f"AND resolved >= '{start_date_str}' "
                       f"AND resolved <= '{end_date_str}' "
                       f"ORDER BY resolved ASC")
         
-        # Проблемные задачи - фильтр по created + 2 месяца
+        # РџСЂРѕР±Р»РµРјРЅС‹Рµ Р·Р°РґР°С‡Рё - С„РёР»СЊС‚СЂ РїРѕ created + 2 РјРµСЃСЏС†Р°
         jql_issues = (f"project = {proj_key} "
                       f"AND created >= '{start_date_str}' "
                       f"AND created <= '{issues_end_str}' "
                       f"ORDER BY created ASC")
         
-        # Получаем все задачи для проблемных (больший период)
+        # РџРѕР»СѓС‡Р°РµРј РІСЃРµ Р·Р°РґР°С‡Рё РґР»СЏ РїСЂРѕР±Р»РµРјРЅС‹С… (Р±РѕР»СЊС€РёР№ РїРµСЂРёРѕРґ)
         issues_all = jira.search_issues(jql_issues, maxResults=False, 
                                         fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, creator')
         
-        # Получаем задачи для обычных отчётов (меньший период)
+        # РџРѕР»СѓС‡Р°РµРј Р·Р°РґР°С‡Рё РґР»СЏ РѕР±С‹С‡РЅС‹С… РѕС‚С‡С‘С‚РѕРІ (РјРµРЅСЊС€РёР№ РїРµСЂРёРѕРґ)
         issues_normal = jira.search_issues(jql_normal, maxResults=False, 
                                            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created')
         
-        # Обработка для обычных отчётов
+        # РћР±СЂР°Р±РѕС‚РєР° РґР»СЏ РѕР±С‹С‡РЅС‹С… РѕС‚С‡С‘С‚РѕРІ
         proj_spent = 0.0
         proj_estimated = 0.0
         proj_correct = 0
@@ -408,8 +408,8 @@ def generate_report(
             spent = convert_seconds_to_hours(issue.fields.timespent)
             estimated = convert_seconds_to_hours(issue.fields.timeoriginalestimate)
             
-            issue_type = issue.fields.issuetype.name if issue.fields.issuetype else 'Задача'
-            assignee = issue.fields.assignee.displayName if issue.fields.assignee else 'Без исполнителя'
+            issue_type = issue.fields.issuetype.name if issue.fields.issuetype else 'Р—Р°РґР°С‡Р°'
+            assignee = issue.fields.assignee.displayName if issue.fields.assignee else 'Р‘РµР· РёСЃРїРѕР»РЅРёС‚РµР»СЏ'
             duedate = issue.fields.duedate[:10] if issue.fields.duedate else '-'
             resolved = issue.fields.resolutiondate[:10] if issue.fields.resolutiondate else '-'
             created = issue.fields.created[:10] if issue.fields.created else '-'
@@ -426,7 +426,7 @@ def generate_report(
             if assignee_filter and assignee_filter.lower() not in assignee.lower():
                 continue
             
-            # Формируем отображаемые значения с ID если нужно
+            # Р¤РѕСЂРјРёСЂСѓРµРј РѕС‚РѕР±СЂР°Р¶Р°РµРјС‹Рµ Р·РЅР°С‡РµРЅРёСЏ СЃ ID РµСЃР»Рё РЅСѓР¶РЅРѕ
             project_display = f"{proj_name} [{issue.fields.project.id}]" if extra_verbose and hasattr(issue.fields, 'project') and hasattr(issue.fields.project, 'id') else proj_name
             status_display = f"{status_full} [{issue.fields.status.id}]" if extra_verbose and issue.fields.status and hasattr(issue.fields.status, 'id') else status_full
             issue_type_display = f"{issue_type} [{issue.fields.issuetype.id}]" if extra_verbose and issue.fields.issuetype and hasattr(issue.fields.issuetype, 'id') else issue_type
@@ -435,18 +435,18 @@ def generate_report(
             issue_data = {
                 'URL': issue_url,
                 'ID': issue_id,
-                'Проект': project_display,
-                'Ключ': issue.key,
-                'Тип': issue_type_display,
-                'Задача': issue.fields.summary,
-                'Исполнитель': assignee_display,
-                'Статус': status_display,
-                'Дата создания': created,
-                'Дата исполнения': duedate,
-                'Дата решения': resolved,
-                'Факт (ч)': spent,
-                'Оценка (ч)': estimated,
-                'Проблемы': ', '.join(problems) if problems else ''
+                'РџСЂРѕРµРєС‚': project_display,
+                'РљР»СЋС‡': issue.key,
+                'РўРёРї': issue_type_display,
+                'Р—Р°РґР°С‡Р°': issue.fields.summary,
+                'РСЃРїРѕР»РЅРёС‚РµР»СЊ': assignee_display,
+                'РЎС‚Р°С‚СѓСЃ': status_display,
+                'Р”Р°С‚Р° СЃРѕР·РґР°РЅРёСЏ': created,
+                'Р”Р°С‚Р° РёСЃРїРѕР»РЅРµРЅРёСЏ': duedate,
+                'Р”Р°С‚Р° СЂРµС€РµРЅРёСЏ': resolved,
+                'Р¤Р°РєС‚ (С‡)': spent,
+                'РћС†РµРЅРєР° (С‡)': estimated,
+                'РџСЂРѕР±Р»РµРјС‹': ', '.join(problems) if problems else ''
             }
             
             all_issues_data.append(issue_data)
@@ -459,7 +459,7 @@ def generate_report(
                 proj_issues += 1
             
             if problems:
-                # Для проблемных задач берём СОЗДАТЕЛЯ задачи (creator)
+                # Р”Р»СЏ РїСЂРѕР±Р»РµРјРЅС‹С… Р·Р°РґР°С‡ Р±РµСЂС‘Рј РЎРћР—Р”РђРўР•Р›РЇ Р·Р°РґР°С‡Рё (creator)
                 author = 'N/A'
                 author_id = ''
                 if hasattr(issue.fields, 'creator') and issue.fields.creator:
@@ -469,37 +469,37 @@ def generate_report(
                     author = issue.fields.author.displayName if hasattr(issue.fields.author, 'displayName') else str(issue.fields.author)
                     author_id = issue.fields.author.id if hasattr(issue.fields.author, 'id') else ''
 
-                # Формируем имя автора с ID если нужно
+                # Р¤РѕСЂРјРёСЂСѓРµРј РёРјСЏ Р°РІС‚РѕСЂР° СЃ ID РµСЃР»Рё РЅСѓР¶РЅРѕ
                 author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
 
                 issue_data = {
                     'URL': issue_url,
-                    'Проект': proj_name,
-                    'Задача': issue.fields.summary,
-                    'Исполнитель': assignee,
-                    'Автор': author_display,
-                    'Дата создания': created,
-                    'Дата исполнения': duedate,
-                    'Проблемы': ', '.join(problems)
+                    'РџСЂРѕРµРєС‚': proj_name,
+                    'Р—Р°РґР°С‡Р°': issue.fields.summary,
+                    'РСЃРїРѕР»РЅРёС‚РµР»СЊ': assignee,
+                    'РђРІС‚РѕСЂ': author_display,
+                    'Р”Р°С‚Р° СЃРѕР·РґР°РЅРёСЏ': created,
+                    'Р”Р°С‚Р° РёСЃРїРѕР»РЅРµРЅРёСЏ': duedate,
+                    'РџСЂРѕР±Р»РµРјС‹': ', '.join(problems)
                 }
-                # Добавляем ID задачи для extra_verbose
+                # Р”РѕР±Р°РІР»СЏРµРј ID Р·Р°РґР°С‡Рё РґР»СЏ extra_verbose
                 if extra_verbose:
                     issue_data.insert(1, 'ID', issue.id)
                 issues_with_problems.append(issue_data)
         
         if proj_correct > 0 or proj_issues > 0:
             summary_row = {
-                'Клиент (Проект)': proj_name,
-                'Задач закрыто': proj_correct + proj_issues,
-                'Корректных': proj_correct,
-                'С ошибками': proj_issues,
-                'Оценка (ч)': round(proj_estimated, 2),
-                'Факт (ч)': round(proj_spent, 2),
-                'Отклонение': round(proj_estimated - proj_spent, 2)
+                'РљР»РёРµРЅС‚ (РџСЂРѕРµРєС‚)': proj_name,
+                'Р—Р°РґР°С‡ Р·Р°РєСЂС‹С‚Рѕ': proj_correct + proj_issues,
+                'РљРѕСЂСЂРµРєС‚РЅС‹С…': proj_correct,
+                'РЎ РѕС€РёР±РєР°РјРё': proj_issues,
+                'РћС†РµРЅРєР° (С‡)': round(proj_estimated, 2),
+                'Р¤Р°РєС‚ (С‡)': round(proj_spent, 2),
+                'РћС‚РєР»РѕРЅРµРЅРёРµ': round(proj_estimated - proj_spent, 2)
             }
-            # Добавляем ID проекта для extra_verbose
+            # Р”РѕР±Р°РІР»СЏРµРј ID РїСЂРѕРµРєС‚Р° РґР»СЏ extra_verbose
             if extra_verbose:
-                # Берём ID проекта из первой задачи
+                # Р‘РµСЂС‘Рј ID РїСЂРѕРµРєС‚Р° РёР· РїРµСЂРІРѕР№ Р·Р°РґР°С‡Рё
                 proj_id = issues_normal[0].fields.project.id if issues_normal else ''
                 summary_row.insert(1, 'ID', proj_id)
             summary_data.append(summary_row)
@@ -508,43 +508,43 @@ def generate_report(
     df_summary = pd.DataFrame(summary_data)
     df_issues = pd.DataFrame(issues_with_problems)
     
-    # Сортировка и группировка
+    # РЎРѕСЂС‚РёСЂРѕРІРєР° Рё РіСЂСѓРїРїРёСЂРѕРІРєР°
     if not df_detail.empty:
-        df_detail = df_detail.sort_values(by=['Тип', 'Проект', 'Дата решения'], ascending=[True, True, True])
+        df_detail = df_detail.sort_values(by=['РўРёРї', 'РџСЂРѕРµРєС‚', 'Р”Р°С‚Р° СЂРµС€РµРЅРёСЏ'], ascending=[True, True, True])
 
-        # Группировка по исполнителям - СЧИТАЕМ ВСЕ ЗАДАЧИ (разделяем на корректные и с ошибками)
+        # Р“СЂСѓРїРїРёСЂРѕРІРєР° РїРѕ РёСЃРїРѕР»РЅРёС‚РµР»СЏРј - РЎР§РРўРђР•Рњ Р’РЎР• Р—РђР”РђР§Р (СЂР°Р·РґРµР»СЏРµРј РЅР° РєРѕСЂСЂРµРєС‚РЅС‹Рµ Рё СЃ РѕС€РёР±РєР°РјРё)
         if not df_detail.empty:
-            df_assignees = df_detail.groupby('Исполнитель').agg(
-                Задач=('Ключ', 'count'),
-                Корректных=('Проблемы', lambda x: (x == '').sum()),
-                С_ошибками=('Проблемы', lambda x: (x != '').sum()),
-                **{'Факт (ч)': ('Факт (ч)', 'sum'), 'Оценка (ч)': ('Оценка (ч)', 'sum')}
+            df_assignees = df_detail.groupby('РСЃРїРѕР»РЅРёС‚РµР»СЊ').agg(
+                Р—Р°РґР°С‡=('РљР»СЋС‡', 'count'),
+                РљРѕСЂСЂРµРєС‚РЅС‹С…=('РџСЂРѕР±Р»РµРјС‹', lambda x: (x == '').sum()),
+                РЎ_РѕС€РёР±РєР°РјРё=('РџСЂРѕР±Р»РµРјС‹', lambda x: (x != '').sum()),
+                **{'Р¤Р°РєС‚ (С‡)': ('Р¤Р°РєС‚ (С‡)', 'sum'), 'РћС†РµРЅРєР° (С‡)': ('РћС†РµРЅРєР° (С‡)', 'sum')}
             ).reset_index()
-            df_assignees['Отклонение'] = df_assignees['Оценка (ч)'] - df_assignees['Факт (ч)']
+            df_assignees['РћС‚РєР»РѕРЅРµРЅРёРµ'] = df_assignees['РћС†РµРЅРєР° (С‡)'] - df_assignees['Р¤Р°РєС‚ (С‡)']
             df_assignees = df_assignees.round(2)
-            df_assignees = df_assignees.sort_values(by='Факт (ч)', ascending=False)
+            df_assignees = df_assignees.sort_values(by='Р¤Р°РєС‚ (С‡)', ascending=False)
             
-            # Добавляем колонку ID для extra_verbose (извлекаем из "Исполнитель [ID]")
+            # Р”РѕР±Р°РІР»СЏРµРј РєРѕР»РѕРЅРєСѓ ID РґР»СЏ extra_verbose (РёР·РІР»РµРєР°РµРј РёР· "РСЃРїРѕР»РЅРёС‚РµР»СЊ [ID]")
             if extra_verbose:
                 def extract_id(name):
                     if '[' in name and ']' in name:
                         return name.split('[')[-1].split(']')[0]
                     return ''
-                df_assignees.insert(1, 'ID', df_assignees['Исполнитель'].apply(extract_id))
+                df_assignees.insert(1, 'ID', df_assignees['РСЃРїРѕР»РЅРёС‚РµР»СЊ'].apply(extract_id))
         else:
             df_assignees = pd.DataFrame()
     else:
         df_assignees = pd.DataFrame()
     
     result = {
-        'period': f"{start_date_str} — {end_date_str}",
+        'period': f"{start_date_str} вЂ” {end_date_str}",
         'blocks': blocks or list(REPORT_BLOCKS.keys()),
         'total_projects': len(df_summary),
         'total_tasks': len(df_detail),
-        'total_correct': len(df_detail[df_detail['Проблемы'] == '']) if not df_detail.empty else 0,
+        'total_correct': len(df_detail[df_detail['РџСЂРѕР±Р»РµРјС‹'] == '']) if not df_detail.empty else 0,
         'total_issues': len(df_issues),
-        'total_spent': df_summary['Факт (ч)'].sum() if not df_summary.empty else 0,
-        'total_estimated': df_summary['Оценка (ч)'].sum() if not df_summary.empty else 0,
+        'total_spent': df_summary['Р¤Р°РєС‚ (С‡)'].sum() if not df_summary.empty else 0,
+        'total_estimated': df_summary['РћС†РµРЅРєР° (С‡)'].sum() if not df_summary.empty else 0,
     }
     
     if 'summary' in result['blocks']:
@@ -556,7 +556,7 @@ def generate_report(
     if 'issues' in result['blocks']:
         result['issues'] = df_issues
     
-    # Фильтрация колонок для каждого блока
+    # Р¤РёР»СЊС‚СЂР°С†РёСЏ РєРѕР»РѕРЅРѕРє РґР»СЏ РєР°Р¶РґРѕРіРѕ Р±Р»РѕРєР°
     if 'detail' in result['blocks'] and not result['detail'].empty:
         cols = get_column_order('detail', extra_verbose)
         available_cols = [c for c in cols if c in result['detail'].columns]
@@ -571,64 +571,64 @@ def generate_report(
 
 def generate_excel(report_data: Dict[str, Any], output: Optional[Union[str, io.BytesIO]] = None) -> Union[str, io.BytesIO]:
     """
-    Выгружает отчёт в Excel.
+    Р’С‹РіСЂСѓР¶Р°РµС‚ РѕС‚С‡С‘С‚ РІ Excel.
     
     Args:
-        report_data: Данные отчёта
-        output: Путь к файлу или BytesIO объект
+        report_data: Р”Р°РЅРЅС‹Рµ РѕС‚С‡С‘С‚Р°
+        output: РџСѓС‚СЊ Рє С„Р°Р№Р»Сѓ РёР»Рё BytesIO РѕР±СЉРµРєС‚
         
     Returns:
-        Union[str, io.BytesIO]: Имя файла или BytesIO объект
+        Union[str, io.BytesIO]: РРјСЏ С„Р°Р№Р»Р° РёР»Рё BytesIO РѕР±СЉРµРєС‚
     """
     if output is None:
-        output = f"jira_report_{report_data['period'].replace(' — ', '_to_').replace(' ', '')}.xlsx"
+        output = f"jira_report_{report_data['period'].replace(' вЂ” ', '_to_').replace(' ', '')}.xlsx"
 
     writer = pd.ExcelWriter(output, engine='openpyxl')
     
     try:
         if 'summary' in report_data and not report_data['summary'].empty:
-            report_data['summary'].to_excel(writer, sheet_name='Сводка', index=False)
+            report_data['summary'].to_excel(writer, sheet_name='РЎРІРѕРґРєР°', index=False)
         if 'assignees' in report_data and not report_data['assignees'].empty:
-            report_data['assignees'].to_excel(writer, sheet_name='Исполнители', index=False)
+            report_data['assignees'].to_excel(writer, sheet_name='РСЃРїРѕР»РЅРёС‚РµР»Рё', index=False)
         if 'detail' in report_data and not report_data['detail'].empty:
-            report_data['detail'].to_excel(writer, sheet_name='Детали', index=False)
+            report_data['detail'].to_excel(writer, sheet_name='Р”РµС‚Р°Р»Рё', index=False)
         if 'issues' in report_data and not report_data['issues'].empty:
-            report_data['issues'].to_excel(writer, sheet_name='Проблемы', index=False)
+            report_data['issues'].to_excel(writer, sheet_name='РџСЂРѕР±Р»РµРјС‹', index=False)
     finally:
         writer.close()
     
     return output
 
 # =============================================
-# КОНСОЛЬНЫЙ ЗАПУСК
+# РљРћРќРЎРћР›Р¬РќР«Р™ Р—РђРџРЈРЎРљ
 # =============================================
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description='Генерация отчёта по закрытым задачам из Jira',
+        description='Р“РµРЅРµСЂР°С†РёСЏ РѕС‚С‡С‘С‚Р° РїРѕ Р·Р°РєСЂС‹С‚С‹Рј Р·Р°РґР°С‡Р°Рј РёР· Jira',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
-БЛОКИ ОТЧЁТА:
-  summary   - Сводка по проектам
-  assignees - Нагрузка по исполнителям
-  detail    - Детализация по задачам
-  issues    - Проблемные задачи
+Р‘Р›РћРљР РћРўР§РЃРўРђ:
+  summary   - РЎРІРѕРґРєР° РїРѕ РїСЂРѕРµРєС‚Р°Рј
+  assignees - РќР°РіСЂСѓР·РєР° РїРѕ РёСЃРїРѕР»РЅРёС‚РµР»СЏРј
+  detail    - Р”РµС‚Р°Р»РёР·Р°С†РёСЏ РїРѕ Р·Р°РґР°С‡Р°Рј
+  issues    - РџСЂРѕР±Р»РµРјРЅС‹Рµ Р·Р°РґР°С‡Рё
 
-ПРИМЕРЫ:
+РџР РРњР•Р Р«:
   python3 jira_report.py -e
   python3 jira_report.py -b summary,assignees -e
-  python3 jira_report.py -p WEB -a "Иванов" -b detail -e
+  python3 jira_report.py -p WEB -a "РРІР°РЅРѕРІ" -b detail -e
   python3 jira_report.py -b issues -vv
         '''
     )
-    parser.add_argument('-p', '--project', type=str, help='Ключ проекта')
-    parser.add_argument('-s', '--start-date', type=str, help='Дата начала (ГГГГ-ММ-ДД)')
-    parser.add_argument('-d', '--days', type=int, default=30, help='Период в днях')
-    parser.add_argument('-a', '--assignee', type=str, help='Фильтр по исполнителю')
-    parser.add_argument('-b', '--blocks', type=str, help='Блоки отчёта (через запятую)')
-    parser.add_argument('-e', '--excel', action='store_true', help='Выгрузка в Excel')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Режим отладки')
-    parser.add_argument('-vv', '--extra-verbose', action='store_true', help='Показывать ID задач во всех отчётах')
+    parser.add_argument('-p', '--project', type=str, help='РљР»СЋС‡ РїСЂРѕРµРєС‚Р°')
+    parser.add_argument('-s', '--start-date', type=str, help='Р”Р°С‚Р° РЅР°С‡Р°Р»Р° (Р“Р“Р“Р“-РњРњ-Р”Р”)')
+    parser.add_argument('-d', '--days', type=int, default=30, help='РџРµСЂРёРѕРґ РІ РґРЅСЏС…')
+    parser.add_argument('-a', '--assignee', type=str, help='Р¤РёР»СЊС‚СЂ РїРѕ РёСЃРїРѕР»РЅРёС‚РµР»СЋ')
+    parser.add_argument('-b', '--blocks', type=str, help='Р‘Р»РѕРєРё РѕС‚С‡С‘С‚Р° (С‡РµСЂРµР· Р·Р°РїСЏС‚СѓСЋ)')
+    parser.add_argument('-e', '--excel', action='store_true', help='Р’С‹РіСЂСѓР·РєР° РІ Excel')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Р РµР¶РёРј РѕС‚Р»Р°РґРєРё')
+    parser.add_argument('-vv', '--extra-verbose', action='store_true', help='РџРѕРєР°Р·С‹РІР°С‚СЊ ID Р·Р°РґР°С‡ РІРѕ РІСЃРµС… РѕС‚С‡С‘С‚Р°С…')
     args = parser.parse_args()
     
     blocks = None
@@ -636,17 +636,17 @@ if __name__ == "__main__":
         blocks = [b.strip() for b in args.blocks.split(',')]
         invalid = [b for b in blocks if b not in REPORT_BLOCKS]
         if invalid:
-            print(f"❌ Неверные блоки: {invalid}")
-            print(f"Доступные: {list(REPORT_BLOCKS.keys())}")
+            print(f"вќЊ РќРµРІРµСЂРЅС‹Рµ Р±Р»РѕРєРё: {invalid}")
+            print(f"Р”РѕСЃС‚СѓРїРЅС‹Рµ: {list(REPORT_BLOCKS.keys())}")
             sys.exit(1)
     
-    # Авто-определение статуса перед запуском
+    # РђРІС‚Рѕ-РѕРїСЂРµРґРµР»РµРЅРёРµ СЃС‚Р°С‚СѓСЃР° РїРµСЂРµРґ Р·Р°РїСѓСЃРєРѕРј
     if not CLOSED_STATUS_IDS or CLOSED_STATUS_IDS[0] == '':
         CLOSED_STATUS_IDS = get_closed_status_ids()
     
-    print(f"🔌 Генерация отчёта...")
+    print(f"рџ”Њ Р“РµРЅРµСЂР°С†РёСЏ РѕС‚С‡С‘С‚Р°...")
     if args.blocks:
-        print(f"📦 Блоки: {', '.join(blocks)}")
+        print(f"рџ“¦ Р‘Р»РѕРєРё: {', '.join(blocks)}")
     
     report = generate_report(
         project_key=args.project,
@@ -659,43 +659,43 @@ if __name__ == "__main__":
     )
     
     print("\n" + "="*100)
-    print(f"📋 ОТЧЁТ ЗА {report['period']}")
+    print(f"рџ“‹ РћРўР§РЃРў Р—Рђ {report['period']}")
     print("="*100)
     
     if 'summary' in report:
-        print("\n📊 СВОДКА ПО ПРОЕКТАМ:")
+        print("\nрџ“Љ РЎР’РћР”РљРђ РџРћ РџР РћР•РљРўРђРњ:")
         print("="*100)
         print(report['summary'].to_string(index=False))
     
     if 'assignees' in report and not report['assignees'].empty:
-        print("\n👤 НАГРУЗКА ПО ИСПОЛНИТЕЛЯМ:")
+        print("\nрџ‘¤ РќРђР“Р РЈР—РљРђ РџРћ РРЎРџРћР›РќРРўР•Р›РЇРњ:")
         print("="*100)
         print(report['assignees'].to_string(index=False))
     
     if 'detail' in report and not report['detail'].empty:
         if args.verbose:
-            print("\n📝 ДЕТАЛИЗАЦИЯ ПО ЗАДАЧАМ:")
+            print("\nрџ“ќ Р”Р•РўРђР›РР—РђР¦РРЇ РџРћ Р—РђР”РђР§РђРњ:")
             print("="*100)
             pd.set_option('display.max_columns', None)
             pd.set_option('display.width', None)
             print(report['detail'].to_string(index=False))
     
     if 'issues' in report and not report['issues'].empty:
-        print("\n⚠️ ПРОБЛЕМНЫЕ ЗАДАЧИ:")
+        print("\nвљ пёЏ РџР РћР‘Р›Р•РњРќР«Р• Р—РђР”РђР§Р:")
         print("="*100)
         pd.set_option('display.max_columns', None)
         pd.set_option('display.width', None)
         print(report['issues'].to_string(index=False))
     
     print("\n" + "="*100)
-    print(f"💰 ВСЕГО ПРОЕКТОВ: {report['total_projects']}")
-    print(f"📦 ВСЕГО ЗАДАЧ:    {report['total_tasks']}")
-    print(f"✅ КОРЕКТНЫХ:      {report['total_correct']}")
-    print(f"⚠️  ПРОБЛЕМНЫХ:     {report['total_issues']}")
-    print(f"⏱️  ВСЕГО ФАКТ:     {report['total_spent']:.2f} ч.")
-    print(f"📏 ВСЕГО ОЦЕНКА:    {report['total_estimated']:.2f} ч.")
+    print(f"рџ’° Р’РЎР•Р“Рћ РџР РћР•РљРўРћР’: {report['total_projects']}")
+    print(f"рџ“¦ Р’РЎР•Р“Рћ Р—РђР”РђР§:    {report['total_tasks']}")
+    print(f"вњ… РљРћР Р•РљРўРќР«РҐ:      {report['total_correct']}")
+    print(f"вљ пёЏ  РџР РћР‘Р›Р•РњРќР«РҐ:     {report['total_issues']}")
+    print(f"вЏ±пёЏ  Р’РЎР•Р“Рћ Р¤РђРљРў:     {report['total_spent']:.2f} С‡.")
+    print(f"рџ“Џ Р’РЎР•Р“Рћ РћР¦Р•РќРљРђ:    {report['total_estimated']:.2f} С‡.")
     print("="*100)
     
     if args.excel:
         filename = generate_excel(report)
-        print(f"\n✅ Отчёт сохранён: {filename}")
+        print(f"\nвњ… РћС‚С‡С‘С‚ СЃРѕС…СЂР°РЅС‘РЅ: {filename}")

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 from flask import Flask, render_template, request, jsonify, send_file
 from jira_report import generate_report, generate_excel, get_jira_connection
 from config import REPORT_BLOCKS, EXCLUDED_PROJECTS, ACTIVE_PORT, FLASK_HOST, IS_PRODUCTION
@@ -15,7 +15,7 @@ def index():
 
 @app.route('/api/projects')
 def api_projects():
-    """Получить список проектов"""
+    """РџРѕР»СѓС‡РёС‚СЊ СЃРїРёСЃРѕРє РїСЂРѕРµРєС‚РѕРІ"""
     try:
         jira = get_jira_connection()
         projects = jira.projects()
@@ -34,17 +34,17 @@ def api_projects():
 
 @app.route('/api/assignees')
 def api_assignees():
-    """Получить список исполнителей через Jira Users API"""
+    """РџРѕР»СѓС‡РёС‚СЊ СЃРїРёСЃРѕРє РёСЃРїРѕР»РЅРёС‚РµР»РµР№ С‡РµСЂРµР· Jira Users API"""
     try:
         jira = get_jira_connection()
 
-        # Используем API пользователей — намного эффективнее
-        # Получаем всех активных пользователей с правами на просмотр задач
+        # РСЃРїРѕР»СЊР·СѓРµРј API РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ вЂ” РЅР°РјРЅРѕРіРѕ СЌС„С„РµРєС‚РёРІРЅРµРµ
+        # РџРѕР»СѓС‡Р°РµРј РІСЃРµС… Р°РєС‚РёРІРЅС‹С… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ СЃ РїСЂР°РІР°РјРё РЅР° РїСЂРѕСЃРјРѕС‚СЂ Р·Р°РґР°С‡
         users = jira.search_assignable_users_for_projects('')
 
         assignees = {}
         for user in users:
-            if user.get('active', True):  # Только активные
+            if user.get('active', True):  # РўРѕР»СЊРєРѕ Р°РєС‚РёРІРЅС‹Рµ
                 key = user.get('name') or user.get('accountId') or user.get('key')
                 name = user.get('displayName', key)
                 if key:
@@ -67,7 +67,7 @@ def api_report():
         extra_verbose = data.get('extra_verbose', False)
         
         if days < 1 or days > 365:
-            return jsonify({'error': 'Период должен быть от 1 до 365 дней'}), 400
+            return jsonify({'error': 'РџРµСЂРёРѕРґ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РѕС‚ 1 РґРѕ 365 РґРЅРµР№'}), 400
         
         report = generate_report(
             project_key=project,
@@ -134,7 +134,7 @@ def api_download():
         generate_excel(report, output)
         output.seek(0)
         
-        filename = f"jira_report_{report['period'].replace(' — ', '_to_').replace(' ', '')}.xlsx"
+        filename = f"jira_report_{report['period'].replace(' вЂ” ', '_to_').replace(' ', '')}.xlsx"
         
         return send_file(
             output,
@@ -148,8 +148,8 @@ def api_download():
 
 if __name__ == '__main__':
     mode = "prod" if IS_PRODUCTION else "dev"
-    print("🚀 Запуск веб-интерфейса...")
-    print(f"📍 Откройте в браузере: http://localhost:{ACTIVE_PORT}")
-    print(f"📦 Доступные блоки: {', '.join(REPORT_BLOCKS.keys())}")
-    print(f"🔧 Режим: {mode}, Хост: {FLASK_HOST}, Порт: {ACTIVE_PORT}")
+    print("рџљЂ Р—Р°РїСѓСЃРє РІРµР±-РёРЅС‚РµСЂС„РµР№СЃР°...")
+    print(f"рџ“Ќ РћС‚РєСЂРѕР№С‚Рµ РІ Р±СЂР°СѓР·РµСЂРµ: http://localhost:{ACTIVE_PORT}")
+    print(f"рџ“¦ Р”РѕСЃС‚СѓРїРЅС‹Рµ Р±Р»РѕРєРё: {', '.join(REPORT_BLOCKS.keys())}")
+    print(f"рџ”§ Р РµР¶РёРј: {mode}, РҐРѕСЃС‚: {FLASK_HOST}, РџРѕСЂС‚: {ACTIVE_PORT}")
     app.run(host=FLASK_HOST, port=ACTIVE_PORT, debug=not IS_PRODUCTION)

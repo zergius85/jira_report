@@ -1,7 +1,7 @@
-#!/bin/bash
+﻿#!/bin/bash
 # =============================================
-# Скрипт установки службы Jira Report Web
-# Запускать от root через sudo
+# РЎРєСЂРёРїС‚ СѓСЃС‚Р°РЅРѕРІРєРё СЃР»СѓР¶Р±С‹ Jira Report Web
+# Р—Р°РїСѓСЃРєР°С‚СЊ РѕС‚ root С‡РµСЂРµР· sudo
 # =============================================
 
 set -e
@@ -9,52 +9,52 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICE_NAME="jira-report"
 
-echo "🔧 Установка службы $SERVICE_NAME..."
+echo "рџ”§ РЈСЃС‚Р°РЅРѕРІРєР° СЃР»СѓР¶Р±С‹ $SERVICE_NAME..."
 
-# Проверка прав root
+# РџСЂРѕРІРµСЂРєР° РїСЂР°РІ root
 if [ "$EUID" -ne 0 ]; then
-    echo "❌ Запустите скрипт через sudo:"
+    echo "вќЊ Р—Р°РїСѓСЃС‚РёС‚Рµ СЃРєСЂРёРїС‚ С‡РµСЂРµР· sudo:"
     echo "   sudo ./install-service.sh"
     exit 1
 fi
 
-# Проверка .env
+# РџСЂРѕРІРµСЂРєР° .env
 if [ ! -f "$SCRIPT_DIR/.env" ]; then
-    echo "⚠️  Файл .env не найден!"
-    echo "   Создайте .env перед установкой службы:"
+    echo "вљ пёЏ  Р¤Р°Р№Р» .env РЅРµ РЅР°Р№РґРµРЅ!"
+    echo "   РЎРѕР·РґР°Р№С‚Рµ .env РїРµСЂРµРґ СѓСЃС‚Р°РЅРѕРІРєРѕР№ СЃР»СѓР¶Р±С‹:"
     echo "   cp .env.example .env"
     exit 1
 fi
 
-# Проверка config.py
+# РџСЂРѕРІРµСЂРєР° config.py
 if [ ! -f "$SCRIPT_DIR/config.py" ]; then
-    echo "❌ Файл config.py не найден!"
-    echo "   Убедитесь, что config.py существует в директории службы"
+    echo "вќЊ Р¤Р°Р№Р» config.py РЅРµ РЅР°Р№РґРµРЅ!"
+    echo "   РЈР±РµРґРёС‚РµСЃСЊ, С‡С‚Рѕ config.py СЃСѓС‰РµСЃС‚РІСѓРµС‚ РІ РґРёСЂРµРєС‚РѕСЂРёРё СЃР»СѓР¶Р±С‹"
     exit 1
 fi
 
-# Копирование файла службы
+# РљРѕРїРёСЂРѕРІР°РЅРёРµ С„Р°Р№Р»Р° СЃР»СѓР¶Р±С‹
 cp "$SCRIPT_DIR/${SERVICE_NAME}.service" "/etc/systemd/system/${SERVICE_NAME}.service"
 
-echo "✅ Файл службы скопирован"
+echo "вњ… Р¤Р°Р№Р» СЃР»СѓР¶Р±С‹ СЃРєРѕРїРёСЂРѕРІР°РЅ"
 
-# Перезагрузка systemd
+# РџРµСЂРµР·Р°РіСЂСѓР·РєР° systemd
 systemctl daemon-reload
 
-# Включение и запуск службы
+# Р’РєР»СЋС‡РµРЅРёРµ Рё Р·Р°РїСѓСЃРє СЃР»СѓР¶Р±С‹
 systemctl enable ${SERVICE_NAME}.service
 systemctl start ${SERVICE_NAME}.service
 
-echo "✅ Служба установлена и запущена"
+echo "вњ… РЎР»СѓР¶Р±Р° СѓСЃС‚Р°РЅРѕРІР»РµРЅР° Рё Р·Р°РїСѓС‰РµРЅР°"
 echo ""
-echo "📊 Статус службы:"
+echo "рџ“Љ РЎС‚Р°С‚СѓСЃ СЃР»СѓР¶Р±С‹:"
 systemctl status ${SERVICE_NAME}.service --no-pager
 echo ""
-echo "📝 Просмотр логов:"
+echo "рџ“ќ РџСЂРѕСЃРјРѕС‚СЂ Р»РѕРіРѕРІ:"
 echo "   journalctl -u ${SERVICE_NAME}.service -f"
 echo ""
-echo "🔧 Управление службой:"
-echo "   sudo systemctl start ${SERVICE_NAME}.service     # Запустить"
-echo "   sudo systemctl stop ${SERVICE_NAME}.service      # Остановить"
-echo "   sudo systemctl restart ${SERVICE_NAME}.service   # Перезапустить"
-echo "   sudo systemctl disable ${SERVICE_NAME}.service   # Отключить"
+echo "рџ”§ РЈРїСЂР°РІР»РµРЅРёРµ СЃР»СѓР¶Р±РѕР№:"
+echo "   sudo systemctl start ${SERVICE_NAME}.service     # Р—Р°РїСѓСЃС‚РёС‚СЊ"
+echo "   sudo systemctl stop ${SERVICE_NAME}.service      # РћСЃС‚Р°РЅРѕРІРёС‚СЊ"
+echo "   sudo systemctl restart ${SERVICE_NAME}.service   # РџРµСЂРµР·Р°РїСѓСЃС‚РёС‚СЊ"
+echo "   sudo systemctl disable ${SERVICE_NAME}.service   # РћС‚РєР»СЋС‡РёС‚СЊ"
