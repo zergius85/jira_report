@@ -175,7 +175,7 @@ def get_closed_status_ids() -> List[str]:
 def save_closed_status_ids(status_ids: List[str]) -> None:
     """
     Сохраняет ID статусов в файл .env.
-    
+
     Args:
         status_ids: Список ID для сохранения
     """
@@ -183,8 +183,14 @@ def save_closed_status_ids(status_ids: List[str]) -> None:
 
     env_content = ''
     if os.path.exists(env_path):
-        with open(env_path, 'r', encoding='utf-8') as f:
-            env_content = f.read()
+        # Читаем в UTF-8, если не получается — пробуем cp1251 (Windows)
+        for encoding in ['utf-8', 'cp1251']:
+            try:
+                with open(env_path, 'r', encoding=encoding) as f:
+                    env_content = f.read()
+                break
+            except UnicodeDecodeError:
+                continue
 
     if 'CLOSED_STATUS_IDS=' in env_content:
         env_content = env_content.replace(
@@ -194,6 +200,7 @@ def save_closed_status_ids(status_ids: List[str]) -> None:
     else:
         env_content += f"\nCLOSED_STATUS_IDS={','.join(status_ids)}"
 
+    # Пишем в UTF-8 (стандарт для python-dotenv)
     with open(env_path, 'w', encoding='utf-8') as f:
         f.write(env_content)
 
