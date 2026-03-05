@@ -40,12 +40,16 @@ def api_assignees():
     """Получить список исполнителей через Jira Users API"""
     try:
         jira = get_jira_connection()
+        logger.info("🔍 Загрузка исполнителей из Jira...")
+        
         # Пробуем разные методы получения пользователей
         assignees = {}
         
         # Метод 1: search_users с пустым запросом
         try:
+            logger.info("  → Пробуем search_users('')...")
             users = jira.search_users('')
+            logger.info(f"     Найдено пользователей: {len(users)}")
             for user in users:
                 if isinstance(user, dict):
                     is_active = user.get('active', True)
@@ -58,11 +62,13 @@ def api_assignees():
                 
                 if is_active and key:
                     assignees[key] = name
+            logger.info(f"     Активных: {len(assignees)}")
         except Exception as e1:
-            logger.warning(f"search_users не сработал: {e1}")
+            logger.warning(f"  ✗ search_users не сработал: {e1}")
             
             # Метод 2: получить пользователей из проектов
             try:
+                logger.info("  → Пробуем search_assignable_users_for_projects...")
                 projects = jira.projects()
                 for proj in projects:
                     if proj.key in EXCLUDED_PROJECTS:
@@ -81,14 +87,17 @@ def api_assignees():
                         
                         if is_active and key:
                             assignees[key] = name
+                logger.info(f"     Найдено уникальных исполнителей: {len(assignees)}")
             except Exception as e2:
-                logger.warning(f"search_assignable_users_for_projects не сработал: {e2}")
+                logger.warning(f"  ✗ search_assignable_users_for_projects не сработал: {e2}")
 
         result = [{'key': k, 'name': v} for k, v in sorted(assignees.items(), key=lambda x: x[1])]
+        logger.info(f"✅ Возвращаем {len(result)} исполнителей")
         return jsonify({'success': True, 'assignees': result})
     except Exception as e:
         import traceback
-        traceback.print_exc()
+        logger.error(f"❌ Ошибка загрузки исполнителей: {e}")
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/issue-types')

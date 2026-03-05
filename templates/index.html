@@ -434,10 +434,17 @@
             </div>
             
             <div id="tab-assignees" class="tab-content">
-                <h2 class="section-title">Нагрузка по исполнителям <span class="badge" id="assignees_count">0</span></h2>
+                <h2 class="section-title">
+                    <span>Нагрузка по исполнителям <span class="badge" id="assignees_count">0</span></span>
+                    <span>
+                        <button class="debug-btn" onclick="showAssigneesDebugRequest()" style="font-size: 11px; padding: 4px 8px;">📤 Запрос</button>
+                        <button class="debug-btn" onclick="showAssigneesDebugResponse()" style="font-size: 11px; padding: 4px 8px;">📥 Ответ</button>
+                    </span>
+                </h2>
                 <div class="table-container">
                     <table id="assignees_table"><thead></thead><tbody></tbody></table>
                 </div>
+                <div id="assignees_debug_content" class="debug-content hidden" style="margin-top: 10px; max-height: 300px;"></div>
             </div>
             
             <div id="tab-detail" class="tab-content">
@@ -625,6 +632,19 @@
                     statusText: response.statusText,
                     data: data
                 };
+                
+                // Сохраняем данные для отладки исполнителей
+                assigneesDebugData.request = {
+                    url: '/api/report',
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: params
+                };
+                assigneesDebugData.response = {
+                    status: response.status,
+                    statusText: response.statusText,
+                    data: data
+                };
 
                 if (!data.success) {
                     throw new Error(data.error);
@@ -737,16 +757,15 @@
                     return sortState.direction === 'asc' ? aNum - bNum : bNum - aNum;
                 }
 
-                // Пробуем как даты (форматы: ГГГГ-ММ-ДД, ГГГГ.ММ.ДД)
-                const datePattern1 = /^\d{4}-\d{2}-\d{2}$/;
-                const datePattern2 = /^\d{4}\.\d{2}\.\d{2}$/;
+                // Пробуем как даты (форматы: ГГГГ-ММ-ДД, ГГГГ.ММ.ДД, ГГГГ-М-Д)
+                const datePattern = /^(\d{4})[-.](\d{1,2})[-.](\d{1,2})$/;
+                const aMatch = aText.match(datePattern);
+                const bMatch = bText.match(datePattern);
 
-                if ((datePattern1.test(aText) || datePattern2.test(aText)) &&
-                    (datePattern1.test(bText) || datePattern2.test(bText))) {
-                    // Нормализуем формат к YYYY-MM-DD
-                    const normalizeDate = (d) => d.replace('.', '-');
-                    const aDate = new Date(normalizeDate(aText));
-                    const bDate = new Date(normalizeDate(bText));
+                if (aMatch && bMatch) {
+                    // Создаём дату из частей (год, месяц-1, день)
+                    const aDate = new Date(parseInt(aMatch[1]), parseInt(aMatch[2]) - 1, parseInt(aMatch[3]));
+                    const bDate = new Date(parseInt(bMatch[1]), parseInt(bMatch[2]) - 1, parseInt(bMatch[3]));
 
                     if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime())) {
                         return sortState.direction === 'asc' ? aDate - bDate : bDate - aDate;
@@ -804,6 +823,31 @@
             const debugContent = document.getElementById('debug_content');
             if (debugData.response) {
                 debugContent.textContent = JSON.stringify(debugData.response, null, 2);
+                debugContent.classList.remove('hidden');
+            } else {
+                debugContent.textContent = 'Ответ ещё не получен';
+                debugContent.classList.remove('hidden');
+            }
+        }
+        
+        // Отладка для исполнителей
+        let assigneesDebugData = { request: null, response: null };
+        
+        function showAssigneesDebugRequest() {
+            const debugContent = document.getElementById('assignees_debug_content');
+            if (assigneesDebugData.request) {
+                debugContent.textContent = JSON.stringify(assigneesDebugData.request, null, 2);
+                debugContent.classList.remove('hidden');
+            } else {
+                debugContent.textContent = 'Запрос ещё не выполнялся';
+                debugContent.classList.remove('hidden');
+            }
+        }
+        
+        function showAssigneesDebugResponse() {
+            const debugContent = document.getElementById('assignees_debug_content');
+            if (assigneesDebugData.response) {
+                debugContent.textContent = JSON.stringify(assigneesDebugData.response, null, 2);
                 debugContent.classList.remove('hidden');
             } else {
                 debugContent.textContent = 'Ответ ещё не получен';
