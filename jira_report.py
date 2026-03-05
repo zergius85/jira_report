@@ -597,34 +597,40 @@ def generate_report(
     if not df_detail.empty:
         df_detail = df_detail.sort_values(by=['Тип', 'Проект', 'Дата решения'], ascending=[True, True, True])
 
-        # Группировка по исполнителям - СЧИТАЕМ ВСЕ ЗАДАЧИ (разделяем на корректные и с ошибками)
+        # Группировка по исполнителям - ИСКЛЮЧАЕМ "Без исполнителя"
         if not df_detail.empty:
-            df_assignees = df_detail.groupby('Исполнитель').agg(
-                tasks_count=('Ключ', 'count'),
-                correct_count=('Проблемы', lambda x: (x == '').sum()),
-                issues_count=('Проблемы', lambda x: (x != '').sum()),
-                fact_sum=('Факт (ч)', 'sum'),
-                estimate_sum=('Оценка (ч)', 'sum')
-            ).reset_index()
-            # Переименовываем колонки обратно в кириллицу для отображения
-            df_assignees = df_assignees.rename(columns={
-                'tasks_count': 'Задач',
-                'correct_count': 'Корректных',
-                'issues_count': 'С ошибками',
-                'fact_sum': 'Факт (ч)',
-                'estimate_sum': 'Оценка (ч)'
-            })
-            df_assignees['Отклонение'] = df_assignees['Оценка (ч)'] - df_assignees['Факт (ч)']
-            df_assignees = df_assignees.round(2)
-            df_assignees = df_assignees.sort_values(by='Факт (ч)', ascending=False)
+            # Фильтруем только задачи с исполнителем (не "Без исполнителя")
+            df_with_assignee = df_detail[~df_detail['Исполнитель'].str.contains('Без исполнителя', na=False)]
             
-            # Добавляем колонку ID для extra_verbose (извлекаем из "Исполнитель [ID]")
-            if extra_verbose:
-                def extract_id(name):
-                    if '[' in name and ']' in name:
-                        return name.split('[')[-1].split(']')[0]
-                    return ''
-                df_assignees.insert(1, 'ID', df_assignees['Исполнитель'].apply(extract_id))
+            if not df_with_assignee.empty:
+                df_assignees = df_with_assignee.groupby('Исполнитель').agg(
+                    tasks_count=('Ключ', 'count'),
+                    correct_count=('Проблемы', lambda x: (x == '').sum()),
+                    issues_count=('Проблемы', lambda x: (x != '').sum()),
+                    fact_sum=('Факт (ч)', 'sum'),
+                    estimate_sum=('Оценка (ч)', 'sum')
+                ).reset_index()
+                # Переименовываем колонки обратно в кириллицу для отображения
+                df_assignees = df_assignees.rename(columns={
+                    'tasks_count': 'Задач',
+                    'correct_count': 'Корректных',
+                    'issues_count': 'С ошибками',
+                    'fact_sum': 'Факт (ч)',
+                    'estimate_sum': 'Оценка (ч)'
+                })
+                df_assignees['Отклонение'] = df_assignees['Оценка (ч)'] - df_assignees['Факт (ч)']
+                df_assignees = df_assignees.round(2)
+                df_assignees = df_assignees.sort_values(by='Факт (ч)', ascending=False)
+
+                # Добавляем колонку ID для extra_verbose (извлекаем из "Исполнитель [ID]")
+                if extra_verbose:
+                    def extract_id(name):
+                        if '[' in name and ']' in name:
+                            return name.split('[')[-1].split(']')[0]
+                        return ''
+                    df_assignees.insert(1, 'ID', df_assignees['Исполнитель'].apply(extract_id))
+            else:
+                df_assignees = pd.DataFrame()
         else:
             df_assignees = pd.DataFrame()
     else:
