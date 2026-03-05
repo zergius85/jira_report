@@ -13,18 +13,34 @@ logger = logging.getLogger(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'))
 
-# Кэширование для API endpoints (5 минут)
-app.config['CACHE_TYPE'] = 'simple'
-app.config['CACHE_DEFAULT_TIMEOUT'] = 300
-cache = Cache(app)
+# Кэширование для API endpoints (только для production!)
+# В dev-режиме кэш отключен для быстрой отладки
+if IS_PRODUCTION:
+    app.config['CACHE_TYPE'] = 'simple'
+    app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 5 минут
+    cache = Cache(app)
+else:
+    # В dev-режиме кэш отключен
+    cache = None
 
 @app.route('/')
 def index():
     return render_template('index.html', blocks=REPORT_BLOCKS, JIRA_SERVER=JIRA_SERVER)
 
 @app.route('/api/projects')
-@cache.cached(timeout=300)  # Кэш 5 минут
 def api_projects():
+    """Получить список проектов"""
+    # Кэширование только для production
+    if cache and IS_PRODUCTION:
+        return _api_projects_cached()
+    else:
+        return _api_projects_logic()
+
+@cache.cached(timeout=300)  # Кэш 5 минут (только production)
+def _api_projects_cached():
+    return _api_projects_logic()
+
+def _api_projects_logic():
     """Получить список проектов"""
     try:
         jira = get_jira_connection()
@@ -43,8 +59,19 @@ def api_projects():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/assignees')
-@cache.cached(timeout=300)  # Кэш 5 минут
 def api_assignees():
+    """Получить список всех активных исполнителей"""
+    # Кэширование только для production
+    if cache and IS_PRODUCTION:
+        return _api_assignees_cached()
+    else:
+        return _api_assignees_logic()
+
+@cache.cached(timeout=300)  # Кэш 5 минут (только production)
+def _api_assignees_cached():
+    return _api_assignees_logic()
+
+def _api_assignees_logic():
     """Получить список всех активных исполнителей"""
     try:
         jira = get_jira_connection()
