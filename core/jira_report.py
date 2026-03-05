@@ -250,6 +250,17 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
     if issue.fields.timespent is None or issue.fields.timespent == 0:
         problems.append('Нет фактического времени')
 
+    # Проверка: дата создания больше duedate на 7+ дней (просрочка планирования)
+    if issue.fields.created and issue.fields.duedate:
+        try:
+            created_date = datetime.strptime(issue.fields.created[:10], '%Y-%m-%d')
+            due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
+            days_diff = (created_date - due_date).days
+            if days_diff >= 7:
+                problems.append(f'Создана на {days_diff} дн. позже дедлайна')
+        except Exception:
+            pass  # Если не удалось сравнить даты — не считаем проблемой
+
     # Проверка статуса "Закрыт" по ID
     if issue.fields.status:
         status_id = issue.fields.status.id
@@ -258,7 +269,7 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
         # Проверяем changelog ТОЛЬКО если статус "Закрыт"
         if status_id in status_ids:
             is_correct_close = False
-            
+
             # Проверяем, не является ли исполнитель исключением (holin и т.п.)
             assignee_name = ''
             if issue.fields.assignee:
@@ -268,7 +279,7 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
                 if exc.lower() in assignee_name.lower():
                     is_correct_close = True
                     break
-            
+
             # Если не исключение, проверяем changelog (кто перевёл в "Закрыт")
             if not is_correct_close and jira:
                 try:
@@ -285,7 +296,7 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
                                         author_name = ''
                                         if hasattr(history, 'author') and history.author:
                                             author_name = history.author.name if hasattr(history.author, 'name') else history.author.displayName
-                                        
+
                                         # Если переход сделал пользователь демона — это корректно
                                         if JIRA_USER and JIRA_USER.lower() in author_name.lower():
                                             is_correct_close = True
@@ -462,21 +473,22 @@ def generate_report(
     for proj_key in projects_keys:
         proj_name = projects_map.get(proj_key, proj_key)
 
-        # Обычные отчёты - фильтр по resolved (дата закрытия)
+        # Обычные отчёты - фильтр по duedate (плановая дата исполнения)
         if days > 0:
             jql_normal = (f"project = {proj_key} "
-                          f"AND resolved >= '{start_date_str}' "
-                          f"AND resolved <= '{end_date_str}'"
+                          f"AND duedate >= '{start_date_str}' "
+                          f"AND duedate <= '{end_date_str}' "
+                          f"AND duedate is not null"
                           f"{issue_type_filter}"
                           f"{assignee_filter_jql} "
-                          f"ORDER BY resolved ASC")
+                          f"ORDER BY duedate ASC")
         else:
             # Без ограничений по датам
             jql_normal = (f"project = {proj_key} "
-                          f"AND resolved is not null"
+                          f"AND duedate is not null"
                           f"{issue_type_filter}"
                           f"{assignee_filter_jql} "
-                          f"ORDER BY resolved DESC")
+                          f"ORDER BY duedate DESC")
 
         # Проблемные задачи - фильтр по created + 2 месяца
         if days > 0:
@@ -492,13 +504,13 @@ def generate_report(
                           f"{issue_type_filter}"
                           f"{assignee_filter_jql} "
                           f"ORDER BY created DESC")
-        
+
         # Получаем все задачи для проблемных (больший период)
-        issues_all = jira.search_issues(jql_issues, maxResults=False, 
+        issues_all = jira.search_issues(jql_issues, maxResults=False,
                                         fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, creator')
-        
+
         # Получаем задачи для обычных отчётов (меньший период)
-        issues_normal = jira.search_issues(jql_normal, maxResults=False, 
+        issues_normal = jira.search_issues(jql_normal, maxResults=False,
                                            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created')
         
         # Обработка для обычных отчётов

@@ -1183,23 +1183,41 @@
             if (el) el.textContent = count;
         }
 
+        function parseDate(dateStr) {
+            if (!dateStr || dateStr === '-') return null;
+            // Поддержка форматов: YYYY.MM.DD, YYYY-MM-DD
+            const parts = dateStr.split(/[.-]/);
+            if (parts.length === 3) {
+                return new Date(parts[0], parts[1] - 1, parts[2]);
+            }
+            return null;
+        }
+
         function renderTable(name, data) {
             const table = document.getElementById(`${name}_table`);
             if (!table || !data || data.length === 0) return;
 
             const thead = table.querySelector('thead');
             const tbody = table.querySelector('tbody');
-            
+
             const columns = Object.keys(data[0]);
-            
+
             thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('${name}', '${col}')">${col}</th>`).join('') + '</tr>';
-            tbody.innerHTML = data.map(row => 
-                '<tr>' + columns.map(col => `<td>${formatCell(row[col])}</td>`).join('') + '</tr>'
+            tbody.innerHTML = data.map(row =>
+                '<tr>' + columns.map(col => `<td>${formatCell(row[col], col, row)}</td>`).join('') + '</tr>'
             ).join('');
         }
 
-        function formatCell(value) {
+        function formatCell(value, column, row) {
             if (value === null || value === undefined) return '';
+            
+            // URL - иконка скрепки со ссылкой
+            if (column === 'URL' && value.startsWith('http')) {
+                const issueKey = value.split('/browse/')[1] || '';
+                return `<a href="${value}" target="_blank" title="${issueKey}" style="text-decoration:none;">📎</a>`;
+            }
+            
+            // Форматирование дат YYYY.MM.DD
             if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
                 return formatDisplayDate(value);
             }
@@ -1211,31 +1229,47 @@
             const tbody = table.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr'));
             const th = table.querySelector(`th[onclick*="${column}"]`);
-            
+
             if (!th) return;
-            
+
             const columnIndex = Array.from(th.parentElement.children).indexOf(th);
             const isAsc = th.classList.contains('sort-asc') || !th.classList.contains('sort-desc');
-            
+
             // Сброс сортировки
             table.querySelectorAll('th').forEach(h => {
                 h.classList.remove('sort-asc', 'sort-desc');
             });
-            
+
+            // Определяем тип сортировки
+            const isDateColumn = column.includes('Дата') || column === 'duedate' || column === 'created' || column === 'resolved';
+            const isNumericColumn = column.includes('(ч)') || column.includes('Задач') || column.includes('Корректных') || column.includes('Ошибками');
+
             rows.sort((a, b) => {
                 const aVal = a.children[columnIndex].textContent.trim();
                 const bVal = b.children[columnIndex].textContent.trim();
-                
-                const aNum = parseFloat(aVal);
-                const bNum = parseFloat(bVal);
-                
-                if (!isNaN(aNum) && !isNaN(bNum)) {
+
+                // Сортировка дат (YYYY.MM.DD)
+                if (isDateColumn) {
+                    const aDate = parseDate(aVal);
+                    const bDate = parseDate(bVal);
+                    if (aDate && bDate) {
+                        return isAsc ? aDate - bDate : bDate - aDate;
+                    }
+                    return isAsc ? aVal.localeCompare(bVal, 'ru') : bVal.localeCompare(aVal, 'ru');
+                }
+
+                // Числовая сортировка
+                const aNum = parseFloat(aVal.replace(',', '.'));
+                const bNum = parseFloat(bVal.replace(',', '.'));
+
+                if (isNumericColumn && !isNaN(aNum) && !isNaN(bNum)) {
                     return isAsc ? aNum - bNum : bNum - aNum;
                 }
-                
+
+                // Текстовая сортировка
                 return isAsc ? aVal.localeCompare(bVal, 'ru') : bVal.localeCompare(aVal, 'ru');
             });
-            
+
             th.classList.add(isAsc ? 'sort-desc' : 'sort-asc');
             
             rows.forEach(row => tbody.appendChild(row));
@@ -1243,37 +1277,37 @@
 
         // ========== Графики ==========
         function renderCharts(data) {
-            // Динамика закрытия (по дате решения)
+            // Динамика по duedate (плановая дата исполнения)
             if (data.detail && data.detail.length > 0) {
-                const closedByDate = {};
+                const dueByDate = {};
                 const createdByDate = {};
-                
+
                 data.detail.forEach(task => {
-                    const resolved = task['Дата решения'] || task['Дата исполнения'];
+                    const duedate = task['Дата исполнения'];
                     const created = task['Дата создания'];
-                    
-                    if (resolved) {
-                        const date = resolved.split('T')[0];
-                        closedByDate[date] = (closedByDate[date] || 0) + 1;
+
+                    if (duedate && duedate !== '-') {
+                        const date = duedate.split('T')[0];
+                        dueByDate[date] = (dueByDate[date] || 0) + 1;
                     }
                     if (created) {
                         const date = created.split('T')[0];
                         createdByDate[date] = (createdByDate[date] || 0) + 1;
                     }
                 });
-                
+
                 createChart('chartClosed', 'line', {
-                    labels: Object.keys(closedByDate).sort(),
+                    labels: Object.keys(dueByDate).sort(),
                     datasets: [{
-                        label: 'Закрыто задач',
-                        data: Object.keys(closedByDate).sort().map(d => closedByDate[d]),
+                        label: 'Задач с дедлайном',
+                        data: Object.keys(dueByDate).sort().map(d => dueByDate[d]),
                         borderColor: '#27ae60',
                         backgroundColor: 'rgba(39, 174, 96, 0.1)',
                         fill: true,
                         tension: 0.3
                     }]
-                }, 'Закрыто задач по дням');
-                
+                }, 'Задач с дедлайном по дням');
+
                 createChart('chartCreated', 'line', {
                     labels: Object.keys(createdByDate).sort(),
                     datasets: [{
