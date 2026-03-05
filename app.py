@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, render_template, request, jsonify, send_file
+from flask_caching import Cache
 from jira_report import generate_report, generate_excel, get_jira_connection
 from config import REPORT_BLOCKS, EXCLUDED_PROJECTS, ACTIVE_PORT, FLASK_HOST, IS_PRODUCTION, JIRA_SERVER
 from datetime import datetime
@@ -12,11 +13,17 @@ logger = logging.getLogger(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'))
 
+# Кэширование для API endpoints (5 минут)
+app.config['CACHE_TYPE'] = 'simple'
+app.config['CACHE_DEFAULT_TIMEOUT'] = 300
+cache = Cache(app)
+
 @app.route('/')
 def index():
     return render_template('index.html', blocks=REPORT_BLOCKS, JIRA_SERVER=JIRA_SERVER)
 
 @app.route('/api/projects')
+@cache.cached(timeout=300)  # Кэш 5 минут
 def api_projects():
     """Получить список проектов"""
     try:
@@ -36,6 +43,7 @@ def api_projects():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/assignees')
+@cache.cached(timeout=300)  # Кэш 5 минут
 def api_assignees():
     """Получить список всех активных исполнителей"""
     try:
@@ -80,6 +88,26 @@ def api_assignees():
         logger.error(f"❌ Ошибка загрузки исполнителей: {e}")
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint для мониторинга"""
+    try:
+        # Проверяем подключение к Jira
+        jira = get_jira_connection()
+        jira.myself()
+        jira_status = 'ok'
+    except Exception as e:
+        logger.error(f"Jira health check failed: {e}")
+        jira_status = 'error'
+    
+    return jsonify({
+        'status': 'ok' if jira_status == 'ok' else 'degraded',
+        'timestamp': datetime.now().isoformat(),
+        'checks': {
+            'jira': jira_status
+        }
+    }), 200 if jira_status == 'ok' else 503
 
 @app.route('/api/issue-types')
 def api_issue_types():
