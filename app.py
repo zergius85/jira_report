@@ -52,6 +52,33 @@ def api_assignees():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/issue-types')
+def api_issue_types():
+    """Получить список типов задач из Jira"""
+    try:
+        jira = get_jira_connection()
+        
+        # Получаем все проекты для сбора всех типов задач
+        projects = jira.projects()
+        
+        issue_types = {}
+        for proj in projects:
+            if proj.key in EXCLUDED_PROJECTS:
+                continue
+            if hasattr(proj, 'archived') and proj.archived:
+                continue
+            
+            # Получаем типы задач для проекта
+            if hasattr(proj, 'issueTypes') and proj.issueTypes:
+                for issue_type in proj.issueTypes:
+                    if not issue_type.subtask:  # Исключаем подзадачи
+                        issue_types[issue_type.id] = issue_type.name
+        
+        result = [{'id': k, 'name': v} for k, v in sorted(issue_types.items(), key=lambda x: x[1])]
+        return jsonify({'success': True, 'issue_types': result})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/task-info', methods=['POST'])
 def api_task_info():
     """Получить полную информацию о задаче со всеми полями"""
@@ -103,21 +130,33 @@ def api_task_info():
 def api_report():
     try:
         data = request.json
-        project = data.get('project', '').strip() or None
+        # Поддержка множественного выбора (список) или одиночного (строка)
+        projects = data.get('projects', []) or data.get('project', '').strip() or None
+        if isinstance(projects, str):
+            projects = [projects]
+        
+        assignees = data.get('assignees', []) or data.get('assignee', '').strip() or None
+        if isinstance(assignees, str):
+            assignees = [assignees]
+        
+        issue_types = data.get('issue_types', []) or data.get('issue_type', '').strip() or None
+        if isinstance(issue_types, str):
+            issue_types = [issue_types]
+        
         start_date = data.get('start_date', '').strip() or None
-        days = int(data.get('days', 30))
-        assignee = data.get('assignee', '').strip() or None
+        days = int(data.get('days', 0) or 0)  # 0 = без ограничений по датам
         blocks = data.get('blocks', None)
         extra_verbose = data.get('extra_verbose', False)
 
-        if days < 1 or days > 365:
-            return jsonify({'error': 'Период должен быть от 1 до 365 дней'}), 400
+        if days < 0 or days > 365:
+            return jsonify({'error': 'Период должен быть от 0 до 365 дней (0 = без ограничений)'}), 400
 
         report = generate_report(
-            project_key=project,
+            project_keys=projects,
             start_date=start_date,
             days=days,
-            assignee_filter=assignee,
+            assignee_filter=assignees,
+            issue_types=issue_types,
             blocks=blocks,
             verbose=False,
             extra_verbose=extra_verbose
@@ -152,10 +191,11 @@ def api_report():
         response['debug'] = {
             'jira_server': JIRA_SERVER,
             'query_params': {
-                'project': project,
+                'projects': projects,
+                'assignees': assignees,
+                'issue_types': issue_types,
                 'start_date': start_date,
                 'days': days,
-                'assignee': assignee,
                 'blocks': blocks,
                 'extra_verbose': extra_verbose
             }
@@ -172,18 +212,30 @@ def api_report():
 def api_download():
     try:
         data = request.json
-        project = data.get('project', '').strip() or None
+        # Поддержка множественного выбора
+        projects = data.get('projects', []) or data.get('project', '').strip() or None
+        if isinstance(projects, str):
+            projects = [projects]
+        
+        assignees = data.get('assignees', []) or data.get('assignee', '').strip() or None
+        if isinstance(assignees, str):
+            assignees = [assignees]
+        
+        issue_types = data.get('issue_types', []) or data.get('issue_type', '').strip() or None
+        if isinstance(issue_types, str):
+            issue_types = [issue_types]
+        
         start_date = data.get('start_date', '').strip() or None
-        days = int(data.get('days', 30))
-        assignee = data.get('assignee', '').strip() or None
+        days = int(data.get('days', 0) or 0)
         blocks = data.get('blocks', None)
         extra_verbose = data.get('extra_verbose', False)
 
         report = generate_report(
-            project_key=project,
+            project_keys=projects,
             start_date=start_date,
             days=days,
-            assignee_filter=assignee,
+            assignee_filter=assignees,
+            issue_types=issue_types,
             blocks=blocks,
             verbose=False,
             extra_verbose=extra_verbose

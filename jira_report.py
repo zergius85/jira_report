@@ -311,26 +311,28 @@ def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
         return ['Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Дата создания', 'Дата исполнения', 'Факт (ч)', 'Оценка (ч)']
         
 def generate_report(
-    project_key: Optional[str] = None,
+    project_keys: Optional[Union[str, List[str]]] = None,
     start_date: Optional[str] = None,
     days: int = 30,
-    assignee_filter: Optional[str] = None,
+    assignee_filter: Optional[Union[str, List[str]]] = None,
+    issue_types: Optional[Union[str, List[str]]] = None,
     blocks: Optional[List[str]] = None,
     verbose: bool = False,
     extra_verbose: bool = False
 ) -> Dict[str, Any]:
     """
     Генерирует отчёт по задачам Jira.
-    
+
     Args:
-        project_key: Ключ проекта (None = все проекты)
+        project_keys: Ключ проекта или список проектов (None = все проекты)
         start_date: Дата начала в формате ГГГГ-ММ-ДД (None = прошлый месяц)
-        days: Количество дней для отчёта
-        assignee_filter: Фильтр по исполнителю
+        days: Количество дней для отчёта (0 = без ограничений)
+        assignee_filter: Фильтр по исполнителю или список исполнителей
+        issue_types: Фильтр по типам задач или список типов
         blocks: Список блоков отчёта (None = все)
         verbose: Режим отладки
         extra_verbose: Показывать ID объектов
-        
+
     Returns:
         Dict[str, Any]: Словарь с данными отчёта
     """
@@ -339,6 +341,24 @@ def generate_report(
     if not CLOSED_STATUS_IDS or CLOSED_STATUS_IDS[0] == '':
         CLOSED_STATUS_IDS = get_closed_status_ids()
 
+    # Нормализация множественных фильтров
+    if isinstance(project_keys, str):
+        project_keys = [project_keys.upper()]
+    elif project_keys is None:
+        project_keys = []
+    else:
+        project_keys = [p.upper() for p in project_keys]
+    
+    if isinstance(assignee_filter, str):
+        assignee_filter = [assignee_filter]
+    elif assignee_filter is None:
+        assignee_filter = []
+    
+    if isinstance(issue_types, str):
+        issue_types = [issue_types]
+    elif issue_types is None:
+        issue_types = []
+
     # Обработка дат
     if start_date:
         start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
@@ -346,22 +366,34 @@ def generate_report(
         start_date_obj = get_default_start_date()
 
     start_date_str = start_date_obj.strftime('%Y-%m-%d')
-    end_date_obj = start_date_obj + timedelta(days=days - 1)
-    end_date_str = end_date_obj.strftime('%Y-%m-%d')
-
-    # Для проблемных задач: +2 месяца к концу периода
-    issues_end_obj = start_date_obj + timedelta(days=days) + relativedelta(months=2)
-    issues_end_str = issues_end_obj.strftime('%Y-%m-%d')
+    
+    # days=0 означает без ограничений
+    if days > 0:
+        end_date_obj = start_date_obj + timedelta(days=days - 1)
+        end_date_str = end_date_obj.strftime('%Y-%m-%d')
+        # Для проблемных задач: +2 месяца к концу периода
+        issues_end_obj = start_date_obj + timedelta(days=days) + relativedelta(months=2)
+        issues_end_str = issues_end_obj.strftime('%Y-%m-%d')
+    else:
+        # Без ограничений по датам - используем текущую дату как конец
+        end_date_obj = datetime.now()
+        end_date_str = end_date_obj.strftime('%Y-%m-%d')
+        issues_end_str = end_date_str
 
     jira = get_jira_connection()
-    
+
     # Список проектов
-    if project_key:
-        projects_keys = [project_key.upper()]
+    if project_keys and len(project_keys) > 0:
+        # Фильтр по выбранным проектам
         projects_map = {}
-        proj = jira.project(projects_keys[0])
-        projects_map[proj.key] = proj.name
+        for proj_key in project_keys:
+            try:
+                proj = jira.project(proj_key)
+                projects_map[proj.key] = proj.name
+            except Exception:
+                logger.warning(f"Проект {proj_key} не найден")
     else:
+        # Все проекты
         all_projects = jira.projects()
         projects_map = {}
         for proj in all_projects:
@@ -371,25 +403,45 @@ def generate_report(
                 continue
             projects_map[proj.key] = proj.name
         projects_keys = list(projects_map.keys())
-    
+
     all_issues_data = []
     summary_data = []
     issues_with_problems = []
-    
+
+    # Формируем фильтр по типам задач для JQL
+    issue_type_filter = ''
+    if issue_types and len(issue_types) > 0:
+        issue_type_filter = ' AND issuetype IN (' + ','.join(issue_types) + ')'
+
     for proj_key in projects_keys:
         proj_name = projects_map.get(proj_key, proj_key)
-        
+
         # Обычные отчёты - фильтр по resolved (дата закрытия)
-        jql_normal = (f"project = {proj_key} "
-                      f"AND resolved >= '{start_date_str}' "
-                      f"AND resolved <= '{end_date_str}' "
-                      f"ORDER BY resolved ASC")
-        
+        if days > 0:
+            jql_normal = (f"project = {proj_key} "
+                          f"AND resolved >= '{start_date_str}' "
+                          f"AND resolved <= '{end_date_str}'"
+                          f"{issue_type_filter} "
+                          f"ORDER BY resolved ASC")
+        else:
+            # Без ограничений по датам
+            jql_normal = (f"project = {proj_key} "
+                          f"AND resolved is not null"
+                          f"{issue_type_filter} "
+                          f"ORDER BY resolved DESC")
+
         # Проблемные задачи - фильтр по created + 2 месяца
-        jql_issues = (f"project = {proj_key} "
-                      f"AND created >= '{start_date_str}' "
-                      f"AND created <= '{issues_end_str}' "
-                      f"ORDER BY created ASC")
+        if days > 0:
+            jql_issues = (f"project = {proj_key} "
+                          f"AND created >= '{start_date_str}' "
+                          f"AND created <= '{issues_end_str}'"
+                          f"{issue_type_filter} "
+                          f"ORDER BY created ASC")
+        else:
+            jql_issues = (f"project = {proj_key} "
+                          f"AND created is not null"
+                          f"{issue_type_filter} "
+                          f"ORDER BY created DESC")
         
         # Получаем все задачи для проблемных (больший период)
         issues_all = jira.search_issues(jql_issues, maxResults=False, 
@@ -423,9 +475,17 @@ def generate_report(
             issue_id = issue.id if extra_verbose else None
             
             problems = validate_issue(issue, jira)
-            
-            if assignee_filter and assignee_filter.lower() not in assignee.lower():
-                continue
+
+            # Фильтр по исполнителю (множественный выбор)
+            if assignee_filter and len(assignee_filter) > 0:
+                # Проверяем, есть ли хоть один исполнитель из списка в имени текущего
+                match = False
+                for af in assignee_filter:
+                    if af.lower() in assignee.lower():
+                        match = True
+                        break
+                if not match:
+                    continue
             
             # Формируем отображаемые значения с ID если нужно
             project_display = f"{proj_name} [{getattr(issue.fields, 'project', None).id}]" if extra_verbose and hasattr(issue.fields, 'project') and getattr(issue.fields, 'project', None) and hasattr(getattr(issue.fields, 'project', None), 'id') else proj_name

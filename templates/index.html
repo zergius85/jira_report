@@ -321,24 +321,35 @@
             <h2 style="margin-bottom: 20px;">🔧 Параметры отчёта</h2>
             <div class="form-row">
                 <div class="form-group">
-                    <label for="project">Проект</label>
-                    <select id="project">
+                    <label for="project">📦 Проекты</label>
+                    <select id="project" multiple size="4">
                         <option value="">Все проекты</option>
                     </select>
+                    <small style="color: #666; font-size: 12px;">Ctrl+Click для множественного выбора</small>
                 </div>
                 <div class="form-group">
-                    <label for="assignee">Исполнитель</label>
-                    <select id="assignee">
+                    <label for="assignee">👤 Исполнители</label>
+                    <select id="assignee" multiple size="4">
                         <option value="">Все исполнители</option>
                     </select>
+                    <small style="color: #666; font-size: 12px;">Ctrl+Click для множественного выбора</small>
                 </div>
+                <div class="form-group">
+                    <label for="issue_type">📝 Типы задач</label>
+                    <select id="issue_type" multiple size="4">
+                        <option value="">Все типы</option>
+                    </select>
+                    <small style="color: #666; font-size: 12px;">Ctrl+Click для множественного выбора</small>
+                </div>
+            </div>
+            <div class="form-row" style="margin-top: 15px;">
                 <div class="form-group">
                     <label for="start_date">Дата начала</label>
                     <input type="date" id="start_date">
                 </div>
                 <div class="form-group">
-                    <label for="days">Период (дней)</label>
-                    <input type="number" id="days" value="30" min="1" max="365">
+                    <label for="days">Период (дней)<br><small style="color: #666; font-size: 11px;">0 = без ограничений</small></label>
+                    <input type="number" id="days" value="0" min="0" max="365">
                 </div>
             </div>
             
@@ -475,6 +486,7 @@
 
             await loadProjects();
             await loadAssignees();
+            await loadIssueTypes();
         };
         
         function switchTab(tabName) {
@@ -500,7 +512,7 @@
                 }
             } catch (e) { console.error(e); }
         }
-        
+
         async function loadAssignees() {
             try {
                 const resp = await fetch('/api/assignees');
@@ -509,8 +521,24 @@
                 if (data.success && data.assignees.length > 0) {
                     data.assignees.forEach(a => {
                         const opt = document.createElement('option');
-                        opt.value = a.name;  // Передаём displayName для фильтрации
+                        opt.value = a.name;
                         opt.textContent = a.name;
+                        select.appendChild(opt);
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadIssueTypes() {
+            try {
+                const resp = await fetch('/api/issue-types');
+                const data = await resp.json();
+                const select = document.getElementById('issue_type');
+                if (data.success && data.issue_types.length > 0) {
+                    data.issue_types.forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.id;
+                        opt.textContent = t.name;
                         select.appendChild(opt);
                     });
                 }
@@ -529,10 +557,20 @@
             return Array.from(document.querySelectorAll('#blocks_container input[type="checkbox"]:checked')).map(cb => cb.value);
         }
         
+        function getSelectedValues(selectId) {
+            const select = document.getElementById(selectId);
+            return Array.from(select.selectedOptions).map(opt => opt.value);
+        }
+
         function getParams() {
+            const projects = getSelectedValues('project');
+            const assignees = getSelectedValues('assignee');
+            const issueTypes = getSelectedValues('issue_type');
+            
             return {
-                project: document.getElementById('project').value,
-                assignee: document.getElementById('assignee').value,
+                projects: projects.length > 0 ? projects : null,
+                assignees: assignees.length > 0 ? assignees : null,
+                issue_types: issueTypes.length > 0 ? issueTypes : null,
                 start_date: document.getElementById('start_date').value,
                 days: parseInt(document.getElementById('days').value),
                 blocks: getSelectedBlocks(),

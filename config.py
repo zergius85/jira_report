@@ -7,8 +7,10 @@
 import os
 from dotenv import load_dotenv
 
-# Загружаем переменные из .env
-load_dotenv()
+# Загружаем переменные из .env.local (приоритет), затем из .env
+# .env.local НЕ tracked в git, используется для локальных настроек
+load_dotenv('.env.local')
+load_dotenv(override=False)  # .env загружается, если переменная не установлена в .env.local
 
 # =============================================
 # РЕЖИМ РАБОТЫ (dev/prod)
