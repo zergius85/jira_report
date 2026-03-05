@@ -14,7 +14,7 @@
 - ✅ **Выявление проблемных** задач
 - ✅ **Web-интерфейс** с удобным UI
 - ✅ **Консольный режим** для автоматизации
-- ✅ **Выгрузка в Excel** (4 листа)
+- ✅ **Выгрузка в Excel** (5 листов: Сводка, Исполнители, Детали, Проблемы, Непонятное, Risk Zone)
 
 ---
 
@@ -29,7 +29,7 @@ pip install -r requirements.txt
 ### 2. Настройка конфигурации
 
 ```bash
-cp .env.example .env
+cp configs/.env.example .env
 ```
 
 Отредактируйте `.env` и укажите:
@@ -70,6 +70,8 @@ python jira_report.py -e
 | `assignees` | Нагрузка по исполнителям |
 | `detail` | Детализация по задачам |
 | `issues` | Проблемные задачи |
+| `internal` | Непонятное (NEW, local) |
+| `risk_zone` | Risk Zone — зависшие задачи |
 
 ---
 
@@ -123,7 +125,7 @@ python jira_report.py -b issues -vv
 | `EXCLUDED_ASSIGNEE_CLOSE` | ❌ | Пользователи-исключения |
 | `SSL_VERIFY` | ❌ | Проверка SSL (false для внутренних серверов) |
 
-### Файл `config.py` (общие настройки, хранить в git)
+### Файл `core/config.py` (общие настройки, хранить в git)
 
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
@@ -154,10 +156,16 @@ FLASK_ENV=production
          │
 ┌────────▼────────┐
 │   app.py        │
-│   (API Server)  │
+│   (Web entry)   │
 └────────┬────────┘
          │
 ┌────────▼────────┐
+│  web/app.py     │
+│   (Flask API)   │
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│ core/           │
 │ jira_report.py  │
 │   (Ядро отчётов)│
 └────────┬────────┘
@@ -180,7 +188,9 @@ FLASK_ENV=production
 | Нет фактического времени | `timespent` | `null` или `0` |
 | Некорректный статус | `status.id` | ID в списке `CLOSED_STATUS_IDS` |
 
-**Исключения:** Пользователи из `EXCLUDED_ASSIGNEE_CLOSE` — для них статус "Закрыт" не считается ошибкой.
+**Исключения:** 
+- Пользователи из `EXCLUDED_ASSIGNEE_CLOSE` — для них статус "Закрыт" не считается ошибкой
+- Если задача закрыта пользователем демона (JIRA_USER) — это корректно
 
 ---
 
@@ -188,18 +198,42 @@ FLASK_ENV=production
 
 ```
 jira_report/
-├── app.py              # Web-сервер (Flask)
-├── jira_report.py      # Ядро отчётов
-├── config.py           # Общие настройки (dev/prod)
-├── requirements.txt    # Зависимости Python
-├── .env.example        # Шаблон конфигурации
-├── .env                # Конфигурация (не в git!)
-├── .gitignore          # Игнорируемые файлы
-├── README.md           # Этот файл
-├── templates/
-│   └── index.html      # Web-интерфейс
-└── tests/
-    └── test_report.py  # Тесты
+├── app.py                  # Точка входа Web-приложения
+├── jira_report.py          # Точка входа консольного режима
+├── config.py               # Обёртка для core/config.py
+├── requirements.txt        # Зависимости Python
+├── pytest.ini             # Настройки тестов
+├── .gitignore             # Игнорируемые файлы
+├── README.md              # Этот файл
+├── RECOMMENDATIONS.md     # Рекомендации по развитию
+├── IMPROVEMENTS.md        # Предложения по улучшению
+│
+├── core/                   # Ядро системы
+│   ├── __init__.py
+│   ├── config.py          # Конфигурация (настройки)
+│   └── jira_report.py     # Основная логика отчётов
+│
+├── web/                    # Веб-интерфейс
+│   ├── __init__.py
+│   └── app.py             # Flask API и endpoints
+│
+├── services/               # Служебные файлы
+│   ├── __init__.py
+│   ├── install-service.sh # Скрипт установки службы
+│   ├── jira-report.service
+│   └── jira-report.service.template
+│
+├── configs/                # Конфигурационные шаблоны
+│   ├── __init__.py
+│   ├── .env.example
+│   ├── .env.local.example
+│   └── .env.preinstall
+│
+├── templates/              # HTML шаблоны
+│   └── index.html
+│
+└── tests/                  # Тесты
+    └── test_report.py
 ```
 
 ---
@@ -251,14 +285,14 @@ python -m py_compile app.py jira_report.py
 
 1. **Скопируйте и настройте .env:**
    ```bash
-   cp .env.example .env
+   cp configs/.env.example .env
    # Отредактируйте .env (укажите JIRA_SERVER, JIRA_USER, JIRA_PASS)
    # Для продакшена добавьте: FLASK_ENV=production
    ```
 
 2. **Установите службу:**
    ```bash
-   sudo ./install-service.sh
+   sudo ./services/install-service.sh --prod
    ```
 
 3. **Проверка статуса:**

@@ -1,4 +1,4 @@
-# =============================================
+﻿# =============================================
 # Шаблон службы Jira Report
 # Копируется в /etc/systemd/system/ при установке
 # =============================================
@@ -21,7 +21,7 @@ Environment="PYTHONUNBUFFERED=1"
 # Режим: development или production (устанавливается скриптом install-service.sh)
 Environment="FLASK_ENV=development"
 
-# Команда запуска
+# Команда запуска (из корня проекта)
 ExecStart=/usr/bin/python3 /home/kit02/jira_report/app.py
 
 # Автоматический перезапуск

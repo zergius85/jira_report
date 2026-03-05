@@ -8,10 +8,10 @@ import sys
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock
 
-# Добавляем путь к модулю
+# Добавляем путь к модулю (теперь core/ вместо корня)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from jira_report import (
+from core.jira_report import (
     REPORT_BLOCKS,
     convert_seconds_to_hours,
     get_default_start_date,

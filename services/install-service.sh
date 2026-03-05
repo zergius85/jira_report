@@ -6,12 +6,13 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# SCRIPT_DIR теперь указывает на родительскую директорию (корень проекта)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICE_NAME="jira-report"
 SERVICE_FILE="${SERVICE_NAME}.service"
 SYSTEMD_DIR="/etc/systemd/system"
 ENV_FILE="$SCRIPT_DIR/.env"
-CONFIG_FILE="$SCRIPT_DIR/config.py"
+CONFIG_FILE="$SCRIPT_DIR/core/config.py"
 
 # Цвета для вывода
 RED='\033[0;31m'
@@ -277,9 +278,9 @@ fi
 # =============================================
 if [ ! -f "$ENV_FILE" ]; then
     # Проверяем, есть ли .env.preinstall и флаг --from-env
-    if [ "$FROM_ENV" = true ] && [ -f "$SCRIPT_DIR/.env.preinstall" ]; then
-        echo -e "${BLUE}📋 Копирование .env из .env.preinstall...${NC}"
-        cp "$SCRIPT_DIR/.env.preinstall" "$ENV_FILE"
+    if [ "$FROM_ENV" = true ] && [ -f "$SCRIPT_DIR/configs/.env.preinstall" ]; then
+        echo -e "${BLUE}📋 Копирование .env из configs/.env.preinstall...${NC}"
+        cp "$SCRIPT_DIR/configs/.env.preinstall" "$ENV_FILE"
         chmod 600 "$ENV_FILE"
         echo -e "${GREEN}✅ .env создан из .env.preinstall!${NC}"
         echo ""
@@ -319,14 +320,14 @@ fi
 if [ ! -f "$ENV_FILE" ]; then
     echo -e "${YELLOW}⚠️  Файл .env не найден!${NC}"
     echo "   Создайте .env перед установкой службы:"
-    echo "   cp .env.example .env"
+    echo "   cp configs/.env.example .env"
     exit 1
 fi
 
 # Проверка config.py
 if [ ! -f "$CONFIG_FILE" ]; then
-    echo -e "${RED}❌ Файл config.py не найден!${NC}"
-    echo "   Убедитесь, что config.py существует в директории службы"
+    echo -e "${RED}❌ Файл core/config.py не найден!${NC}"
+    echo "   Убедитесь, что core/config.py существует в директории проекта"
     exit 1
 fi
 
