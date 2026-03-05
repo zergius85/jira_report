@@ -791,34 +791,71 @@ def generate_report(
 
 def generate_excel(report_data: Dict[str, Any], output: Optional[Union[str, io.BytesIO]] = None) -> Union[str, io.BytesIO]:
     """
-    Выгружает отчёт в Excel.
-    
+    Выгружает отчёт в Excel с форматированием.
+
     Args:
         report_data: Данные отчёта
         output: Путь к файлу или BytesIO объект
-        
+
     Returns:
         Union[str, io.BytesIO]: Имя файла или BytesIO объект
     """
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    
     if output is None:
         output = f"jira_report_{report_data['period'].replace(' — ', '_to_').replace(' ', '')}.xlsx"
 
     writer = pd.ExcelWriter(output, engine='openpyxl')
-    
+
     try:
-        if 'summary' in report_data and not report_data['summary'].empty:
-            report_data['summary'].to_excel(writer, sheet_name='Сводка', index=False)
-        if 'assignees' in report_data and not report_data['assignees'].empty:
-            report_data['assignees'].to_excel(writer, sheet_name='Исполнители', index=False)
-        if 'detail' in report_data and not report_data['detail'].empty:
-            report_data['detail'].to_excel(writer, sheet_name='Детали', index=False)
-        if 'issues' in report_data and not report_data['issues'].empty:
-            report_data['issues'].to_excel(writer, sheet_name='Проблемы', index=False)
-        if 'internal' in report_data and not report_data['internal'].empty:
-            report_data['internal'].to_excel(writer, sheet_name='Непонятное', index=False)
+        # Словарь с данными для каждого листа
+        sheets_data = {
+            'Сводка': report_data.get('summary'),
+            'Исполнители': report_data.get('assignees'),
+            'Детали': report_data.get('detail'),
+            'Проблемы': report_data.get('issues'),
+            'Непонятное': report_data.get('internal'),
+            'Risk Zone': report_data.get('risk_zone')
+        }
+        
+        for sheet_name, df in sheets_data.items():
+            if df is not None and not df.empty:
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+                
+                # Форматирование
+                worksheet = writer.sheets[sheet_name]
+                
+                # Стили
+                header_font = Font(bold=True, color='FFFFFF', size=11)
+                header_fill = PatternFill(start_color='3498db', end_color='3498db', fill_type='solid')
+                header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=False)
+                
+                # Форматирование заголовков
+                for col in worksheet[1]:
+                    col.font = header_font
+                    col.fill = header_fill
+                    col.alignment = header_alignment
+                
+                # Автоширина колонок
+                for col in worksheet.columns:
+                    max_length = 0
+                    column = col[0].column_letter
+                    for cell in col:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                        except:
+                            pass
+                    adjusted_width = min(max_length + 2, 50)
+                    worksheet.column_dimensions[column].width = adjusted_width
+                
+                # Выделение первой строки (заголовки)
+                worksheet.freeze_panes = 'A2'
+                
     finally:
         writer.close()
-    
+
     return output
 
 # =============================================

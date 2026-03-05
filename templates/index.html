@@ -427,7 +427,10 @@
 
         <!-- Дашборд с графиками -->
         <div id="dashboard" class="card hidden">
-            <h2 style="margin-bottom: 20px;">📊 Дашборд</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">📊 Дашборд</h2>
+                <button class="btn btn-success" onclick="downloadExcel()">💾 Скачать Excel</button>
+            </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
                 <div class="chart-container">
                     <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">📈 Динамика закрытия задач</h3>
