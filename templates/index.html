@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jira Report Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -423,7 +424,30 @@
                 <div class="stat-label">Оценка (ч)</div>
             </div>
         </div>
-        
+
+        <!-- Дашборд с графиками -->
+        <div id="dashboard" class="card hidden">
+            <h2 style="margin-bottom: 20px;">📊 Дашборд</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+                <div class="chart-container">
+                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">📈 Динамика закрытия задач</h3>
+                    <canvas id="chartTrend"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">👥 Нагрузка по исполнителям</h3>
+                    <canvas id="chartAssignees"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">📊 Статусы задач</h3>
+                    <canvas id="chartStatuses"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">🏷️ Типы задач</h3>
+                    <canvas id="chartTypes"></canvas>
+                </div>
+            </div>
+        </div>
+
         <!-- Вкладки с отчётами -->
         <div id="reports_container" class="card hidden">
             <div class="tabs">
@@ -688,7 +712,8 @@
             document.getElementById('stat_spent').textContent = data.totals.spent;
             document.getElementById('stat_estimated').textContent = data.totals.estimated;
             document.getElementById('stats').classList.remove('hidden');
-            
+            document.getElementById('dashboard').classList.remove('hidden');
+
             if (data.summary?.length > 0) {
                 renderTable('summary_table', data.summary);
                 document.getElementById('summary_count').textContent = data.summary.length;
@@ -713,6 +738,9 @@
                 renderTable('risk_table', data.risk_zone);
                 document.getElementById('risk_count').textContent = data.risk_zone.length;
             }
+
+            // Отрисовка графиков
+            renderCharts(data);
 
             const tabs = ['summary', 'assignees', 'detail', 'issues', 'internal', 'risk'];
             for (const tab of tabs) {
@@ -956,6 +984,130 @@
             
             loadPresetList();
             alert('❌ Пресет удалён');
+        }
+
+        // ========== ГРАФИКИ ==========
+        let charts = {}; // Хранилище экземпляров Chart.js
+
+        function renderCharts(data) {
+            // 1. Динамика закрытия задач (по датам решения)
+            if (data.detail?.length > 0) {
+                const trendData = {};
+                data.detail.forEach(task => {
+                    const date = task['Дата решения'] || task['Дата создания'];
+                    if (date && date !== '-') {
+                        trendData[date] = (trendData[date] || 0) + 1;
+                    }
+                });
+                const sortedDates = Object.keys(trendData).sort();
+                const cumulative = [];
+                let sum = 0;
+                sortedDates.forEach(date => {
+                    sum += trendData[date];
+                    cumulative.push(sum);
+                });
+
+                createChart('chartTrend', {
+                    type: 'line',
+                    data: {
+                        labels: sortedDates,
+                        datasets: [{
+                            label: 'Закрыто задач',
+                            data: cumulative,
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+
+                // 2. Нагрузка по исполнителям
+                if (data.assignees?.length > 0) {
+                    const assigneeData = {};
+                    data.assignees.forEach(a => {
+                        assigneeData[a['Исполнитель']] = a['Задач'];
+                    });
+
+                    createChart('chartAssignees', {
+                        type: 'bar',
+                        data: {
+                            labels: Object.keys(assigneeData),
+                            datasets: [{
+                                label: 'Задач',
+                                data: Object.values(assigneeData),
+                                backgroundColor: '#27ae60'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true } }
+                        }
+                    });
+                }
+
+                // 3. Статусы задач
+                const statusData = {};
+                data.detail.forEach(task => {
+                    const status = task['Статус'] || 'Unknown';
+                    statusData[status] = (statusData[status] || 0) + 1;
+                });
+
+                createChart('chartStatuses', {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(statusData),
+                        datasets: [{
+                            data: Object.values(statusData),
+                            backgroundColor: ['#3498db', '#27ae60', '#f39c12', '#e74c3c', '#9b59b6']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+
+                // 4. Типы задач
+                const typeData = {};
+                data.detail.forEach(task => {
+                    const type = task['Тип'] || 'Unknown';
+                    typeData[type] = (typeData[type] || 0) + 1;
+                });
+
+                createChart('chartTypes', {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(typeData),
+                        datasets: [{
+                            data: Object.values(typeData),
+                            backgroundColor: ['#3498db', '#27ae60', '#f39c12', '#e74c3c', '#9b59b6', '#1abc9c']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
+        }
+
+        function createChart(canvasId, config) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+
+            // Уничтожаем старый график если есть
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+
+            charts[canvasId] = new Chart(canvas, config);
         }
     </script>
 </body>
