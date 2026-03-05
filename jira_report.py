@@ -205,18 +205,22 @@ def save_closed_status_ids(status_ids: List[str]) -> None:
     with open(env_path, 'w', encoding='utf-8') as f:
         f.write(env_content)
 
-def validate_issue(issue: Any, jira: Optional[JIRA] = None) -> List[str]:
+def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: Optional[List[str]] = None) -> List[str]:
     """
     Проверяет задачу на корректность заполнения.
 
     Args:
         issue: Объект задачи Jira
         jira: Объект подключения к Jira (нужен для проверки changelog)
+        closed_status_ids: Список ID закрытых статусов (опционально)
 
     Returns:
         List[str]: Список проблем
     """
     problems = []
+
+    # Используем переданный список или глобальный
+    status_ids = closed_status_ids if closed_status_ids else CLOSED_STATUS_IDS
 
     # Проверка даты решения
     if not issue.fields.resolutiondate:
@@ -232,7 +236,7 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None) -> List[str]:
         status_name = issue.fields.status.name
 
         # Проверяем changelog ТОЛЬКО если статус "Закрыт"
-        if status_id in CLOSED_STATUS_IDS:
+        if status_id in status_ids:
             is_correct_close = False
             
             # Проверяем, не является ли исполнитель исключением (holin и т.п.)
@@ -301,12 +305,16 @@ def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
         return ['Исполнитель', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
     elif block == 'detail':
         if extra_verbose:
-            return ['URL', 'ID', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
-        return ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
+            return ['URL', 'ID', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
+        return ['URL', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
     elif block == 'issues':
         if extra_verbose:
             return ['URL', 'ID', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
         return ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
+    elif block == 'internal':
+        if extra_verbose:
+            return ['URL', 'ID', 'Проект ID', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
+        return ['URL', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
     else:
         return ['Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Дата создания', 'Дата исполнения', 'Факт (ч)', 'Оценка (ч)']
         
@@ -318,7 +326,8 @@ def generate_report(
     issue_types: Optional[Union[str, List[str]]] = None,
     blocks: Optional[List[str]] = None,
     verbose: bool = False,
-    extra_verbose: bool = False
+    extra_verbose: bool = False,
+    closed_status_ids: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
     Генерирует отчёт по задачам Jira.
@@ -336,10 +345,10 @@ def generate_report(
     Returns:
         Dict[str, Any]: Словарь с данными отчёта
     """
-    # Авто-определение ID статуса "Закрыт"
-    global CLOSED_STATUS_IDS
-    if not CLOSED_STATUS_IDS or CLOSED_STATUS_IDS[0] == '':
-        CLOSED_STATUS_IDS = get_closed_status_ids()
+    # Авто-определение ID статуса "Закрыт" (локальная переменная, не мутим глобальную)
+    closed_status_ids = CLOSED_STATUS_IDS
+    if not closed_status_ids or closed_status_ids[0] == '':
+        closed_status_ids = get_closed_status_ids()
 
     # Нормализация множественных фильтров
     if isinstance(project_keys, str):
@@ -486,7 +495,7 @@ def generate_report(
             issue_url = f"{JIRA_SERVER}/browse/{issue.key}"
             issue_id = issue.id if extra_verbose else None
 
-            problems = validate_issue(issue, jira)
+            problems = validate_issue(issue, jira, closed_status_ids)
 
             # Фильтр по исполнителю теперь в JQL
             
@@ -693,6 +702,16 @@ def generate_report(
         result['internal'] = df_internal
 
     # Фильтрация колонок для каждого блока
+    if 'summary' in result['blocks'] and not result['summary'].empty:
+        cols = get_column_order('summary', extra_verbose)
+        available_cols = [c for c in cols if c in result['summary'].columns]
+        result['summary'] = result['summary'][available_cols]
+
+    if 'assignees' in result['blocks'] and not result['assignees'].empty:
+        cols = get_column_order('assignees', extra_verbose)
+        available_cols = [c for c in cols if c in result['assignees'].columns]
+        result['assignees'] = result['assignees'][available_cols]
+
     if 'detail' in result['blocks'] and not result['detail'].empty:
         cols = get_column_order('detail', extra_verbose)
         available_cols = [c for c in cols if c in result['detail'].columns]
@@ -704,7 +723,7 @@ def generate_report(
         result['issues'] = result['issues'][available_cols]
 
     if 'internal' in result['blocks'] and not result['internal'].empty:
-        cols = get_column_order('detail', extra_verbose)  # Используем колонки как для detail
+        cols = get_column_order('internal', extra_verbose)
         available_cols = [c for c in cols if c in result['internal'].columns]
         result['internal'] = result['internal'][available_cols]
 
@@ -783,22 +802,24 @@ if __name__ == "__main__":
             print(f"Доступные: {list(REPORT_BLOCKS.keys())}")
             sys.exit(1)
     
-    # Авто-определение статуса перед запуском
-    if not CLOSED_STATUS_IDS or CLOSED_STATUS_IDS[0] == '':
-        CLOSED_STATUS_IDS = get_closed_status_ids()
-    
+    # Авто-определение статуса перед запуском (локальная переменная)
+    closed_status_ids = CLOSED_STATUS_IDS
+    if not closed_status_ids or closed_status_ids[0] == '':
+        closed_status_ids = get_closed_status_ids()
+
     print(f"🔌 Генерация отчёта...")
     if args.blocks:
         print(f"📦 Блоки: {', '.join(blocks)}")
-    
+
     report = generate_report(
-        project_key=args.project,
+        project_keys=args.project,
         start_date=args.start_date,
         days=args.days,
         assignee_filter=args.assignee,
         blocks=blocks,
         verbose=args.verbose,
-        extra_verbose=args.extra_verbose
+        extra_verbose=args.extra_verbose,
+        closed_status_ids=closed_status_ids
     )
     
     print("\n" + "="*100)
