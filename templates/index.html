@@ -323,7 +323,15 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                 <!-- Левая колонка - Фильтры -->
                 <div>
-                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">📊 Фильтры</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3 style="font-size: 14px; color: #555; margin: 0;">📊 Фильтры</h3>
+                        <div>
+                            <button class="btn btn-select" onclick="savePreset()" title="Сохранить текущие настройки">💾 Сохранить</button>
+                            <select id="preset_select" onchange="loadPreset()" style="padding: 6px 12px; font-size: 13px; border-radius: 3px; border: 1px solid #ccc;">
+                                <option value="">📁 Загрузить...</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
                         <div class="form-group">
                             <label for="project">📦 Проекты</label>
@@ -504,6 +512,9 @@
             await loadProjects();
             await loadAssignees();
             await loadIssueTypes();
+            
+            // Загружаем список сохранённых пресетов
+            loadPresetList();
         };
         
         function switchTab(tabName) {
@@ -843,16 +854,96 @@
                 debugContent.classList.remove('hidden');
             }
         }
-        
-        function showAssigneesDebugResponse() {
-            const debugContent = document.getElementById('assignees_debug_content');
-            if (assigneesDebugData.response) {
-                debugContent.textContent = JSON.stringify(assigneesDebugData.response, null, 2);
-                debugContent.classList.remove('hidden');
-            } else {
-                debugContent.textContent = 'Ответ ещё не получен';
-                debugContent.classList.remove('hidden');
+
+        // ========== ПРЕСЕТЫ ФИЛЬТРОВ ==========
+        function savePreset() {
+            const name = prompt('Введите название пресета:', 'Мой пресет');
+            if (!name) return;
+            
+            const preset = {
+                project: document.getElementById('project').value,
+                assignee: document.getElementById('assignee').value,
+                issue_type: document.getElementById('issue_type').value,
+                start_date: document.getElementById('start_date').value,
+                days: document.getElementById('days').value,
+                blocks: getSelectedBlocks(),
+                extra_verbose: document.getElementById('extra_verbose').checked
+            };
+            
+            // Получаем существующие пресеты
+            const presets = JSON.parse(localStorage.getItem('jira_presets') || '{}');
+            presets[name] = preset;
+            localStorage.setItem('jira_presets', JSON.stringify(presets));
+            
+            // Обновляем список пресетов
+            loadPresetList();
+            alert(`✅ Пресет "${name}" сохранён!`);
+        }
+
+        function loadPreset() {
+            const select = document.getElementById('preset_select');
+            const name = select.value;
+            if (!name) return;
+            
+            const presets = JSON.parse(localStorage.getItem('jira_presets') || '{}');
+            const preset = presets[name];
+            if (!preset) return;
+            
+            // Применяем настройки
+            if (preset.project) document.getElementById('project').value = preset.project;
+            if (preset.assignee) document.getElementById('assignee').value = preset.assignee;
+            if (preset.issue_type) document.getElementById('issue_type').value = preset.issue_type;
+            if (preset.start_date) document.getElementById('start_date').value = preset.start_date;
+            if (preset.days) document.getElementById('days').value = preset.days;
+            if (preset.blocks) {
+                document.querySelectorAll('#blocks_container input[type="checkbox"]').forEach(cb => {
+                    cb.checked = preset.blocks.includes(cb.value);
+                });
             }
+            if (preset.extra_verbose !== undefined) {
+                document.getElementById('extra_verbose').checked = preset.extra_verbose;
+            }
+            
+            select.value = ''; // Сбрасываем выбор
+            alert(`✅ Пресет "${name}" загружен!`);
+        }
+
+        function loadPresetList() {
+            const select = document.getElementById('preset_select');
+            const presets = JSON.parse(localStorage.getItem('jira_presets') || '{}');
+            const names = Object.keys(presets);
+            
+            // Сохраняем текущий выбор
+            const currentValue = select.value;
+            
+            // Очищаем и заполняем заново
+            select.innerHTML = '<option value="">📁 Загрузить...</option>';
+            names.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+            
+            // Восстанавливаем выбор если есть
+            if (names.includes(currentValue)) {
+                select.value = currentValue;
+            }
+        }
+
+        function deletePreset() {
+            const select = document.getElementById('preset_select');
+            const name = select.value;
+            if (!name) return;
+            
+            if (!confirm(`Удалить пресет "${name}"?`)) return;
+            
+            const presets = JSON.parse(localStorage.getItem('jira_presets') || '{}');
+            delete presets[name];
+            localStorage.setItem('jira_presets', JSON.stringify(presets));
+            
+            loadPresetList();
+            alert('❌ Пресет удалён');
         }
     </script>
 </body>

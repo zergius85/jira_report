@@ -17,6 +17,7 @@ import sys
 import logging
 import io
 from dateutil.relativedelta import relativedelta
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 # Импортируем настройки из config.py
 from config import (
@@ -72,14 +73,23 @@ def validate_config() -> Tuple[bool, List[str]]:
 
 def get_jira_connection() -> JIRA:
     """
-    Устанавливает соединение с Jira.
-    
+    Устанавливает соединение с Jira с автоматическими повторными попытками.
+
     Returns:
         JIRA: Объект подключения к Jira
-        
+
     Raises:
-        ConnectionError: При ошибке подключения
+        ConnectionError: При ошибке подключения после всех попыток
     """
+    return _get_jira_connection_impl()
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((ConnectionError, JIRAError)),
+    reraise=True
+)
+def _get_jira_connection_impl() -> JIRA:
     try:
         logger.info(f"🔌 Подключение к Jira: {JIRA_SERVER}")
         
