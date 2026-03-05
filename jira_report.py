@@ -392,6 +392,7 @@ def generate_report(
                 projects_map[proj.key] = proj.name
             except Exception:
                 logger.warning(f"Проект {proj_key} не найден")
+        projects_keys = list(projects_map.keys())  # Обновляем список ключей
     else:
         # Все проекты
         all_projects = jira.projects()
@@ -412,6 +413,19 @@ def generate_report(
     issue_type_filter = ''
     if issue_types and len(issue_types) > 0:
         issue_type_filter = ' AND issuetype IN (' + ','.join(issue_types) + ')'
+    
+    # Формируем фильтр по исполнителям для JQL
+    assignee_filter_jql = ''
+    if assignee_filter and len(assignee_filter) > 0:
+        # Экранируем имена для JQL
+        assignee_list = []
+        for a in assignee_filter:
+            # Проверяем, это имя или displayName
+            if ' ' in a or '@' in a:
+                assignee_list.append(f'"{a}"')
+            else:
+                assignee_list.append(a)
+        assignee_filter_jql = ' AND assignee IN (' + ','.join(assignee_list) + ')'
 
     for proj_key in projects_keys:
         proj_name = projects_map.get(proj_key, proj_key)
@@ -421,13 +435,15 @@ def generate_report(
             jql_normal = (f"project = {proj_key} "
                           f"AND resolved >= '{start_date_str}' "
                           f"AND resolved <= '{end_date_str}'"
-                          f"{issue_type_filter} "
+                          f"{issue_type_filter}"
+                          f"{assignee_filter_jql} "
                           f"ORDER BY resolved ASC")
         else:
             # Без ограничений по датам
             jql_normal = (f"project = {proj_key} "
                           f"AND resolved is not null"
-                          f"{issue_type_filter} "
+                          f"{issue_type_filter}"
+                          f"{assignee_filter_jql} "
                           f"ORDER BY resolved DESC")
 
         # Проблемные задачи - фильтр по created + 2 месяца
@@ -435,12 +451,14 @@ def generate_report(
             jql_issues = (f"project = {proj_key} "
                           f"AND created >= '{start_date_str}' "
                           f"AND created <= '{issues_end_str}'"
-                          f"{issue_type_filter} "
+                          f"{issue_type_filter}"
+                          f"{assignee_filter_jql} "
                           f"ORDER BY created ASC")
         else:
             jql_issues = (f"project = {proj_key} "
                           f"AND created is not null"
-                          f"{issue_type_filter} "
+                          f"{issue_type_filter}"
+                          f"{assignee_filter_jql} "
                           f"ORDER BY created DESC")
         
         # Получаем все задачи для проблемных (больший период)
@@ -473,19 +491,10 @@ def generate_report(
             
             issue_url = f"{JIRA_SERVER}/browse/{issue.key}"
             issue_id = issue.id if extra_verbose else None
-            
+
             problems = validate_issue(issue, jira)
 
-            # Фильтр по исполнителю (множественный выбор)
-            if assignee_filter and len(assignee_filter) > 0:
-                # Проверяем, есть ли хоть один исполнитель из списка в имени текущего
-                match = False
-                for af in assignee_filter:
-                    if af.lower() in assignee.lower():
-                        match = True
-                        break
-                if not match:
-                    continue
+            # Фильтр по исполнителю теперь в JQL
             
             # Формируем отображаемые значения с ID если нужно
             project_display = f"{proj_name} [{getattr(issue.fields, 'project', None).id}]" if extra_verbose and hasattr(issue.fields, 'project') and getattr(issue.fields, 'project', None) and hasattr(getattr(issue.fields, 'project', None), 'id') else proj_name

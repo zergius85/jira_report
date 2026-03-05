@@ -315,63 +315,66 @@
 <body>
     <div class="container">
         <h1>📊 Jira Report Generator</h1>
-        
+
         <!-- Форма -->
         <div class="card">
             <h2 style="margin-bottom: 20px;">🔧 Параметры отчёта</h2>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="project">📦 Проекты</label>
-                    <select id="project" multiple size="4">
-                        <option value="">Все проекты</option>
-                    </select>
-                    <small style="color: #666; font-size: 12px;">Ctrl+Click для множественного выбора</small>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <!-- Левая колонка - Фильтры -->
+                <div>
+                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">📊 Фильтры</h3>
+                    <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label for="project">📦 Проекты</label>
+                            <select id="project" multiple size="5" style="height: 120px;">
+                                <option value="">Все проекты</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="assignee">👤 Исполнители</label>
+                            <select id="assignee" multiple size="5" style="height: 120px;">
+                                <option value="">Все исполнители</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="issue_type">📝 Типы задач</label>
+                            <select id="issue_type" multiple size="5" style="height: 120px;">
+                                <option value="">Все типы</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row" style="margin-top: 10px; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label for="start_date">📅 Дата начала</label>
+                            <input type="date" id="start_date">
+                        </div>
+                        <div class="form-group">
+                            <label for="days">Период (дней)</label>
+                            <input type="number" id="days" value="30" min="0" max="365">
+                            <small style="color: #999; font-size: 11px;">0 = без ограничений</small>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="assignee">👤 Исполнители</label>
-                    <select id="assignee" multiple size="4">
-                        <option value="">Все исполнители</option>
-                    </select>
-                    <small style="color: #666; font-size: 12px;">Ctrl+Click для множественного выбора</small>
-                </div>
-                <div class="form-group">
-                    <label for="issue_type">📝 Типы задач</label>
-                    <select id="issue_type" multiple size="4">
-                        <option value="">Все типы</option>
-                    </select>
-                    <small style="color: #666; font-size: 12px;">Ctrl+Click для множественного выбора</small>
-                </div>
-            </div>
-            <div class="form-row" style="margin-top: 15px;">
-                <div class="form-group">
-                    <label for="start_date">Дата начала</label>
-                    <input type="date" id="start_date">
-                </div>
-                <div class="form-group">
-                    <label for="days">Период (дней)<br><small style="color: #666; font-size: 11px;">0 = без ограничений</small></label>
-                    <input type="number" id="days" value="0" min="0" max="365">
+                
+                <!-- Правая колонка - Блоки и опции -->
+                <div>
+                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">📦 Блоки отчёта</h3>
+                    <div class="checkbox-group" id="blocks_container" style="margin-bottom: 20px;"></div>
+                    
+                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">⚙️ Опции</h3>
+                    <label class="checkbox-item" style="margin-bottom: 10px;">
+                        <input type="checkbox" id="extra_verbose">
+                        <span>Показывать ID в квадратных скобках (-vv)</span>
+                    </label>
+                    
+                    <div style="margin-top: 20px;">
+                        <button class="btn btn-primary" id="generate_btn" onclick="generateReport()">📋 Сгенерировать отчёт</button>
+                        <button class="btn btn-success" id="download_btn" onclick="downloadExcel()">💾 Скачать Excel</button>
+                    </div>
                 </div>
             </div>
             
-            <div class="form-group">
-                <label>📦 Блоки отчёта 
-                    <button class="btn btn-select" onclick="selectAllBlocks()">Все</button>
-                    <button class="btn btn-select" onclick="deselectAllBlocks()">Ничего</button>
-                </label>
-                <div class="checkbox-group" id="blocks_container"></div>
-            </div>
-            
-            <div class="form-group">
-                <label class="checkbox-item">
-                    <input type="checkbox" id="extra_verbose">
-                    <span>Показывать ID в квадратных скобках (-vv)</span>
-                </label>
-            </div>
-            
-            <div>
-                <button class="btn btn-primary" id="generate_btn" onclick="generateReport()">📋 Сгенерировать отчёт</button>
-                <button class="btn btn-success" id="download_btn" onclick="downloadExcel()">💾 Скачать Excel</button>
-            </div>
             <div id="error" class="error hidden"></div>
 
             <!-- Debug секция -->
@@ -471,10 +474,17 @@
             const today = new Date();
             const year = today.getFullYear();
             const month = today.getMonth(); // 0-11
+            
+            // 1 число прошлого месяца
             let prevMonthYear = month === 0 ? year - 1 : year;
             let prevMonth = month === 0 ? 11 : month - 1;
             const firstDayPrevMonth = new Date(prevMonthYear, prevMonth, 1);
-            document.getElementById('start_date').value = firstDayPrevMonth.toISOString().split('T')[0];
+            
+            // Формат YYYY-MM-DD для input type="date"
+            const yearStr = firstDayPrevMonth.getFullYear();
+            const monthStr = String(firstDayPrevMonth.getMonth() + 1).padStart(2, '0');
+            const dayStr = String(firstDayPrevMonth.getDate()).padStart(2, '0');
+            document.getElementById('start_date').value = `${yearStr}-${monthStr}-${dayStr}`;
 
             const container = document.getElementById('blocks_container');
             for (const [key, label] of Object.entries(BLOCKS)) {
@@ -727,12 +737,20 @@
                     return sortState.direction === 'asc' ? aNum - bNum : bNum - aNum;
                 }
 
-                // Пробуем как даты (формат ГГГГ-ММ-ДД)
-                const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-                if (datePattern.test(aText) && datePattern.test(bText)) {
-                    const aDate = new Date(aText);
-                    const bDate = new Date(bText);
-                    return sortState.direction === 'asc' ? aDate - bDate : bDate - aDate;
+                // Пробуем как даты (форматы: ГГГГ-ММ-ДД, ГГГГ.ММ.ДД)
+                const datePattern1 = /^\d{4}-\d{2}-\d{2}$/;
+                const datePattern2 = /^\d{4}\.\d{2}\.\d{2}$/;
+                
+                if ((datePattern1.test(aText) || datePattern2.test(aText)) && 
+                    (datePattern1.test(bText) || datePattern2.test(bText))) {
+                    // Нормализуем формат к YYYY-MM-DD
+                    const normalizeDate = (d) => d.replace('.', '-');
+                    const aDate = new Date(normalizeDate(aText));
+                    const bDate = new Date(normalizeDate(bText));
+                    
+                    if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime())) {
+                        return sortState.direction === 'asc' ? aDate - bDate : bDate - aDate;
+                    }
                 }
 
                 // Сравниваем как строки

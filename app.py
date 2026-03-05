@@ -37,19 +37,29 @@ def api_assignees():
     """Получить список исполнителей через Jira Users API"""
     try:
         jira = get_jira_connection()
-        users = jira.search_assignable_users_for_projects('')
+        # Получаем всех пользователей Jira
+        users = jira.users()
 
         assignees = {}
         for user in users:
-            if user.get('active', True):
+            # Проверяем различные форматы ответа
+            if isinstance(user, dict):
+                is_active = user.get('active', True)
                 key = user.get('name') or user.get('accountId') or user.get('key')
-                name = user.get('displayName', key)
-                if key:
-                    assignees[key] = name
+                name = user.get('displayName', key) or user.get('name', key)
+            else:
+                is_active = getattr(user, 'active', True)
+                key = getattr(user, 'name', None) or getattr(user, 'accountId', None) or getattr(user, 'key', None)
+                name = getattr(user, 'displayName', None) or getattr(user, 'name', key)
+            
+            if is_active and key:
+                assignees[key] = name
 
         result = [{'key': k, 'name': v} for k, v in sorted(assignees.items(), key=lambda x: x[1])]
         return jsonify({'success': True, 'assignees': result})
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/issue-types')
@@ -58,25 +68,23 @@ def api_issue_types():
     try:
         jira = get_jira_connection()
         
-        # Получаем все проекты для сбора всех типов задач
-        projects = jira.projects()
+        # Получаем все типы задач из Jira (глобально)
+        all_types = jira.issue_types()
         
         issue_types = {}
-        for proj in projects:
-            if proj.key in EXCLUDED_PROJECTS:
-                continue
-            if hasattr(proj, 'archived') and proj.archived:
-                continue
-            
-            # Получаем типы задач для проекта
-            if hasattr(proj, 'issueTypes') and proj.issueTypes:
-                for issue_type in proj.issueTypes:
-                    if not issue_type.subtask:  # Исключаем подзадачи
-                        issue_types[issue_type.id] = issue_type.name
+        for issue_type in all_types:
+            # Исключаем подзадачи
+            if not getattr(issue_type, 'subtask', False):
+                type_id = getattr(issue_type, 'id', None)
+                type_name = getattr(issue_type, 'name', None)
+                if type_id and type_name:
+                    issue_types[type_id] = type_name
         
         result = [{'id': k, 'name': v} for k, v in sorted(issue_types.items(), key=lambda x: x[1])]
         return jsonify({'success': True, 'issue_types': result})
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/task-info', methods=['POST'])
