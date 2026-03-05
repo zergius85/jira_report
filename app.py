@@ -5,6 +5,9 @@ from config import REPORT_BLOCKS, EXCLUDED_PROJECTS, ACTIVE_PORT, FLASK_HOST, IS
 from datetime import datetime
 import io
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'))
@@ -37,23 +40,49 @@ def api_assignees():
     """Получить список исполнителей через Jira Users API"""
     try:
         jira = get_jira_connection()
-        # Получаем всех пользователей Jira
-        users = jira.users()
-
+        # Пробуем разные методы получения пользователей
         assignees = {}
-        for user in users:
-            # Проверяем различные форматы ответа
-            if isinstance(user, dict):
-                is_active = user.get('active', True)
-                key = user.get('name') or user.get('accountId') or user.get('key')
-                name = user.get('displayName', key) or user.get('name', key)
-            else:
-                is_active = getattr(user, 'active', True)
-                key = getattr(user, 'name', None) or getattr(user, 'accountId', None) or getattr(user, 'key', None)
-                name = getattr(user, 'displayName', None) or getattr(user, 'name', key)
+        
+        # Метод 1: search_users с пустым запросом
+        try:
+            users = jira.search_users('')
+            for user in users:
+                if isinstance(user, dict):
+                    is_active = user.get('active', True)
+                    key = user.get('name') or user.get('accountId') or user.get('key')
+                    name = user.get('displayName', key) or user.get('name', key)
+                else:
+                    is_active = getattr(user, 'active', True)
+                    key = getattr(user, 'name', None) or getattr(user, 'accountId', None) or getattr(user, 'key', None)
+                    name = getattr(user, 'displayName', None) or getattr(user, 'name', key)
+                
+                if is_active and key:
+                    assignees[key] = name
+        except Exception as e1:
+            logger.warning(f"search_users не сработал: {e1}")
             
-            if is_active and key:
-                assignees[key] = name
+            # Метод 2: получить пользователей из проектов
+            try:
+                projects = jira.projects()
+                for proj in projects:
+                    if proj.key in EXCLUDED_PROJECTS:
+                        continue
+                    # Получаем назначаемых пользователей для проекта
+                    assignable = jira.search_assignable_users_for_projects(proj.key)
+                    for user in assignable:
+                        if isinstance(user, dict):
+                            is_active = user.get('active', True)
+                            key = user.get('name') or user.get('accountId') or user.get('key')
+                            name = user.get('displayName', key)
+                        else:
+                            is_active = getattr(user, 'active', True)
+                            key = getattr(user, 'name', None) or getattr(user, 'accountId', None)
+                            name = getattr(user, 'displayName', key)
+                        
+                        if is_active and key:
+                            assignees[key] = name
+            except Exception as e2:
+                logger.warning(f"search_assignable_users_for_projects не сработал: {e2}")
 
         result = [{'key': k, 'name': v} for k, v in sorted(assignees.items(), key=lambda x: x[1])]
         return jsonify({'success': True, 'assignees': result})

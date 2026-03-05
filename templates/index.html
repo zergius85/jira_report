@@ -361,29 +361,29 @@
                 <div>
                     <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">📦 Блоки отчёта</h3>
                     <div class="checkbox-group" id="blocks_container" style="margin-bottom: 20px;"></div>
-                    
+
                     <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">⚙️ Опции</h3>
                     <label class="checkbox-item" style="margin-bottom: 10px;">
                         <input type="checkbox" id="extra_verbose">
                         <span>Показывать ID в квадратных скобках (-vv)</span>
                     </label>
-                    
+
                     <div style="margin-top: 20px;">
                         <button class="btn btn-primary" id="generate_btn" onclick="generateReport()">📋 Сгенерировать отчёт</button>
                         <button class="btn btn-success" id="download_btn" onclick="downloadExcel()">💾 Скачать Excel</button>
+                    </div>
+                    
+                    <!-- Debug секция -->
+                    <div class="debug-section" style="margin-top: 20px;">
+                        <h3>🔍 Отладка</h3>
+                        <button class="debug-btn" onclick="showDebugRequest()">Показать запрос</button>
+                        <button class="debug-btn" onclick="showDebugResponse()">Показать ответ</button>
+                        <div id="debug_content" class="debug-content hidden"></div>
                     </div>
                 </div>
             </div>
             
             <div id="error" class="error hidden"></div>
-
-            <!-- Debug секция -->
-            <div class="debug-section">
-                <h3>🔍 Отладка</h3>
-                <button class="debug-btn" onclick="showDebugRequest()">Показать запрос</button>
-                <button class="debug-btn" onclick="showDebugResponse()">Показать ответ</button>
-                <div id="debug_content" class="debug-content hidden"></div>
-            </div>
 
             <!-- Индикатор загрузки -->
             <div id="loading" class="loading hidden">
@@ -531,8 +531,8 @@
                 if (data.success && data.assignees.length > 0) {
                     data.assignees.forEach(a => {
                         const opt = document.createElement('option');
-                        opt.value = a.name;
-                        opt.textContent = a.name;
+                        opt.value = a.key;  // Используем key (username) для JQL
+                        opt.textContent = a.name;  // Отображаем displayName
                         select.appendChild(opt);
                     });
                 }
@@ -726,28 +726,28 @@
             
             rows.sort((a, b) => {
                 const colIndex = Array.from(headers).findIndex(h => h.textContent.trim() === column);
-                const aText = a.children[colIndex]?.textContent || '';
-                const bText = b.children[colIndex]?.textContent || '';
+                let aText = a.children[colIndex]?.textContent?.trim() || '';
+                let bText = b.children[colIndex]?.textContent?.trim() || '';
 
                 // Пробуем как числа
                 const aNum = parseFloat(aText.replace(',', '.'));
                 const bNum = parseFloat(bText.replace(',', '.'));
 
-                if (!isNaN(aNum) && !isNaN(bNum)) {
+                if (!isNaN(aNum) && !isNaN(bNum) && aText !== '' && bText !== '') {
                     return sortState.direction === 'asc' ? aNum - bNum : bNum - aNum;
                 }
 
                 // Пробуем как даты (форматы: ГГГГ-ММ-ДД, ГГГГ.ММ.ДД)
                 const datePattern1 = /^\d{4}-\d{2}-\d{2}$/;
                 const datePattern2 = /^\d{4}\.\d{2}\.\d{2}$/;
-                
-                if ((datePattern1.test(aText) || datePattern2.test(aText)) && 
+
+                if ((datePattern1.test(aText) || datePattern2.test(aText)) &&
                     (datePattern1.test(bText) || datePattern2.test(bText))) {
                     // Нормализуем формат к YYYY-MM-DD
                     const normalizeDate = (d) => d.replace('.', '-');
                     const aDate = new Date(normalizeDate(aText));
                     const bDate = new Date(normalizeDate(bText));
-                    
+
                     if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime())) {
                         return sortState.direction === 'asc' ? aDate - bDate : bDate - aDate;
                     }

@@ -417,14 +417,8 @@ def generate_report(
     # Формируем фильтр по исполнителям для JQL
     assignee_filter_jql = ''
     if assignee_filter and len(assignee_filter) > 0:
-        # Экранируем имена для JQL
-        assignee_list = []
-        for a in assignee_filter:
-            # Проверяем, это имя или displayName
-            if ' ' in a or '@' in a:
-                assignee_list.append(f'"{a}"')
-            else:
-                assignee_list.append(a)
+        # assignee_filter содержит username (key), используем напрямую
+        assignee_list = assignee_filter
         assignee_filter_jql = ' AND assignee IN (' + ','.join(assignee_list) + ')'
 
     for proj_key in projects_keys:
