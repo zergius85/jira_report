@@ -71,6 +71,143 @@ show_help() {
 }
 
 # =============================================
+# Функция создания .env
+# =============================================
+create_env_file() {
+    local env_file="$SCRIPT_DIR/.env"
+    
+    # Если .env уже существует — спрашиваем要不要 перезаписать
+    if [ -f "$env_file" ]; then
+        echo -e "${YELLOW}⚠️  Файл .env уже существует!${NC}"
+        read -p "🔄 Перезаписать? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "✅ Пропущено, используем существующий .env"
+            return 0
+        fi
+    fi
+    
+    echo -e "${BLUE}📝 Создание файла .env...${NC}"
+    echo ""
+    echo "Заполните параметры подключения к Jira:"
+    echo "   (нажмите Enter для использования значения по умолчанию)"
+    echo ""
+    
+    # JIRA_SERVER
+    read -p "JIRA_SERVER (например, https://jira.company.com): " -r jira_server
+    if [ -z "$jira_server" ]; then
+        jira_server="https://jira.example.com"
+    fi
+    
+    # JIRA_USER
+    read -p "JIRA_USER (email или username): " -r jira_user
+    if [ -z "$jira_user" ]; then
+        jira_user="user@example.com"
+    fi
+    
+    # JIRA_PASS (скрытый ввод)
+    read -s -p "JIRA_PASS (пароль или API token): " -r jira_pass
+    echo
+    if [ -z "$jira_pass" ]; then
+        echo -e "${RED}❌ Пароль не может быть пустым!${NC}"
+        exit 1
+    fi
+    
+    # EXCLUDED_PROJECTS
+    read -p "EXCLUDED_PROJECTS (через запятую, например TEST,DEMO): " -r excluded_projects
+    if [ -z "$excluded_projects" ]; then
+        excluded_projects="TEST,SANDBOX"
+    fi
+    
+    # INTERNAL_PROJECTS
+    read -p "INTERNAL_PROJECTS (для вкладки 'Непонятное', например NEW,local): " -r internal_projects
+    if [ -z "$internal_projects" ]; then
+        internal_projects="NEW,local"
+    fi
+    
+    # EXCLUDED_ASSIGNEE_CLOSE
+    read -p "EXCLUDED_ASSIGNEE_CLOSE (исключения для статуса Закрыт, например holin,admin): " -r excluded_assignees
+    if [ -z "$excluded_assignees" ]; then
+        excluded_assignees="holin,admin"
+    fi
+    
+    # SSL_VERIFY
+    echo ""
+    echo "Проверка SSL:"
+    echo "  y - Включена (рекомендуется для продакшена)"
+    echo "  n - Отключена (для внутренних серверов с self-signed сертификатами)"
+    read -p "SSL_VERIFY (y/n): " -r ssl_verify
+    if [[ $ssl_verify =~ ^[Nn]$ ]]; then
+        ssl_verify="false"
+    else
+        ssl_verify="true"
+    fi
+    
+    # FLASK_ENV
+    echo ""
+    echo "Режим работы:"
+    echo "  1 - Development (порт 5001, отладка включена)"
+    echo "  2 - Production (порт 5000, отладка отключена)"
+    read -p "Выберите режим (1/2): " -r flask_mode
+    if [[ $flask_mode =~ ^1$ ]]; then
+        flask_env="development"
+    else
+        flask_env="production"
+    fi
+    
+    # Создаём файл .env
+    cat > "$env_file" <<EOF
+# =============================================
+# JIRA REPORT SYSTEM — КОНФИГУРАЦИЯ
+# =============================================
+# Сгенерировано скриптом install-service.sh $(date +%Y-%m-%d)
+
+# --- ПОДКЛЮЧЕНИЕ К JIRA (ОБЯЗАТЕЛЬНО) ---
+JIRA_SERVER=$jira_server
+JIRA_USER=$jira_user
+JIRA_PASS=$jira_pass
+
+# --- НАСТРОЙКИ ОТЧЁТОВ ---
+# Проекты для исключения из отчётов (через запятую, без пробелов)
+EXCLUDED_PROJECTS=$excluded_projects
+
+# Внутренние проекты для вкладки "Непонятное" (через запятую)
+INTERNAL_PROJECTS=$internal_projects
+
+# ID статусов "Закрыт"/"Closed" (автоматически определяется при первом запуске)
+# Оставьте пустым для авто-определения
+CLOSED_STATUS_IDS=
+
+# Пользователи, для которых статус "Закрыт" не считается ошибкой (через запятую)
+EXCLUDED_ASSIGNEE_CLOSE=$excluded_assignees
+
+# --- БЕЗОПАСНОСТЬ ---
+# Отключить проверку SSL (true/false) — только для внутренних серверов
+SSL_VERIFY=$ssl_verify
+
+# =============================================
+# РЕЖИМ РАБОТЫ (НЕ МЕНЯТЬ БЕЗ НУЖДЫ)
+# =============================================
+# FLASK_ENV=production — для продакшена (порт 5000)
+# FLASK_ENV=development — для разработки (порт 5001, по умолчанию)
+FLASK_ENV=$flask_env
+
+# Логирование: DEBUG (dev) или INFO (prod)
+LOG_LEVEL=$( [ "$flask_env" = "production" ] && echo "INFO" || echo "DEBUG" )
+EOF
+
+    # Устанавливаем правильные права на файл (только владелец может читать)
+    chmod 600 "$env_file"
+    
+    echo -e "${GREEN}✅ Файл .env создан!${NC}"
+    echo "   Путь: $env_file"
+    echo ""
+    echo -e "${YELLOW}⚠️  Важно: файл .env содержит пароли!${NC}"
+    echo "   Убедитесь, что права установлены корректно (chmod 600)"
+    echo ""
+}
+
+# =============================================
 # Проверка: если режим не указан — показываем help
 # =============================================
 if [ "$UNINSTALL" != true ] && [ -z "$MODE" ]; then
@@ -127,6 +264,23 @@ do_uninstall() {
 # =============================================
 if [ "$UNINSTALL" = true ]; then
     do_uninstall
+fi
+
+# =============================================
+# Создание .env если не существует
+# =============================================
+if [ ! -f "$ENV_FILE" ]; then
+    echo -e "${YELLOW}⚠️  Файл .env не найден!${NC}"
+    echo ""
+    read -p "📝 Хотите создать .env сейчас? (y/N): " -r create_env
+    echo
+    if [[ $create_env =~ ^[Yy]$ ]]; then
+        create_env_file
+    else
+        echo -e "${RED}❌ Установка невозможна без .env!${NC}"
+        echo "   Создайте .env вручную или запустите скрипт снова"
+        exit 1
+    fi
 fi
 
 # =============================================
