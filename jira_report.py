@@ -484,24 +484,36 @@ def generate_report(
                 }
                 # Добавляем ID задачи для extra_verbose
                 if extra_verbose:
-                    issue_data.insert(1, 'ID', issue.id)
+                    issue_data_with_id = {'ID': issue.id}
+                    issue_data_with_id.update(issue_data)
+                    issue_data = issue_data_with_id
                 issues_with_problems.append(issue_data)
         
         if proj_correct > 0 or proj_issues > 0:
-            summary_row = {
-                'Клиент (Проект)': proj_name,
-                'Задач закрыто': proj_correct + proj_issues,
-                'Корректных': proj_correct,
-                'С ошибками': proj_issues,
-                'Оценка (ч)': round(proj_estimated, 2),
-                'Факт (ч)': round(proj_spent, 2),
-                'Отклонение': round(proj_estimated - proj_spent, 2)
-            }
             # Добавляем ID проекта для extra_verbose
             if extra_verbose:
                 # Берём ID проекта из первой задачи
                 proj_id = issues_normal[0].fields.project.id if issues_normal else ''
-                summary_row.insert(1, 'ID', proj_id)
+                summary_row = {
+                    'Клиент (Проект)': proj_name,
+                    'ID': proj_id,
+                    'Задач закрыто': proj_correct + proj_issues,
+                    'Корректных': proj_correct,
+                    'С ошибками': proj_issues,
+                    'Оценка (ч)': round(proj_estimated, 2),
+                    'Факт (ч)': round(proj_spent, 2),
+                    'Отклонение': round(proj_estimated - proj_spent, 2)
+                }
+            else:
+                summary_row = {
+                    'Клиент (Проект)': proj_name,
+                    'Задач закрыто': proj_correct + proj_issues,
+                    'Корректных': proj_correct,
+                    'С ошибками': proj_issues,
+                    'Оценка (ч)': round(proj_estimated, 2),
+                    'Факт (ч)': round(proj_spent, 2),
+                    'Отклонение': round(proj_estimated - proj_spent, 2)
+                }
             summary_data.append(summary_row)
     
     df_detail = pd.DataFrame(all_issues_data)
