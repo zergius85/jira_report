@@ -37,60 +37,41 @@ def api_projects():
 
 @app.route('/api/assignees')
 def api_assignees():
-    """Получить список исполнителей через Jira Users API"""
+    """Получить список всех активных исполнителей"""
     try:
         jira = get_jira_connection()
         logger.info("🔍 Загрузка исполнителей из Jira...")
-        
-        # Пробуем разные методы получения пользователей
+
         assignees = {}
-        
-        # Метод 1: search_users с пустым запросом
+
+        # Получаем ВСЕХ пользователей через search_users('')
+        # Исключаем только тех, у кого active=False (отключённые/удалённые)
         try:
-            logger.info("  → Пробуем search_users('')...")
+            logger.info("  → search_users('')...")
             users = jira.search_users('')
-            logger.info(f"     Найдено пользователей: {len(users)}")
+            logger.info(f"     Всего пользователей: {len(users)}")
+            
             for user in users:
                 if isinstance(user, dict):
-                    is_active = user.get('active', True)
+                    # Включаем всех, у кого active=True (явно)
+                    # active=False или None — исключаем
+                    is_active = user.get('active', False) is True
                     key = user.get('name') or user.get('accountId') or user.get('key')
                     name = user.get('displayName', key) or user.get('name', key)
                 else:
-                    is_active = getattr(user, 'active', True)
+                    is_active = getattr(user, 'active', False) is True
                     key = getattr(user, 'name', None) or getattr(user, 'accountId', None) or getattr(user, 'key', None)
                     name = getattr(user, 'displayName', None) or getattr(user, 'name', key)
-                
+
                 if is_active and key:
                     assignees[key] = name
-            logger.info(f"     Активных: {len(assignees)}")
-        except Exception as e1:
-            logger.warning(f"  ✗ search_users не сработал: {e1}")
             
-            # Метод 2: получить пользователей из проектов
-            try:
-                logger.info("  → Пробуем search_assignable_users_for_projects...")
-                projects = jira.projects()
-                for proj in projects:
-                    if proj.key in EXCLUDED_PROJECTS:
-                        continue
-                    # Получаем назначаемых пользователей для проекта
-                    assignable = jira.search_assignable_users_for_projects(proj.key)
-                    for user in assignable:
-                        if isinstance(user, dict):
-                            is_active = user.get('active', True)
-                            key = user.get('name') or user.get('accountId') or user.get('key')
-                            name = user.get('displayName', key)
-                        else:
-                            is_active = getattr(user, 'active', True)
-                            key = getattr(user, 'name', None) or getattr(user, 'accountId', None)
-                            name = getattr(user, 'displayName', key)
-                        
-                        if is_active and key:
-                            assignees[key] = name
-                logger.info(f"     Найдено уникальных исполнителей: {len(assignees)}")
-            except Exception as e2:
-                logger.warning(f"  ✗ search_assignable_users_for_projects не сработал: {e2}")
+            logger.info(f"     Активных: {len(assignees)}")
+        except Exception as e:
+            logger.error(f"  ✗ Ошибка при загрузке пользователей: {e}")
+            raise
 
+        # Сортируем по имени
         result = [{'key': k, 'name': v} for k, v in sorted(assignees.items(), key=lambda x: x[1])]
         logger.info(f"✅ Возвращаем {len(result)} исполнителей")
         return jsonify({'success': True, 'assignees': result})
