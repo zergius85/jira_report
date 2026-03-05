@@ -19,9 +19,11 @@ if IS_PRODUCTION:
     app.config['CACHE_TYPE'] = 'simple'
     app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 5 минут
     cache = Cache(app)
+    cache_init = True
 else:
     # В dev-режиме кэш отключен
     cache = None
+    cache_init = False
 
 @app.route('/')
 def index():
@@ -31,14 +33,15 @@ def index():
 def api_projects():
     """Получить список проектов"""
     # Кэширование только для production
-    if cache and IS_PRODUCTION:
+    if cache_init:
         return _api_projects_cached()
     else:
         return _api_projects_logic()
 
-@cache.cached(timeout=300)  # Кэш 5 минут (только production)
-def _api_projects_cached():
-    return _api_projects_logic()
+if cache_init:
+    @cache.cached(timeout=300)
+    def _api_projects_cached():
+        return _api_projects_logic()
 
 def _api_projects_logic():
     """Получить список проектов"""
@@ -62,14 +65,15 @@ def _api_projects_logic():
 def api_assignees():
     """Получить список всех активных исполнителей"""
     # Кэширование только для production
-    if cache and IS_PRODUCTION:
+    if cache_init:
         return _api_assignees_cached()
     else:
         return _api_assignees_logic()
 
-@cache.cached(timeout=300)  # Кэш 5 минут (только production)
-def _api_assignees_cached():
-    return _api_assignees_logic()
+if cache_init:
+    @cache.cached(timeout=300)
+    def _api_assignees_cached():
+        return _api_assignees_logic()
 
 def _api_assignees_logic():
     """Получить список всех активных исполнителей"""

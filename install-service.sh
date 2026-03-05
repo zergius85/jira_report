@@ -40,6 +40,10 @@ while [[ $# -gt 0 ]]; do
             UNINSTALL=true
             shift
             ;;
+        --from-env)
+            FROM_ENV=true
+            shift
+            ;;
         --help|-h)
             show_help
             exit 0
@@ -62,12 +66,14 @@ show_help() {
     echo "  --dev          Установить в режиме разработки (dev)"
     echo "  --prod         Установить в режиме production (по умолчанию)"
     echo "  --uninstall    Удалить службу"
+    echo "  --from-env     Использовать .env.preinstall (неинтерактивный режим)"
     echo "  --help, -h     Показать эту справку"
     echo ""
     echo "Примеры:"
-    echo "  sudo $0 --dev     # Установить dev версию"
-    echo "  sudo $0 --prod    # Установить production версию"
-    echo "  sudo $0 --uninstall  # Удалить службу"
+    echo "  sudo $0 --dev                    # Интерактивная установка dev версии"
+    echo "  sudo $0 --prod                   # Интерактивная установка production версии"
+    echo "  sudo $0 --from-env --prod        # Неинтерактивная установка из .env.preinstall"
+    echo "  sudo $0 --uninstall              # Удалить службу"
 }
 
 # =============================================
@@ -270,16 +276,30 @@ fi
 # Создание .env если не существует
 # =============================================
 if [ ! -f "$ENV_FILE" ]; then
-    echo -e "${YELLOW}⚠️  Файл .env не найден!${NC}"
-    echo ""
-    read -p "📝 Хотите создать .env сейчас? (y/N): " -r create_env
-    echo
-    if [[ $create_env =~ ^[Yy]$ ]]; then
-        create_env_file
-    else
-        echo -e "${RED}❌ Установка невозможна без .env!${NC}"
-        echo "   Создайте .env вручную или запустите скрипт снова"
+    # Проверяем, есть ли .env.preinstall и флаг --from-env
+    if [ "$FROM_ENV" = true ] && [ -f "$SCRIPT_DIR/.env.preinstall" ]; then
+        echo -e "${BLUE}📋 Копирование .env из .env.preinstall...${NC}"
+        cp "$SCRIPT_DIR/.env.preinstall" "$ENV_FILE"
+        chmod 600 "$ENV_FILE"
+        echo -e "${GREEN}✅ .env создан из .env.preinstall!${NC}"
+        echo ""
+        echo -e "${YELLOW}⚠️  Не забудьте проверить и заполнить CLOSED_STATUS_IDS!${NC}"
+    elif [ "$FROM_ENV" = true ]; then
+        echo -e "${RED}❌ Файл .env.preinstall не найден!${NC}"
+        echo "   Создайте .env.preinstall или запустите без --from-env"
         exit 1
+    else
+        echo -e "${YELLOW}⚠️  Файл .env не найден!${NC}"
+        echo ""
+        read -p "📝 Хотите создать .env сейчас? (y/N): " -r create_env
+        echo
+        if [[ $create_env =~ ^[Yy]$ ]]; then
+            create_env_file
+        else
+            echo -e "${RED}❌ Установка невозможна без .env!${NC}"
+            echo "   Создайте .env вручную или запустите скрипт снова"
+            exit 1
+        fi
     fi
 fi
 
