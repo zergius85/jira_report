@@ -409,8 +409,9 @@
                 <button class="tab-btn" id="tab-btn-assignees" onclick="switchTab('assignees')">👤 Исполнители</button>
                 <button class="tab-btn" id="tab-btn-detail" onclick="switchTab('detail')">📝 Детали</button>
                 <button class="tab-btn" id="tab-btn-issues" onclick="switchTab('issues')">⚠️ Проблемы</button>
+                <button class="tab-btn" id="tab-btn-internal" onclick="switchTab('internal')">❓ Непонятное</button>
             </div>
-            
+
             <div id="tab-summary" class="tab-content active">
                 <h2 class="section-title">Сводка по проектам <span class="badge" id="summary_count">0</span></h2>
                 <div class="table-container">
@@ -436,6 +437,13 @@
                 <h2 class="section-title">Проблемные задачи <span class="badge warning" id="issues_count">0</span></h2>
                 <div class="table-container">
                     <table id="issues_table"><thead></thead><tbody></tbody></table>
+                </div>
+            </div>
+
+            <div id="tab-internal" class="tab-content">
+                <h2 class="section-title">Непонятное (NEW, local) <span class="badge" id="internal_count">0</span></h2>
+                <div class="table-container">
+                    <table id="internal_table"><thead></thead><tbody></tbody></table>
                 </div>
             </div>
         </div>
@@ -610,8 +618,12 @@
                 renderTable('issues_table', data.issues, true);
                 document.getElementById('issues_count').textContent = data.issues.length;
             }
-            
-            const tabs = ['summary', 'assignees', 'detail', 'issues'];
+            if (data.internal?.length > 0) {
+                renderTable('internal_table', data.internal);
+                document.getElementById('internal_count').textContent = data.internal.length;
+            }
+
+            const tabs = ['summary', 'assignees', 'detail', 'issues', 'internal'];
             for (const tab of tabs) {
                 if (data[tab]?.length > 0) {
                     switchTab(tab);
@@ -668,16 +680,26 @@
                 const colIndex = Array.from(headers).findIndex(h => h.textContent.trim() === column);
                 const aText = a.children[colIndex]?.textContent || '';
                 const bText = b.children[colIndex]?.textContent || '';
-                
+
+                // Пробуем как числа
                 const aNum = parseFloat(aText.replace(',', '.'));
                 const bNum = parseFloat(bText.replace(',', '.'));
-                
+
                 if (!isNaN(aNum) && !isNaN(bNum)) {
                     return sortState.direction === 'asc' ? aNum - bNum : bNum - aNum;
                 }
-                
-                return sortState.direction === 'asc' 
-                    ? aText.localeCompare(bText, 'ru') 
+
+                // Пробуем как даты (формат ГГГГ-ММ-ДД)
+                const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+                if (datePattern.test(aText) && datePattern.test(bText)) {
+                    const aDate = new Date(aText);
+                    const bDate = new Date(bText);
+                    return sortState.direction === 'asc' ? aDate - bDate : bDate - aDate;
+                }
+
+                // Сравниваем как строки
+                return sortState.direction === 'asc'
+                    ? aText.localeCompare(bText, 'ru')
                     : bText.localeCompare(aText, 'ru');
             });
             

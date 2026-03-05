@@ -24,6 +24,7 @@ from config import (
     JIRA_USER,
     JIRA_PASS,
     EXCLUDED_PROJECTS,
+    INTERNAL_PROJECTS,
     CLOSED_STATUS_IDS,
     EXCLUDED_ASSIGNEE_CLOSE,
     SSL_VERIFY,
@@ -427,7 +428,7 @@ def generate_report(
                 continue
             
             # Формируем отображаемые значения с ID если нужно
-            project_display = f"{proj_name} [{issue.fields.project.id}]" if extra_verbose and hasattr(issue.fields, 'project') and hasattr(issue.fields.project, 'id') else proj_name
+            project_display = f"{proj_name} [{getattr(issue.fields, 'project', None).id}]" if extra_verbose and hasattr(issue.fields, 'project') and getattr(issue.fields, 'project', None) and hasattr(getattr(issue.fields, 'project', None), 'id') else proj_name
             status_display = f"{status_full} [{issue.fields.status.id}]" if extra_verbose and issue.fields.status and hasattr(issue.fields.status, 'id') else status_full
             issue_type_display = f"{issue_type} [{issue.fields.issuetype.id}]" if extra_verbose and issue.fields.issuetype and hasattr(issue.fields.issuetype, 'id') else issue_type
             assignee_display = f"{assignee} [{issue.fields.assignee.id}]" if extra_verbose and issue.fields.assignee and hasattr(issue.fields.assignee, 'id') else assignee
@@ -493,7 +494,7 @@ def generate_report(
             # Добавляем ID проекта для extra_verbose
             if extra_verbose:
                 # Берём ID проекта из первой задачи
-                proj_id = issues_normal[0].fields.project.id if issues_normal else ''
+                proj_id = getattr(issues_normal[0].fields, 'project', None).id if issues_normal and hasattr(issues_normal[0].fields, 'project') else ''
                 summary_row = {
                     'Клиент (Проект)': proj_name,
                     'ID': proj_id,
@@ -556,7 +557,56 @@ def generate_report(
             df_assignees = pd.DataFrame()
     else:
         df_assignees = pd.DataFrame()
-    
+
+    # Блок "Непонятное" - задачи из внутренних проектов (NEW, local)
+    df_internal = pd.DataFrame()
+    if 'internal' in (blocks or list(REPORT_BLOCKS.keys())) and INTERNAL_PROJECTS:
+        internal_issues_data = []
+        for internal_proj_key in INTERNAL_PROJECTS:
+            if internal_proj_key not in projects_map:
+                continue
+            internal_proj_name = projects_map[internal_proj_key]
+            
+            # Получаем все задачи из внутреннего проекта за период
+            jql_internal = (f"project = {internal_proj_key} "
+                          f"AND created >= '{start_date_str}' "
+                          f"AND created <= '{end_date_str}' "
+                          f"ORDER BY created ASC")
+            
+            try:
+                internal_issues = jira.search_issues(jql_internal, maxResults=False,
+                                                     fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created')
+                
+                for issue in internal_issues:
+                    spent = convert_seconds_to_hours(issue.fields.timespent)
+                    estimated = convert_seconds_to_hours(issue.fields.timeoriginalestimate)
+                    
+                    issue_type = issue.fields.issuetype.name if issue.fields.issuetype else 'Задача'
+                    assignee = issue.fields.assignee.displayName if issue.fields.assignee else 'Без исполнителя'
+                    status_name = issue.fields.status.name if issue.fields.status else '-'
+                    created = issue.fields.created[:10] if issue.fields.created else '-'
+                    
+                    issue_url = f"{JIRA_SERVER}/browse/{issue.key}"
+                    
+                    internal_issues_data.append({
+                        'URL': issue_url,
+                        'Проект': internal_proj_name,
+                        'Ключ': issue.key,
+                        'Тип': issue_type,
+                        'Задача': issue.fields.summary,
+                        'Исполнитель': assignee,
+                        'Статус': status_name,
+                        'Дата создания': created,
+                        'Факт (ч)': spent,
+                        'Оценка (ч)': estimated
+                    })
+            except Exception as e:
+                logger.warning(f"Не удалось получить задачи из проекта {internal_proj_key}: {e}")
+        
+        if internal_issues_data:
+            df_internal = pd.DataFrame(internal_issues_data)
+            df_internal = df_internal.sort_values(by='Дата создания', ascending=True)
+
     result = {
         'period': f"{start_date_str} — {end_date_str}",
         'blocks': blocks or list(REPORT_BLOCKS.keys()),
@@ -576,18 +626,25 @@ def generate_report(
         result['detail'] = df_detail
     if 'issues' in result['blocks']:
         result['issues'] = df_issues
-    
+    if 'internal' in result['blocks']:
+        result['internal'] = df_internal
+
     # Фильтрация колонок для каждого блока
     if 'detail' in result['blocks'] and not result['detail'].empty:
         cols = get_column_order('detail', extra_verbose)
         available_cols = [c for c in cols if c in result['detail'].columns]
         result['detail'] = result['detail'][available_cols]
-    
+
     if 'issues' in result['blocks'] and not result['issues'].empty:
         cols = get_column_order('issues', extra_verbose)
         available_cols = [c for c in cols if c in result['issues'].columns]
         result['issues'] = result['issues'][available_cols]
-    
+
+    if 'internal' in result['blocks'] and not result['internal'].empty:
+        cols = get_column_order('detail', extra_verbose)  # Используем колонки как для detail
+        available_cols = [c for c in cols if c in result['internal'].columns]
+        result['internal'] = result['internal'][available_cols]
+
     return result
 
 def generate_excel(report_data: Dict[str, Any], output: Optional[Union[str, io.BytesIO]] = None) -> Union[str, io.BytesIO]:
@@ -615,6 +672,8 @@ def generate_excel(report_data: Dict[str, Any], output: Optional[Union[str, io.B
             report_data['detail'].to_excel(writer, sheet_name='Детали', index=False)
         if 'issues' in report_data and not report_data['issues'].empty:
             report_data['issues'].to_excel(writer, sheet_name='Проблемы', index=False)
+        if 'internal' in report_data and not report_data['internal'].empty:
+            report_data['internal'].to_excel(writer, sheet_name='Непонятное', index=False)
     finally:
         writer.close()
     
