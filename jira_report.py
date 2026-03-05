@@ -337,7 +337,8 @@ def generate_report(
     blocks: Optional[List[str]] = None,
     verbose: bool = False,
     extra_verbose: bool = False,
-    closed_status_ids: Optional[List[str]] = None
+    closed_status_ids: Optional[List[str]] = None,
+    include_risk_zone: bool = True  # Новый параметр для Risk Zone
 ) -> Dict[str, Any]:
     """
     Генерирует отчёт по задачам Jira.
@@ -742,6 +743,49 @@ def generate_report(
         cols = get_column_order('internal', extra_verbose)
         available_cols = [c for c in cols if c in result['internal'].columns]
         result['internal'] = result['internal'][available_cols]
+
+    # ========== БЛОК "RISK ZONE" - ЗАВИСШИЕ ЗАДАЧИ ==========
+    if include_risk_zone:
+        risk_issues = []
+        today = datetime.now()
+        
+        for issue in issues_normal:
+            risk_factors = []
+            
+            # 1. Задачи без исполнителя
+            if not issue.fields.assignee:
+                risk_factors.append('Без исполнителя')
+            
+            # 2. Задачи с истёкшим сроком (Due Date)
+            if issue.fields.duedate:
+                due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
+                if due_date < today and issue.fields.status.name.lower() not in ['закрыт', 'closed', 'done']:
+                    days_overdue = (today - due_date).days
+                    risk_factors.append(f'Просрочена на {days_overdue} дн.')
+            
+            # 3. Задачи, которые не двигались > 5 дней
+            if issue.fields.updated:
+                updated = datetime.strptime(issue.fields.updated[:19], '%Y-%m-%dT%H:%M:%S')
+                days_inactive = (today - updated).days
+                if days_inactive > 5 and issue.fields.status.name.lower() not in ['закрыт', 'closed', 'done']:
+                    risk_factors.append(f'Не двигается {days_inactive} дн.')
+            
+            # Если есть факторы риска - добавляем в отчёт
+            if risk_factors:
+                assignee = issue.fields.assignee.displayName if issue.fields.assignee else 'Без исполнителя'
+                risk_issues.append({
+                    'URL': f"{JIRA_SERVER}/browse/{issue.key}",
+                    'Ключ': issue.key,
+                    'Задача': issue.fields.summary,
+                    'Исполнитель': assignee,
+                    'Статус': issue.fields.status.name,
+                    'Факторы риска': '; '.join(risk_factors),
+                    'Приоритет': issue.fields.priority.name if issue.fields.priority else 'Normal'
+                })
+        
+        if risk_issues:
+            result['risk_zone'] = pd.DataFrame(risk_issues)
+            result['risk_zone'] = result['risk_zone'].sort_values('Приоритет', ascending=False)
 
     return result
 

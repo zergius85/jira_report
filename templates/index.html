@@ -432,6 +432,7 @@
                 <button class="tab-btn" id="tab-btn-detail" onclick="switchTab('detail')">📝 Детали</button>
                 <button class="tab-btn" id="tab-btn-issues" onclick="switchTab('issues')">⚠️ Проблемы</button>
                 <button class="tab-btn" id="tab-btn-internal" onclick="switchTab('internal')">❓ Непонятное</button>
+                <button class="tab-btn" id="tab-btn-risk" onclick="switchTab('risk')">🔴 Risk Zone</button>
             </div>
 
             <div id="tab-summary" class="tab-content active">
@@ -473,6 +474,13 @@
                 <h2 class="section-title">Непонятное (NEW, local) <span class="badge" id="internal_count">0</span></h2>
                 <div class="table-container">
                     <table id="internal_table"><thead></thead><tbody></tbody></table>
+                </div>
+            </div>
+
+            <div id="tab-risk" class="tab-content">
+                <h2 class="section-title">🔴 Risk Zone - Зависшие задачи <span class="badge warning" id="risk_count">0</span></h2>
+                <div class="table-container">
+                    <table id="risk_table"><thead></thead><tbody></tbody></table>
                 </div>
             </div>
         </div>
@@ -701,8 +709,12 @@
                 renderTable('internal_table', data.internal);
                 document.getElementById('internal_count').textContent = data.internal.length;
             }
+            if (data.risk_zone?.length > 0) {
+                renderTable('risk_table', data.risk_zone);
+                document.getElementById('risk_count').textContent = data.risk_zone.length;
+            }
 
-            const tabs = ['summary', 'assignees', 'detail', 'issues', 'internal'];
+            const tabs = ['summary', 'assignees', 'detail', 'issues', 'internal', 'risk'];
             for (const tab of tabs) {
                 if (data[tab]?.length > 0) {
                     switchTab(tab);

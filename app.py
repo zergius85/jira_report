@@ -268,6 +268,8 @@ def api_report():
             response['issues'] = report['issues'].to_dict(orient='records')
         if 'internal' in report:
             response['internal'] = report['internal'].to_dict(orient='records')
+        if 'risk_zone' in report:
+            response['risk_zone'] = report['risk_zone'].to_dict(orient='records')
 
         # Debug-информация
         response['debug'] = {
