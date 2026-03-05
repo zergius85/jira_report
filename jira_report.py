@@ -193,26 +193,35 @@ def save_closed_status_ids(status_ids: List[str]) -> None:
     env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 
     env_content = ''
+    detected_encoding = 'utf-8'
+    
     if os.path.exists(env_path):
         # Читаем в UTF-8, если не получается — пробуем cp1251 (Windows)
         for encoding in ['utf-8', 'cp1251']:
             try:
                 with open(env_path, 'r', encoding=encoding) as f:
                     env_content = f.read()
+                detected_encoding = encoding
                 break
             except UnicodeDecodeError:
                 continue
 
     if 'CLOSED_STATUS_IDS=' in env_content:
-        env_content = env_content.replace(
-            env_content.split('CLOSED_STATUS_IDS=')[1].split('\n')[0],
-            ','.join(status_ids)
-        )
+        # Заменяем только значение после CLOSED_STATUS_IDS=
+        lines = env_content.split('\n')
+        new_lines = []
+        for line in lines:
+            if line.startswith('CLOSED_STATUS_IDS='):
+                new_lines.append(f'CLOSED_STATUS_IDS={",".join(status_ids)}')
+            else:
+                new_lines.append(line)
+        env_content = '\n'.join(new_lines)
     else:
-        env_content += f"\nCLOSED_STATUS_IDS={','.join(status_ids)}"
+        # Добавляем в конец файла
+        env_content = env_content.rstrip() + f'\nCLOSED_STATUS_IDS={",".join(status_ids)}\n'
 
-    # Пишем в UTF-8 (стандарт для python-dotenv)
-    with open(env_path, 'w', encoding='utf-8') as f:
+    # Пишем в UTF-8 без BOM (стандарт для python-dotenv)
+    with open(env_path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(env_content)
 
 def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: Optional[List[str]] = None) -> List[str]:
