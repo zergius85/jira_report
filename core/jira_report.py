@@ -341,6 +341,7 @@ def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
 def generate_report(
     project_keys: Optional[Union[str, List[str]]] = None,
     start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     days: int = 30,
     assignee_filter: Optional[Union[str, List[str]]] = None,
     issue_types: Optional[Union[str, List[str]]] = None,
@@ -356,6 +357,7 @@ def generate_report(
     Args:
         project_keys: Ключ проекта или список проектов (None = все проекты)
         start_date: Дата начала в формате ГГГГ-ММ-ДД (None = прошлый месяц)
+        end_date: Дата окончания в формате ГГГГ-ММ-ДД (имеет приоритет над days)
         days: Количество дней для отчёта (0 = без ограничений)
         assignee_filter: Фильтр по исполнителю или список исполнителей
         issue_types: Фильтр по типам задач или список типов
@@ -378,27 +380,33 @@ def generate_report(
         project_keys = []
     else:
         project_keys = [p.upper() for p in project_keys]
-    
+
     if isinstance(assignee_filter, str):
         assignee_filter = [assignee_filter]
     elif assignee_filter is None:
         assignee_filter = []
-    
+
     if isinstance(issue_types, str):
         issue_types = [issue_types]
     elif issue_types is None:
         issue_types = []
 
-    # Обработка дат
+    # Обработка дат: end_date имеет приоритет над days
     if start_date:
         start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
     else:
         start_date_obj = get_default_start_date()
 
     start_date_str = start_date_obj.strftime('%Y-%m-%d')
-    
-    # days=0 означает без ограничений
-    if days > 0:
+
+    # end_date имеет приоритет над days
+    if end_date:
+        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+        end_date_str = end_date_obj.strftime('%Y-%m-%d')
+        # Для проблемных задач: +2 месяца к end_date
+        issues_end_obj = end_date_obj + relativedelta(months=2)
+        issues_end_str = issues_end_obj.strftime('%Y-%m-%d')
+    elif days > 0:
         end_date_obj = start_date_obj + timedelta(days=days - 1)
         end_date_str = end_date_obj.strftime('%Y-%m-%d')
         # Для проблемных задач: +2 месяца к концу периода

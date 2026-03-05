@@ -236,6 +236,7 @@ def api_report():
             issue_types = [issue_types]
 
         start_date = data.get('start_date', '').strip() or None
+        end_date = data.get('end_date', '').strip() or None
         days = int(data.get('days', 0) or 0)  # 0 = без ограничений по датам
         blocks = data.get('blocks', None)
         extra_verbose = data.get('extra_verbose', False)
@@ -246,6 +247,7 @@ def api_report():
         report = generate_report(
             project_keys=projects,
             start_date=start_date,
+            end_date=end_date,
             days=days,
             assignee_filter=assignees,
             issue_types=issue_types,
@@ -289,6 +291,7 @@ def api_report():
                 'assignees': assignees,
                 'issue_types': issue_types,
                 'start_date': start_date,
+                'end_date': end_date,
                 'days': days,
                 'blocks': blocks,
                 'extra_verbose': extra_verbose
@@ -320,6 +323,7 @@ def api_download():
             issue_types = [issue_types]
 
         start_date = data.get('start_date', '').strip() or None
+        end_date = data.get('end_date', '').strip() or None
         days = int(data.get('days', 0) or 0)
         blocks = data.get('blocks', None)
         extra_verbose = data.get('extra_verbose', False)
@@ -327,6 +331,7 @@ def api_download():
         report = generate_report(
             project_keys=projects,
             start_date=start_date,
+            end_date=end_date,
             days=days,
             assignee_filter=assignees,
             issue_types=issue_types,

@@ -14,7 +14,7 @@
             padding: 20px;
             color: #333;
         }
-        .container { max-width: 1800px; margin: 0 auto; }
+        .container { max-width: 1920px; margin: 0 auto; }
         h1 {
             color: #2c3e50;
             text-align: center;
@@ -56,8 +56,8 @@
             gap: 15px;
         }
         .checkbox-group {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            display: flex;
+            flex-direction: column;
             gap: 8px;
             margin-top: 8px;
         }
@@ -87,9 +87,7 @@
             background: #3498db;
             color: white;
         }
-        .btn-primary:hover {
-            background: #2980b9;
-        }
+        .btn-primary:hover { background: #2980b9; }
         .btn-primary:disabled {
             opacity: 0.6;
             cursor: not-allowed;
@@ -99,9 +97,12 @@
             background: #27ae60;
             color: white;
         }
-        .btn-success:hover {
-            background: #229954;
+        .btn-success:hover { background: #229954; }
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
         }
+        .btn-secondary:hover { background: #7f8c8d; }
         .btn-select {
             background: #ecf0f1;
             color: #333;
@@ -109,66 +110,57 @@
             font-size: 13px;
             margin-left: 8px;
         }
-        .btn-select:hover {
-            background: #bdc3c7;
+        .btn-select:hover { background: #bdc3c7; }
+        .btn-sm {
+            padding: 4px 10px;
+            font-size: 12px;
         }
-        .stats {
+        
+        /* Header с пресетами */
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        .header-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .preset-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .preset-info {
+            font-size: 12px;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Трёхколоночная форма */
+        .form-three-columns {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 20px;
             margin-bottom: 20px;
         }
-        .stat-card {
-            background: #34495e;
-            color: white;
-            padding: 15px;
-            border-radius: 3px;
-            text-align: center;
+        .form-column {
+            min-width: 0;
         }
-        .stat-card.warning {
-            background: #e74c3c;
-        }
-        .stat-card.success {
-            background: #27ae60;
-        }
-        .stat-value { font-size: 1.8em; font-weight: bold; margin-bottom: 5px; }
-        .stat-label { font-size: 0.85em; opacity: 0.9; }
-
-        /* Вкладки */
-        .tabs {
+        .column-title {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 15px;
+            font-weight: 600;
             display: flex;
-            gap: 2px;
-            margin-bottom: 0;
-            border-bottom: 2px solid #ddd;
-        }
-        .tab-btn {
-            padding: 10px 20px;
-            border: none;
-            background: #f5f5f5;
-            color: #666;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            border-radius: 3px 3px 0 0;
-            transition: all 0.2s;
-        }
-        .tab-btn:hover {
-            background: #e8e8e8;
-        }
-        .tab-btn.active {
-            background: #3498db;
-            color: white;
-        }
-        .tab-content {
-            display: none;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-top: none;
-            border-radius: 0 0 3px 3px;
-            background: white;
-        }
-        .tab-content.active {
-            display: block;
+            align-items: center;
+            gap: 8px;
         }
 
         /* Таблицы */
@@ -203,6 +195,39 @@
         th.sort-desc::after { content: ' ▼'; }
         tr:hover { background: #f9f9f9; }
 
+        /* Вкладки */
+        .tabs {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 0;
+            border-bottom: 2px solid #ddd;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: #f5f5f5;
+            color: #666;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 3px 3px 0 0;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { background: #e8e8e8; }
+        .tab-btn.active {
+            background: #3498db;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 3px 3px;
+            background: white;
+        }
+        .tab-content.active { display: block; }
+
         .section-title {
             font-size: 1.3em;
             margin: 0 0 15px 0;
@@ -229,6 +254,44 @@
             border-radius: 3px;
         }
 
+        /* Статистика */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #34495e;
+            color: white;
+            padding: 15px;
+            border-radius: 3px;
+            text-align: center;
+        }
+        .stat-card.warning { background: #e74c3c; }
+        .stat-card.success { background: #27ae60; }
+        .stat-value { font-size: 1.8em; font-weight: bold; margin-bottom: 5px; }
+        .stat-label { font-size: 0.85em; opacity: 0.9; }
+
+        /* Дашборд */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+        .chart-container {
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+        .chart-container h3 {
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        /* Загрузка и ошибки */
         .loading {
             text-align: center;
             padding: 40px;
@@ -248,7 +311,6 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
         .error {
             background: #fdf2f2;
             color: #c0392b;
@@ -260,14 +322,103 @@
         }
         .hidden { display: none; }
 
-        .problem-link {
-            color: #3498db;
-            text-decoration: none;
-            font-size: 1.2em;
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
         }
-        .problem-link:hover { color: #2980b9; }
-        .problems-cell { color: #e74c3c; font-weight: 600; }
+        .modal.show { display: flex; align-items: center; justify-content: center; }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h3 {
+            color: #2c3e50;
+            font-size: 18px;
+        }
+        .close-modal {
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        .close-modal:hover { color: #333; }
+        .preset-list {
+            list-style: none;
+        }
+        .preset-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .preset-item:last-child { border-bottom: none; }
+        .preset-name {
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .preset-name:hover { color: #3498db; }
+        .preset-actions {
+            display: flex;
+            gap: 5px;
+        }
 
+        /* Export modal */
+        .export-options {
+            display: grid;
+            gap: 15px;
+        }
+        .export-option {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .export-option:hover {
+            border-color: #3498db;
+            background: #f8f9fa;
+        }
+        .export-option.selected {
+            border-color: #3498db;
+            background: #e8f4fc;
+        }
+        .export-option input {
+            width: auto;
+            margin-right: 15px;
+        }
+        .export-option-label {
+            flex: 1;
+        }
+        .export-option-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .export-option-desc {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        /* Debug */
         .debug-section {
             margin-top: 15px;
             padding: 15px;
@@ -306,10 +457,21 @@
             overflow-y: auto;
         }
 
-        @media (max-width: 768px) {
-            .form-row { grid-template-columns: 1fr; }
-            .tabs { flex-wrap: wrap; }
-            .tab-btn { flex: 1 1 auto; text-align: center; }
+        /* Risk Zone info */
+        .risk-info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+        .risk-info strong { color: #856404; }
+
+        @media (max-width: 1200px) {
+            .form-three-columns {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -319,79 +481,91 @@
 
         <!-- Форма -->
         <div class="card">
-            <h2 style="margin-bottom: 20px;">🔧 Параметры отчёта</h2>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                <!-- Левая колонка - Фильтры -->
-                <div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h3 style="font-size: 14px; color: #555; margin: 0;">📊 Фильтры</h3>
-                        <div>
-                            <button class="btn btn-select" onclick="savePreset()" title="Сохранить текущие настройки">💾 Сохранить</button>
-                            <select id="preset_select" onchange="loadPreset()" style="padding: 6px 12px; font-size: 13px; border-radius: 3px; border: 1px solid #ccc;">
-                                <option value="">📁 Загрузить...</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+            <!-- Header с пресетами -->
+            <div class="header-bar">
+                <div class="header-title">🔧 Параметры отчёта</div>
+                <div class="preset-controls">
+                    <span class="preset-info" id="preset_info">Сохранённые пресеты хранятся в браузере</span>
+                    <button class="btn btn-select btn-sm" onclick="openPresetManager()">⚙️ Управление пресетами</button>
+                    <button class="btn btn-select btn-sm" onclick="savePreset()" title="Сохранить текущие настройки">💾 Сохранить</button>
+                    <select id="preset_select" onchange="loadPreset()" style="padding: 6px 12px; font-size: 13px; border-radius: 3px; border: 1px solid #ccc;">
+                        <option value="">📁 Загрузить пресет...</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Трёхколоночная форма -->
+            <div class="form-three-columns">
+                <!-- Левая колонка - Фильтры (2/4) -->
+                <div class="form-column">
+                    <div class="column-title">📊 Фильтры</div>
+                    <div class="form-row" style="grid-template-columns: 1fr 1fr; gap: 10px;">
                         <div class="form-group">
                             <label for="project">📦 Проекты</label>
-                            <select id="project" multiple size="5" style="height: 120px;">
+                            <select id="project" multiple size="6" style="height: 140px;">
                                 <option value="">Все проекты</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label for="assignee">👤 Исполнители</label>
-                            <select id="assignee" multiple size="5" style="height: 120px;">
+                            <select id="assignee" multiple size="6" style="height: 140px;">
                                 <option value="">Все исполнители</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label for="issue_type">📝 Типы задач</label>
-                            <select id="issue_type" multiple size="5" style="height: 120px;">
-                                <option value="">Все типы</option>
-                            </select>
-                        </div>
                     </div>
-                    <div class="form-row" style="margin-top: 10px; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-group">
+                        <label for="issue_type">📝 Типы задач</label>
+                        <select id="issue_type" multiple size="3" style="height: 70px;">
+                            <option value="">Все типы</option>
+                        </select>
+                    </div>
+                    <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
                         <div class="form-group">
                             <label for="start_date">📅 Дата начала</label>
                             <input type="date" id="start_date">
                         </div>
                         <div class="form-group">
+                            <label for="end_date">📅 Дата окончания</label>
+                            <input type="date" id="end_date">
+                            <small style="color: #999; font-size: 10px;">Приоритет над периодом</small>
+                        </div>
+                        <div class="form-group">
                             <label for="days">Период (дней)</label>
                             <input type="number" id="days" value="30" min="0" max="365">
-                            <small style="color: #999; font-size: 11px;">0 = без ограничений</small>
+                            <small style="color: #999; font-size: 10px;">0 = без ограничений</small>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Правая колонка - Блоки и опции -->
-                <div>
-                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">📦 Блоки отчёта</h3>
-                    <div class="checkbox-group" id="blocks_container" style="margin-bottom: 20px;"></div>
 
-                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">⚙️ Опции</h3>
+                <!-- Средняя колонка - Блоки отчёта (1/4) -->
+                <div class="form-column">
+                    <div class="column-title">📦 Блоки отчёта</div>
+                    <div class="checkbox-group" id="blocks_container"></div>
+                </div>
+
+                <!-- Правая колонка - Опции и экспорт (1/4) -->
+                <div class="form-column">
+                    <div class="column-title">⚙️ Опции</div>
                     <label class="checkbox-item" style="margin-bottom: 10px;">
                         <input type="checkbox" id="extra_verbose">
-                        <span>Показывать ID в квадратных скобках (-vv)</span>
+                        <span>Показывать ID в [скобках]</span>
                     </label>
 
                     <div style="margin-top: 20px;">
-                        <button class="btn btn-primary" id="generate_btn" onclick="generateReport()">📋 Сгенерировать отчёт</button>
-                        <button class="btn btn-success" id="download_btn" onclick="downloadExcel()">💾 Скачать Excel</button>
+                        <button class="btn btn-primary" id="generate_btn" onclick="generateReport()">📋 Сгенерировать</button>
+                        <button class="btn btn-success" onclick="openExportModal()">💾 Экспорт</button>
                     </div>
-                    
+
                     <!-- Debug секция -->
                     <div class="debug-section" style="margin-top: 20px;">
                         <h3>🔍 Отладка</h3>
-                        <button class="debug-btn" onclick="showDebugRequest()">Показать запрос</button>
-                        <button class="debug-btn" onclick="showDebugResponse()">Показать ответ</button>
+                        <button class="debug-btn" onclick="showDebugRequest()">Запрос</button>
+                        <button class="debug-btn" onclick="showDebugResponse()">Ответ</button>
                         <div id="debug_content" class="debug-content hidden"></div>
                     </div>
                 </div>
             </div>
-            
+
             <div id="error" class="error hidden"></div>
 
             <!-- Индикатор загрузки -->
@@ -400,7 +574,7 @@
                 <div>Генерация отчёта... Пожалуйста, подождите</div>
             </div>
         </div>
-        
+
         <!-- Статистика -->
         <div id="stats" class="stats hidden">
             <div class="stat-card">
@@ -425,36 +599,11 @@
             </div>
         </div>
 
-        <!-- Дашборд с графиками -->
-        <div id="dashboard" class="card hidden">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0;">📊 Дашборд</h2>
-                <button class="btn btn-success" onclick="downloadExcel()">💾 Скачать Excel</button>
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
-                <div class="chart-container">
-                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">📈 Динамика закрытия задач</h3>
-                    <canvas id="chartTrend"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">👥 Нагрузка по исполнителям</h3>
-                    <canvas id="chartAssignees"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">📊 Статусы задач</h3>
-                    <canvas id="chartStatuses"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h3 style="margin-bottom: 10px; font-size: 14px; color: #555;">🏷️ Типы задач</h3>
-                    <canvas id="chartTypes"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Вкладки с отчётами -->
+        <!-- Вкладки с дашбордом и отчётами -->
         <div id="reports_container" class="card hidden">
             <div class="tabs">
-                <button class="tab-btn active" id="tab-btn-summary" onclick="switchTab('summary')">📋 Сводка</button>
+                <button class="tab-btn active" id="tab-btn-dashboard" onclick="switchTab('dashboard')">📈 Дашборд</button>
+                <button class="tab-btn" id="tab-btn-summary" onclick="switchTab('summary')">📋 Сводка</button>
                 <button class="tab-btn" id="tab-btn-assignees" onclick="switchTab('assignees')">👤 Исполнители</button>
                 <button class="tab-btn" id="tab-btn-detail" onclick="switchTab('detail')">📝 Детали</button>
                 <button class="tab-btn" id="tab-btn-issues" onclick="switchTab('issues')">⚠️ Проблемы</button>
@@ -462,34 +611,59 @@
                 <button class="tab-btn" id="tab-btn-risk" onclick="switchTab('risk')">🔴 Risk Zone</button>
             </div>
 
-            <div id="tab-summary" class="tab-content active">
+            <!-- Дашборд -->
+            <div id="tab-dashboard" class="tab-content active">
+                <div class="dashboard-grid">
+                    <div class="chart-container">
+                        <h3>📈 Динамика закрытия задач (по дате решения)</h3>
+                        <canvas id="chartClosed"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>📥 Динамика создания задач (по дате создания)</h3>
+                        <canvas id="chartCreated"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>👥 Нагрузка по исполнителям</h3>
+                        <canvas id="chartAssignees"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>📊 Статусы задач</h3>
+                        <canvas id="chartStatuses"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>🏷️ Типы задач</h3>
+                        <canvas id="chartTypes"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Сводка -->
+            <div id="tab-summary" class="tab-content">
                 <h2 class="section-title">Сводка по проектам <span class="badge" id="summary_count">0</span></h2>
                 <div class="table-container">
                     <table id="summary_table"><thead></thead><tbody></tbody></table>
                 </div>
             </div>
-            
+
+            <!-- Исполнители -->
             <div id="tab-assignees" class="tab-content">
                 <h2 class="section-title">
                     <span>Нагрузка по исполнителям <span class="badge" id="assignees_count">0</span></span>
-                    <span>
-                        <button class="debug-btn" onclick="showAssigneesDebugRequest()" style="font-size: 11px; padding: 4px 8px;">📤 Запрос</button>
-                        <button class="debug-btn" onclick="showAssigneesDebugResponse()" style="font-size: 11px; padding: 4px 8px;">📥 Ответ</button>
-                    </span>
                 </h2>
                 <div class="table-container">
                     <table id="assignees_table"><thead></thead><tbody></tbody></table>
                 </div>
-                <div id="assignees_debug_content" class="debug-content hidden" style="margin-top: 10px; max-height: 300px;"></div>
             </div>
-            
+
+            <!-- Детали -->
             <div id="tab-detail" class="tab-content">
                 <h2 class="section-title">Детализация по задачам <span class="badge" id="detail_count">0</span></h2>
                 <div class="table-container">
                     <table id="detail_table"><thead></thead><tbody></tbody></table>
                 </div>
             </div>
-            
+
+            <!-- Проблемы -->
             <div id="tab-issues" class="tab-content">
                 <h2 class="section-title">Проблемные задачи <span class="badge warning" id="issues_count">0</span></h2>
                 <div class="table-container">
@@ -497,6 +671,7 @@
                 </div>
             </div>
 
+            <!-- Непонятное -->
             <div id="tab-internal" class="tab-content">
                 <h2 class="section-title">Непонятное (NEW, local) <span class="badge" id="internal_count">0</span></h2>
                 <div class="table-container">
@@ -504,11 +679,70 @@
                 </div>
             </div>
 
+            <!-- Risk Zone -->
             <div id="tab-risk" class="tab-content">
                 <h2 class="section-title">🔴 Risk Zone - Зависшие задачи <span class="badge warning" id="risk_count">0</span></h2>
+                <div class="risk-info">
+                    <strong>Risk Zone</strong> показывает задачи с факторами риска:<br>
+                    • <strong>Без исполнителя</strong> — задача не назначена<br>
+                    • <strong>Просрочена</strong> — дата исполнения (Due Date) истекла, но задача не закрыта<br>
+                    • <strong>Не двигается</strong> — задача не обновлялась более 5 дней и не закрыта
+                </div>
                 <div class="table-container">
                     <table id="risk_table"><thead></thead><tbody></tbody></table>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal управления пресетами -->
+    <div id="presetModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚙️ Управление пресетами</h3>
+                <span class="close-modal" onclick="closePresetManager()">&times;</span>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="new_preset_name" placeholder="Название нового пресета" style="margin-bottom: 10px;">
+                <button class="btn btn-primary btn-sm" onclick="createPreset()">Создать пресет</button>
+            </div>
+            <ul class="preset-list" id="preset_list"></ul>
+        </div>
+    </div>
+
+    <!-- Modal экспорта -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>💾 Экспорт отчёта</h3>
+                <span class="close-modal" onclick="closeExportModal()">&times;</span>
+            </div>
+            <div class="export-options">
+                <label class="export-option selected" onclick="selectExportOption(this)">
+                    <input type="radio" name="export_format" value="xlsx" checked>
+                    <div class="export-option-label">
+                        <div class="export-option-title">📊 Excel (.xlsx)</div>
+                        <div class="export-option-desc">Полный отчёт с несколькими листами</div>
+                    </div>
+                </label>
+                <label class="export-option" onclick="selectExportOption(this)">
+                    <input type="radio" name="export_format" value="csv">
+                    <div class="export-option-label">
+                        <div class="export-option-title">📄 CSV (.csv)</div>
+                        <div class="export-option-desc">Таблица с разделителем точка с запятой</div>
+                    </div>
+                </label>
+                <label class="export-option" onclick="selectExportOption(this)">
+                    <input type="radio" name="export_format" value="pdf">
+                    <div class="export-option-label">
+                        <div class="export-option-title">📑 PDF (.pdf)</div>
+                        <div class="export-option-desc">Документ для печати (генерируется на сервере)</div>
+                    </div>
+                </label>
+            </div>
+            <div style="margin-top: 20px; text-align: right;">
+                <button class="btn btn-secondary" onclick="closeExportModal()">Отмена</button>
+                <button class="btn btn-success" onclick="downloadReport()">Скачать</button>
             </div>
         </div>
     </div>
@@ -518,24 +752,15 @@
         const JIRA_SERVER = "{{ JIRA_SERVER }}";
         let sortState = { column: null, direction: 'asc' };
         let debugData = { request: null, response: null };
+        let lastReportData = null;
+        let charts = {};
 
+        // ========== Инициализация ==========
         window.onload = async function() {
-            // Устанавливаем дату: 1 число прошлого месяца
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = today.getMonth(); // 0-11
-            
-            // 1 число прошлого месяца
-            let prevMonthYear = month === 0 ? year - 1 : year;
-            let prevMonth = month === 0 ? 11 : month - 1;
-            const firstDayPrevMonth = new Date(prevMonthYear, prevMonth, 1);
-            
-            // Формат YYYY-MM-DD для input type="date"
-            const yearStr = firstDayPrevMonth.getFullYear();
-            const monthStr = String(firstDayPrevMonth.getMonth() + 1).padStart(2, '0');
-            const dayStr = String(firstDayPrevMonth.getDate()).padStart(2, '0');
-            document.getElementById('start_date').value = `${yearStr}-${monthStr}-${dayStr}`;
+            // Устанавливаем даты: прошлый месяц полностью
+            setDefaultDates();
 
+            // Заполняем блоки отчёта
             const container = document.getElementById('blocks_container');
             for (const [key, label] of Object.entries(BLOCKS)) {
                 const item = document.createElement('label');
@@ -547,19 +772,48 @@
             await loadProjects();
             await loadAssignees();
             await loadIssueTypes();
-            
-            // Загружаем список сохранённых пресетов
             loadPresetList();
         };
-        
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+        // ========== Даты ==========
+        function setDefaultDates() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth();
             
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            document.getElementById(`tab-btn-${tabName}`).classList.add('active');
+            // 1 число прошлого месяца
+            let prevMonthYear = month === 0 ? year - 1 : year;
+            let prevMonth = month === 0 ? 11 : month - 1;
+            const firstDayPrevMonth = new Date(prevMonthYear, prevMonth, 1);
+            
+            // Последний день прошлого месяца
+            const lastDayPrevMonth = new Date(prevMonthYear, prevMonth + 1, 0);
+            
+            // Количество дней в прошлом месяце
+            const daysInPrevMonth = lastDayPrevMonth.getDate();
+            
+            document.getElementById('start_date').value = formatDate(firstDayPrevMonth);
+            document.getElementById('end_date').value = formatDate(lastDayPrevMonth);
+            document.getElementById('days').value = daysInPrevMonth;
         }
-        
+
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function formatDisplayDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}.${month}.${day}`;
+        }
+
+        // ========== Загрузка данных ==========
         async function loadProjects() {
             try {
                 const resp = await fetch('/api/projects');
@@ -573,7 +827,7 @@
                         select.appendChild(opt);
                     });
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error('Ошибка загрузки проектов:', e); }
         }
 
         async function loadAssignees() {
@@ -584,12 +838,12 @@
                 if (data.success && data.assignees.length > 0) {
                     data.assignees.forEach(a => {
                         const opt = document.createElement('option');
-                        opt.value = a.key;  // Используем key (username) для JQL
-                        opt.textContent = a.name;  // Отображаем displayName
+                        opt.value = a.key;
+                        opt.textContent = a.name;
                         select.appendChild(opt);
                     });
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error('Ошибка загрузки исполнителей:', e); }
         }
 
         async function loadIssueTypes() {
@@ -605,322 +859,65 @@
                         select.appendChild(opt);
                     });
                 }
-            } catch (e) { console.error(e); }
-        }
-        
-        function selectAllBlocks() {
-            document.querySelectorAll('#blocks_container input[type="checkbox"]').forEach(cb => cb.checked = true);
-        }
-        
-        function deselectAllBlocks() {
-            document.querySelectorAll('#blocks_container input[type="checkbox"]').forEach(cb => cb.checked = false);
-        }
-        
-        function getSelectedBlocks() {
-            return Array.from(document.querySelectorAll('#blocks_container input[type="checkbox"]:checked')).map(cb => cb.value);
-        }
-        
-        function getSelectedValues(selectId) {
-            const select = document.getElementById(selectId);
-            return Array.from(select.selectedOptions).map(opt => opt.value);
+            } catch (e) { console.error('Ошибка загрузки типов:', e); }
         }
 
-        function getParams() {
-            const projects = getSelectedValues('project');
-            const assignees = getSelectedValues('assignee');
-            const issueTypes = getSelectedValues('issue_type');
-            
+        // ========== Вкладки ==========
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            document.getElementById(`tab-btn-${tabName}`).classList.add('active');
+        }
+
+        // ========== Пресеты ==========
+        function getPresetKey() { return 'jira_report_presets'; }
+        
+        function getPresets() {
+            return JSON.parse(localStorage.getItem(getPresetKey()) || '{}');
+        }
+        
+        function savePresets(presets) {
+            localStorage.setItem(getPresetKey(), JSON.stringify(presets));
+        }
+
+        function getCurrentSettings() {
             return {
-                projects: projects.length > 0 ? projects : null,
-                assignees: assignees.length > 0 ? assignees : null,
-                issue_types: issueTypes.length > 0 ? issueTypes : null,
-                start_date: document.getElementById('start_date').value,
-                days: parseInt(document.getElementById('days').value),
-                blocks: getSelectedBlocks(),
-                extra_verbose: document.getElementById('extra_verbose').checked
-            };
-        }
-        
-        async function generateReport() {
-            const errorDiv = document.getElementById('error');
-            const loading = document.getElementById('loading');
-            const generateBtn = document.getElementById('generate_btn');
-            const reportsContainer = document.getElementById('reports_container');
-            const debugContent = document.getElementById('debug_content');
-
-            errorDiv.classList.add('hidden');
-            loading.classList.remove('hidden');
-            generateBtn.disabled = true;
-            reportsContainer.classList.add('hidden');
-            debugContent.classList.add('hidden');
-
-            const params = getParams();
-            // Сохраняем запрос для отладки
-            debugData.request = {
-                url: '/api/report',
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: params
-            };
-
-            try {
-                const response = await fetch('/api/report', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(params)
-                });
-
-                const data = await response.json();
-
-                // Сохраняем ответ для отладки
-                debugData.response = {
-                    status: response.status,
-                    statusText: response.statusText,
-                    data: data
-                };
-                
-                // Сохраняем данные для отладки исполнителей
-                assigneesDebugData.request = {
-                    url: '/api/report',
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: params
-                };
-                assigneesDebugData.response = {
-                    status: response.status,
-                    statusText: response.statusText,
-                    data: data
-                };
-
-                if (!data.success) {
-                    throw new Error(data.error);
-                }
-
-                displayReport(data);
-                reportsContainer.classList.remove('hidden');
-
-            } catch (error) {
-                errorDiv.textContent = '❌ Ошибка: ' + error.message;
-                errorDiv.classList.remove('hidden');
-            } finally {
-                loading.classList.add('hidden');
-                generateBtn.disabled = false;
-            }
-        }
-        
-        function displayReport(data) {
-            document.getElementById('stat_projects').textContent = data.totals.projects;
-            document.getElementById('stat_correct').textContent = data.totals.correct;
-            document.getElementById('stat_issues').textContent = data.totals.issues;
-            document.getElementById('stat_spent').textContent = data.totals.spent;
-            document.getElementById('stat_estimated').textContent = data.totals.estimated;
-            document.getElementById('stats').classList.remove('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
-
-            if (data.summary?.length > 0) {
-                renderTable('summary_table', data.summary);
-                document.getElementById('summary_count').textContent = data.summary.length;
-            }
-            if (data.assignees?.length > 0) {
-                renderTable('assignees_table', data.assignees);
-                document.getElementById('assignees_count').textContent = data.assignees.length;
-            }
-            if (data.detail?.length > 0) {
-                renderTable('detail_table', data.detail);
-                document.getElementById('detail_count').textContent = data.detail.length;
-            }
-            if (data.issues?.length > 0) {
-                renderTable('issues_table', data.issues, true);
-                document.getElementById('issues_count').textContent = data.issues.length;
-            }
-            if (data.internal?.length > 0) {
-                renderTable('internal_table', data.internal);
-                document.getElementById('internal_count').textContent = data.internal.length;
-            }
-            if (data.risk_zone?.length > 0) {
-                renderTable('risk_table', data.risk_zone);
-                document.getElementById('risk_count').textContent = data.risk_zone.length;
-            }
-
-            // Отрисовка графиков
-            renderCharts(data);
-
-            const tabs = ['summary', 'assignees', 'detail', 'issues', 'internal', 'risk'];
-            for (const tab of tabs) {
-                if (data[tab]?.length > 0) {
-                    switchTab(tab);
-                    break;
-                }
-            }
-        }
-        
-        function renderTable(tableId, data, hasLinks = false) {
-            const table = document.getElementById(tableId);
-            const thead = table.querySelector('thead');
-            const tbody = table.querySelector('tbody');
-            
-            if (data.length > 0) {
-                const headers = Object.keys(data[0]);
-                thead.innerHTML = '<tr>' + headers.map(h => 
-                    `<th onclick="sortTable('${tableId}', '${h}')">${h}</th>`
-                ).join('') + '</tr>';
-            }
-            
-            tbody.innerHTML = data.map(row => {
-                return '<tr>' + Object.entries(row).map(([key, val]) => {
-                    if (key === 'URL' && val) {
-                        return `<td><a href="${val}" target="_blank" class="problem-link" title="Открыть задачу">📎</a></td>`;
-                    }
-                    if (key === 'Проблемы' && val) {
-                        return `<td class="problems-cell" title="${val}">${val}</td>`;
-                    }
-                    return `<td title="${val || ''}">${val !== null && val !== '' ? val : '-'}</td>`;
-                }).join('') + '</tr>';
-            }).join('');
-        }
-        
-        function sortTable(tableId, column) {
-            const table = document.getElementById(tableId);
-            const tbody = table.querySelector('tbody');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            const headers = table.querySelectorAll('th');
-            
-            if (sortState.column === column) {
-                sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
-            } else {
-                sortState.column = column;
-                sortState.direction = 'asc';
-            }
-            
-            headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
-            const currentHeader = Array.from(headers).find(h => h.textContent.trim() === column);
-            if (currentHeader) {
-                currentHeader.classList.add(sortState.direction === 'asc' ? 'sort-asc' : 'sort-desc');
-            }
-            
-            rows.sort((a, b) => {
-                const colIndex = Array.from(headers).findIndex(h => h.textContent.trim() === column);
-                let aText = a.children[colIndex]?.textContent?.trim() || '';
-                let bText = b.children[colIndex]?.textContent?.trim() || '';
-
-                // Пробуем как числа
-                const aNum = parseFloat(aText.replace(',', '.'));
-                const bNum = parseFloat(bText.replace(',', '.'));
-
-                if (!isNaN(aNum) && !isNaN(bNum) && aText !== '' && bText !== '') {
-                    return sortState.direction === 'asc' ? aNum - bNum : bNum - aNum;
-                }
-
-                // Пробуем как даты (форматы: ГГГГ-ММ-ДД, ГГГГ.ММ.ДД, ГГГГ-М-Д)
-                const datePattern = /^(\d{4})[-.](\d{1,2})[-.](\d{1,2})$/;
-                const aMatch = aText.match(datePattern);
-                const bMatch = bText.match(datePattern);
-
-                if (aMatch && bMatch) {
-                    // Создаём дату из частей (год, месяц-1, день)
-                    const aDate = new Date(parseInt(aMatch[1]), parseInt(aMatch[2]) - 1, parseInt(aMatch[3]));
-                    const bDate = new Date(parseInt(bMatch[1]), parseInt(bMatch[2]) - 1, parseInt(bMatch[3]));
-
-                    if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime())) {
-                        return sortState.direction === 'asc' ? aDate - bDate : bDate - aDate;
-                    }
-                }
-
-                // Сравниваем как строки
-                return sortState.direction === 'asc'
-                    ? aText.localeCompare(bText, 'ru')
-                    : bText.localeCompare(aText, 'ru');
-            });
-            
-            rows.forEach(row => tbody.appendChild(row));
-        }
-        
-        async function downloadExcel() {
-            const params = getParams();
-
-            try {
-                const response = await fetch('/api/download', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(params)
-                });
-
-                if (!response.ok) throw new Error('Ошибка при скачивании');
-
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `jira_report_${params.start_date || 'last_month'}.xlsx`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-
-            } catch (error) {
-                alert('❌ Ошибка: ' + error.message);
-            }
-        }
-
-        function showDebugRequest() {
-            const debugContent = document.getElementById('debug_content');
-            if (debugData.request) {
-                debugContent.textContent = JSON.stringify(debugData.request, null, 2);
-                debugContent.classList.remove('hidden');
-            } else {
-                debugContent.textContent = 'Запрос ещё не выполнялся';
-                debugContent.classList.remove('hidden');
-            }
-        }
-
-        function showDebugResponse() {
-            const debugContent = document.getElementById('debug_content');
-            if (debugData.response) {
-                debugContent.textContent = JSON.stringify(debugData.response, null, 2);
-                debugContent.classList.remove('hidden');
-            } else {
-                debugContent.textContent = 'Ответ ещё не получен';
-                debugContent.classList.remove('hidden');
-            }
-        }
-        
-        // Отладка для исполнителей
-        let assigneesDebugData = { request: null, response: null };
-        
-        function showAssigneesDebugRequest() {
-            const debugContent = document.getElementById('assignees_debug_content');
-            if (assigneesDebugData.request) {
-                debugContent.textContent = JSON.stringify(assigneesDebugData.request, null, 2);
-                debugContent.classList.remove('hidden');
-            } else {
-                debugContent.textContent = 'Запрос ещё не выполнялся';
-                debugContent.classList.remove('hidden');
-            }
-        }
-
-        // ========== ПРЕСЕТЫ ФИЛЬТРОВ ==========
-        function savePreset() {
-            const name = prompt('Введите название пресета:', 'Мой пресет');
-            if (!name) return;
-            
-            const preset = {
-                project: document.getElementById('project').value,
-                assignee: document.getElementById('assignee').value,
-                issue_type: document.getElementById('issue_type').value,
-                start_date: document.getElementById('start_date').value,
+                projects: getSelectedValues('project'),
+                assignees: getSelectedValues('assignee'),
+                issueTypes: getSelectedValues('issue_type'),
+                startDate: document.getElementById('start_date').value,
+                endDate: document.getElementById('end_date').value,
                 days: document.getElementById('days').value,
                 blocks: getSelectedBlocks(),
-                extra_verbose: document.getElementById('extra_verbose').checked
+                extraVerbose: document.getElementById('extra_verbose').checked
             };
+        }
+
+        function applySettings(settings) {
+            setSelectedValues('project', settings.projects || []);
+            setSelectedValues('assignee', settings.assignees || []);
+            setSelectedValues('issue_type', settings.issueTypes || []);
+            document.getElementById('start_date').value = settings.startDate || '';
+            document.getElementById('end_date').value = settings.endDate || '';
+            document.getElementById('days').value = settings.days || '30';
             
-            // Получаем существующие пресеты
-            const presets = JSON.parse(localStorage.getItem('jira_presets') || '{}');
-            presets[name] = preset;
-            localStorage.setItem('jira_presets', JSON.stringify(presets));
+            document.querySelectorAll('#blocks_container input[type="checkbox"]').forEach(cb => {
+                cb.checked = !settings.blocks || settings.blocks.includes(cb.value);
+            });
             
-            // Обновляем список пресетов
+            document.getElementById('extra_verbose').checked = settings.extraVerbose || false;
+        }
+
+        function savePreset() {
+            const name = prompt('Введите название пресета:');
+            if (!name) return;
+            
+            const presets = getPresets();
+            presets[name] = getCurrentSettings();
+            savePresets(presets);
             loadPresetList();
-            alert(`✅ Пресет "${name}" сохранён!`);
+            alert(`Пресет "${name}" сохранён!`);
         }
 
         function loadPreset() {
@@ -928,189 +925,474 @@
             const name = select.value;
             if (!name) return;
             
-            const presets = JSON.parse(localStorage.getItem('jira_presets') || '{}');
-            const preset = presets[name];
-            if (!preset) return;
-            
-            // Применяем настройки
-            if (preset.project) document.getElementById('project').value = preset.project;
-            if (preset.assignee) document.getElementById('assignee').value = preset.assignee;
-            if (preset.issue_type) document.getElementById('issue_type').value = preset.issue_type;
-            if (preset.start_date) document.getElementById('start_date').value = preset.start_date;
-            if (preset.days) document.getElementById('days').value = preset.days;
-            if (preset.blocks) {
-                document.querySelectorAll('#blocks_container input[type="checkbox"]').forEach(cb => {
-                    cb.checked = preset.blocks.includes(cb.value);
-                });
+            const presets = getPresets();
+            if (presets[name]) {
+                applySettings(presets[name]);
+                select.value = '';
             }
-            if (preset.extra_verbose !== undefined) {
-                document.getElementById('extra_verbose').checked = preset.extra_verbose;
-            }
-            
-            select.value = ''; // Сбрасываем выбор
-            alert(`✅ Пресет "${name}" загружен!`);
         }
 
         function loadPresetList() {
+            const presets = getPresets();
             const select = document.getElementById('preset_select');
-            const presets = JSON.parse(localStorage.getItem('jira_presets') || '{}');
-            const names = Object.keys(presets);
+            select.innerHTML = '<option value="">📁 Загрузить пресет...</option>';
             
-            // Сохраняем текущий выбор
-            const currentValue = select.value;
-            
-            // Очищаем и заполняем заново
-            select.innerHTML = '<option value="">📁 Загрузить...</option>';
-            names.forEach(name => {
+            for (const name of Object.keys(presets)) {
                 const opt = document.createElement('option');
                 opt.value = name;
                 opt.textContent = name;
                 select.appendChild(opt);
-            });
-            
-            // Восстанавливаем выбор если есть
-            if (names.includes(currentValue)) {
-                select.value = currentValue;
             }
         }
 
-        function deletePreset() {
-            const select = document.getElementById('preset_select');
-            const name = select.value;
-            if (!name) return;
-            
-            if (!confirm(`Удалить пресет "${name}"?`)) return;
-            
-            const presets = JSON.parse(localStorage.getItem('jira_presets') || '{}');
-            delete presets[name];
-            localStorage.setItem('jira_presets', JSON.stringify(presets));
-            
-            loadPresetList();
-            alert('❌ Пресет удалён');
+        function openPresetManager() {
+            document.getElementById('presetModal').classList.add('show');
+            renderPresetList();
         }
 
-        // ========== ГРАФИКИ ==========
-        let charts = {}; // Хранилище экземпляров Chart.js
+        function closePresetManager() {
+            document.getElementById('presetModal').classList.remove('show');
+        }
 
-        function renderCharts(data) {
-            // 1. Динамика закрытия задач (по датам решения)
-            if (data.detail?.length > 0) {
-                const trendData = {};
-                data.detail.forEach(task => {
-                    const date = task['Дата решения'] || task['Дата создания'];
-                    if (date && date !== '-') {
-                        trendData[date] = (trendData[date] || 0) + 1;
-                    }
+        function renderPresetList() {
+            const presets = getPresets();
+            const list = document.getElementById('preset_list');
+            list.innerHTML = '';
+            
+            for (const [name, settings] of Object.entries(presets)) {
+                const li = document.createElement('li');
+                li.className = 'preset-item';
+                li.innerHTML = `
+                    <span class="preset-name" onclick="loadPresetByName('${name}')">📄 ${name}</span>
+                    <div class="preset-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="deletePreset('${name}')">🗑️</button>
+                    </div>
+                `;
+                list.appendChild(li);
+            }
+        }
+
+        function loadPresetByName(name) {
+            const presets = getPresets();
+            if (presets[name]) {
+                applySettings(presets[name]);
+                closePresetManager();
+            }
+        }
+
+        function createPreset() {
+            const name = document.getElementById('new_preset_name').value.trim();
+            if (!name) {
+                alert('Введите название пресета');
+                return;
+            }
+            
+            const presets = getPresets();
+            if (presets[name]) {
+                if (!confirm(`Пресет "${name}" уже существует. Перезаписать?`)) return;
+            }
+            
+            presets[name] = getCurrentSettings();
+            savePresets(presets);
+            document.getElementById('new_preset_name').value = '';
+            renderPresetList();
+            loadPresetList();
+        }
+
+        function deletePreset(name) {
+            if (confirm(`Удалить пресет "${name}"?`)) {
+                const presets = getPresets();
+                delete presets[name];
+                savePresets(presets);
+                renderPresetList();
+                loadPresetList();
+            }
+        }
+
+        // ========== Экспорт ==========
+        function openExportModal() {
+            document.getElementById('exportModal').classList.add('show');
+        }
+
+        function closeExportModal() {
+            document.getElementById('exportModal').classList.remove('show');
+        }
+
+        function selectExportOption(element) {
+            document.querySelectorAll('.export-option').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            element.querySelector('input').checked = true;
+        }
+
+        async function downloadReport() {
+            const format = document.querySelector('input[name="export_format"]:checked').value;
+            closeExportModal();
+            
+            if (format === 'xlsx') {
+                await downloadExcel();
+            } else if (format === 'csv') {
+                alert('CSV экспорт будет реализован в ближайшее время. Пока доступен только Excel.');
+                await downloadExcel();
+            } else if (format === 'pdf') {
+                alert('PDF экспорт требует дополнительной настройки сервера. Пока доступен только Excel.');
+                await downloadExcel();
+            }
+        }
+
+        async function downloadExcel() {
+            const params = getParams();
+            debugData.request = params;
+            
+            try {
+                const response = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params)
                 });
-                const sortedDates = Object.keys(trendData).sort();
-                const cumulative = [];
-                let sum = 0;
-                sortedDates.forEach(date => {
-                    sum += trendData[date];
-                    cumulative.push(sum);
+                
+                if (!response.ok) throw new Error('Ошибка загрузки');
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `jira_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (e) {
+                showError('Ошибка загрузки: ' + e.message);
+            }
+        }
+
+        // ========== Генерация отчёта ==========
+        function getSelectedValues(selectId) {
+            const select = document.getElementById(selectId);
+            return Array.from(select.selectedOptions).map(opt => opt.value);
+        }
+
+        function setSelectedValues(selectId, values) {
+            const select = document.getElementById(selectId);
+            for (const option of select.options) {
+                option.selected = values.includes(option.value);
+            }
+        }
+
+        function getSelectedBlocks() {
+            return Array.from(document.querySelectorAll('#blocks_container input[type="checkbox"]:checked')).map(cb => cb.value);
+        }
+
+        function getParams() {
+            const projects = getSelectedValues('project');
+            const assignees = getSelectedValues('assignee');
+            const issueTypes = getSelectedValues('issue_type');
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+            const days = parseInt(document.getElementById('days').value) || 0;
+
+            return {
+                projects: projects.length > 0 ? projects : null,
+                assignees: assignees.length > 0 ? assignees : null,
+                issue_types: issueTypes.length > 0 ? issueTypes : null,
+                start_date: startDate || null,
+                end_date: endDate || null,
+                days: days,
+                blocks: getSelectedBlocks(),
+                extra_verbose: document.getElementById('extra_verbose').checked
+            };
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            setTimeout(() => errorDiv.classList.add('hidden'), 10000);
+        }
+
+        async function generateReport() {
+            const params = getParams();
+            debugData.request = params;
+            
+            const loading = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const stats = document.getElementById('stats');
+            const reports = document.getElementById('reports_container');
+            
+            loading.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+            stats.classList.add('hidden');
+            reports.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params)
                 });
 
-                createChart('chartTrend', {
-                    type: 'line',
-                    data: {
-                        labels: sortedDates,
-                        datasets: [{
-                            label: 'Закрыто задач',
-                            data: cumulative,
-                            borderColor: '#3498db',
-                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                            fill: true,
-                            tension: 0.4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
-                    }
-                });
-
-                // 2. Нагрузка по исполнителям
-                if (data.assignees?.length > 0) {
-                    const assigneeData = {};
-                    data.assignees.forEach(a => {
-                        assigneeData[a['Исполнитель']] = a['Задач'];
-                    });
-
-                    createChart('chartAssignees', {
-                        type: 'bar',
-                        data: {
-                            labels: Object.keys(assigneeData),
-                            datasets: [{
-                                label: 'Задач',
-                                data: Object.values(assigneeData),
-                                backgroundColor: '#27ae60'
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: { legend: { display: false } },
-                            scales: { y: { beginAtZero: true } }
-                        }
-                    });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Ошибка генерации отчёта');
                 }
 
-                // 3. Статусы задач
-                const statusData = {};
-                data.detail.forEach(task => {
-                    const status = task['Статус'] || 'Unknown';
-                    statusData[status] = (statusData[status] || 0) + 1;
-                });
+                const data = await response.json();
+                debugData.response = data;
+                lastReportData = data;
 
-                createChart('chartStatuses', {
-                    type: 'doughnut',
-                    data: {
-                        labels: Object.keys(statusData),
-                        datasets: [{
-                            data: Object.values(statusData),
-                            backgroundColor: ['#3498db', '#27ae60', '#f39c12', '#e74c3c', '#9b59b6']
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: { legend: { position: 'bottom' } }
-                    }
-                });
+                // Статистика
+                document.getElementById('stat_projects').textContent = data.totals.projects;
+                document.getElementById('stat_correct').textContent = data.totals.correct;
+                document.getElementById('stat_issues').textContent = data.totals.issues;
+                document.getElementById('stat_spent').textContent = data.totals.spent;
+                document.getElementById('stat_estimated').textContent = data.totals.estimated;
 
-                // 4. Типы задач
-                const typeData = {};
-                data.detail.forEach(task => {
-                    const type = task['Тип'] || 'Unknown';
-                    typeData[type] = (typeData[type] || 0) + 1;
-                });
+                // Рендер таблиц
+                renderTable('summary', data.summary);
+                renderTable('assignees', data.assignees);
+                renderTable('detail', data.detail);
+                renderTable('issues', data.issues);
+                renderTable('internal', data.internal);
+                renderTable('risk', data.risk_zone);
 
-                createChart('chartTypes', {
-                    type: 'pie',
-                    data: {
-                        labels: Object.keys(typeData),
-                        datasets: [{
-                            data: Object.values(typeData),
-                            backgroundColor: ['#3498db', '#27ae60', '#f39c12', '#e74c3c', '#9b59b6', '#1abc9c']
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: { legend: { position: 'bottom' } }
-                    }
-                });
+                // Счётчики
+                updateCount('summary', data.summary);
+                updateCount('assignees', data.assignees);
+                updateCount('detail', data.detail);
+                updateCount('issues', data.issues);
+                updateCount('internal', data.internal);
+                updateCount('risk', data.risk_zone);
+
+                // Графики
+                renderCharts(data);
+
+                stats.classList.remove('hidden');
+                reports.classList.remove('hidden');
+                switchTab('dashboard');
+
+            } catch (e) {
+                showError(e.message);
+            } finally {
+                loading.classList.add('hidden');
             }
         }
 
-        function createChart(canvasId, config) {
+        function updateCount(name, data) {
+            const count = data ? (Array.isArray(data) ? data.length : data.length || 0) : 0;
+            const el = document.getElementById(`${name}_count`);
+            if (el) el.textContent = count;
+        }
+
+        function renderTable(name, data) {
+            const table = document.getElementById(`${name}_table`);
+            if (!table || !data || data.length === 0) return;
+
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            
+            const columns = Object.keys(data[0]);
+            
+            thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('${name}', '${col}')">${col}</th>`).join('') + '</tr>';
+            tbody.innerHTML = data.map(row => 
+                '<tr>' + columns.map(col => `<td>${formatCell(row[col])}</td>`).join('') + '</tr>'
+            ).join('');
+        }
+
+        function formatCell(value) {
+            if (value === null || value === undefined) return '';
+            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                return formatDisplayDate(value);
+            }
+            return value;
+        }
+
+        function sortTable(name, column) {
+            const table = document.getElementById(`${name}_table`);
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const th = table.querySelector(`th[onclick*="${column}"]`);
+            
+            if (!th) return;
+            
+            const columnIndex = Array.from(th.parentElement.children).indexOf(th);
+            const isAsc = th.classList.contains('sort-asc') || !th.classList.contains('sort-desc');
+            
+            // Сброс сортировки
+            table.querySelectorAll('th').forEach(h => {
+                h.classList.remove('sort-asc', 'sort-desc');
+            });
+            
+            rows.sort((a, b) => {
+                const aVal = a.children[columnIndex].textContent.trim();
+                const bVal = b.children[columnIndex].textContent.trim();
+                
+                const aNum = parseFloat(aVal);
+                const bNum = parseFloat(bVal);
+                
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return isAsc ? aNum - bNum : bNum - aNum;
+                }
+                
+                return isAsc ? aVal.localeCompare(bVal, 'ru') : bVal.localeCompare(aVal, 'ru');
+            });
+            
+            th.classList.add(isAsc ? 'sort-desc' : 'sort-asc');
+            
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // ========== Графики ==========
+        function renderCharts(data) {
+            // Динамика закрытия (по дате решения)
+            if (data.detail && data.detail.length > 0) {
+                const closedByDate = {};
+                const createdByDate = {};
+                
+                data.detail.forEach(task => {
+                    const resolved = task['Дата решения'] || task['Дата исполнения'];
+                    const created = task['Дата создания'];
+                    
+                    if (resolved) {
+                        const date = resolved.split('T')[0];
+                        closedByDate[date] = (closedByDate[date] || 0) + 1;
+                    }
+                    if (created) {
+                        const date = created.split('T')[0];
+                        createdByDate[date] = (createdByDate[date] || 0) + 1;
+                    }
+                });
+                
+                createChart('chartClosed', 'line', {
+                    labels: Object.keys(closedByDate).sort(),
+                    datasets: [{
+                        label: 'Закрыто задач',
+                        data: Object.keys(closedByDate).sort().map(d => closedByDate[d]),
+                        borderColor: '#27ae60',
+                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                }, 'Закрыто задач по дням');
+                
+                createChart('chartCreated', 'line', {
+                    labels: Object.keys(createdByDate).sort(),
+                    datasets: [{
+                        label: 'Создано задач',
+                        data: Object.keys(createdByDate).sort().map(d => createdByDate[d]),
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                }, 'Создано задач по дням');
+            }
+            
+            // Нагрузка по исполнителям
+            if (data.assignees && data.assignees.length > 0) {
+                const top10 = data.assignees.slice(0, 10);
+                createChart('chartAssignees', 'bar', {
+                    labels: top10.map(a => a['Исполнитель']),
+                    datasets: [{
+                        label: 'Задач',
+                        data: top10.map(a => a['Задач'] || a['tasks_count']),
+                        backgroundColor: '#3498db'
+                    }]
+                }, 'Топ-10 исполнителей');
+            }
+            
+            // Статусы
+            if (data.detail && data.detail.length > 0) {
+                const byStatus = {};
+                data.detail.forEach(task => {
+                    const status = task['Статус'] || 'Unknown';
+                    byStatus[status] = (byStatus[status] || 0) + 1;
+                });
+                
+                createChart('chartStatuses', 'doughnut', {
+                    labels: Object.keys(byStatus),
+                    datasets: [{
+                        data: Object.values(byStatus),
+                        backgroundColor: ['#27ae60', '#3498db', '#f39c12', '#e74c3c', '#9b59b6', '#95a5a6']
+                    }]
+                }, 'Статусы задач');
+            }
+            
+            // Типы задач
+            if (data.detail && data.detail.length > 0) {
+                const byType = {};
+                data.detail.forEach(task => {
+                    const type = task['Тип'] || 'Unknown';
+                    byType[type] = (byType[type] || 0) + 1;
+                });
+                
+                createChart('chartTypes', 'pie', {
+                    labels: Object.keys(byType),
+                    datasets: [{
+                        data: Object.values(byType),
+                        backgroundColor: ['#3498db', '#27ae60', '#e74c3c', '#f39c12', '#9b59b6', '#95a5a6']
+                    }]
+                }, 'Типы задач');
+            }
+        }
+
+        function createChart(canvasId, type, data, label) {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
-
-            // Уничтожаем старый график если есть
+            
+            const ctx = canvas.getContext('2d');
+            
             if (charts[canvasId]) {
                 charts[canvasId].destroy();
             }
+            
+            charts[canvasId] = new Chart(ctx, {
+                type: type,
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: type !== 'line',
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: type === 'line' ? {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        }
+                    } : {}
+                }
+            });
+        }
 
-            charts[canvasId] = new Chart(canvas, config);
+        // ========== Debug ==========
+        function showDebugRequest() {
+            const content = document.getElementById('debug_content');
+            content.textContent = JSON.stringify(debugData.request, null, 2);
+            content.classList.remove('hidden');
+        }
+
+        function showDebugResponse() {
+            const content = document.getElementById('debug_content');
+            content.textContent = JSON.stringify(debugData.response, null, 2);
+            content.classList.remove('hidden');
+        }
+
+        function showAssigneesDebugRequest() {
+            alert('Запрос: GET /api/assignees');
+        }
+
+        function showAssigneesDebugResponse() {
+            fetch('/api/assignees')
+                .then(r => r.json())
+                .then(d => alert(JSON.stringify(d, null, 2)))
+                .catch(e => alert('Ошибка: ' + e.message));
         }
     </script>
 </body>
