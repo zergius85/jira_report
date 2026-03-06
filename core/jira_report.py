@@ -443,8 +443,17 @@ def generate_report(
         projects_map = {}
         for proj_key in project_keys:
             try:
-                proj = jira.project(proj_key)
-                projects_map[proj.key] = proj.name
+                # Пробуем использовать кэширующую функцию из web/app.py
+                # Если она доступна (веб-режим), иначе используем прямой запрос
+                try:
+                    from web.app import get_project_cached
+                    proj = get_project_cached(jira, proj_key)
+                except ImportError:
+                    # Консольный режим - кэш не доступен
+                    proj = jira.project(proj_key)
+                
+                if proj:
+                    projects_map[proj.key] = proj.name
             except Exception:
                 logger.warning(f"Проект {proj_key} не найден")
         projects_keys = list(projects_map.keys())  # Обновляем список ключей

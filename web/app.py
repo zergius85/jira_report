@@ -31,6 +31,45 @@ else:
     cache = None
     cache_init = False
 
+
+# =============================================
+# КЭШИРОВАНИЕ PROJECTS (для core/jira_report.py)
+# =============================================
+# Кэш для jira.project() - используется в generate_report()
+_project_cache = {}
+_project_cache_time = {}
+_PROJECT_CACHE_TTL = 3600  # 1 час
+
+
+def get_project_cached(jira, proj_key):
+    """
+    Кэширует результат jira.project(proj_key) на 1 час.
+    
+    Args:
+        jira: Объект подключения к Jira
+        proj_key: Ключ проекта
+    
+    Returns:
+        Проект Jira
+    """
+    import time
+    
+    # Проверяем кэш
+    if proj_key in _project_cache:
+        cache_age = time.time() - _project_cache_time.get(proj_key, 0)
+        if cache_age < _PROJECT_CACHE_TTL:
+            return _project_cache[proj_key]
+    
+    # Получаем из Jira
+    try:
+        proj = jira.project(proj_key)
+        _project_cache[proj_key] = proj
+        _project_cache_time[proj_key] = time.time()
+        return proj
+    except Exception:
+        # Если проект не найден, не кэшируем
+        return None
+
 @app.route('/')
 def index():
     return render_template('index.html', blocks=REPORT_BLOCKS, JIRA_SERVER=JIRA_SERVER)
@@ -258,6 +297,96 @@ def api_task_info():
     except Exception as e:
         import traceback
         traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/task-info-batch', methods=['POST'])
+def api_task_info_batch():
+    """
+    Получить информацию о нескольких задачах за один запрос.
+    
+    Ожидает: {task_keys: ['WEB-123', 'WEB-124', ...]}
+    Возвращает: {tasks: {WEB-123: {...}, WEB-124: {...}, ...}}
+    
+    Максимум 50 задач за запрос.
+    """
+    try:
+        data = request.json
+        task_keys = data.get('task_keys', [])
+        
+        if not task_keys:
+            return jsonify({'success': False, 'error': 'task_keys required'}), 400
+        
+        # Ограничиваем количество задач за один запрос
+        if len(task_keys) > 50:
+            logger.warning(f"Запрошено {len(task_keys)} задач, ограничиваем до 50")
+            task_keys = task_keys[:50]
+        
+        jira = get_jira_connection()
+        
+        # Формируем JQL для получения всех задач сразу
+        # Ключи задач могут быть в формате 'WEB-123' или просто '123'
+        formatted_keys = []
+        for key in task_keys:
+            # Убераем лишние кавычки и пробелы
+            key = str(key).strip().strip("'\"")
+            if key:
+                formatted_keys.append(key)
+        
+        if not formatted_keys:
+            return jsonify({'success': False, 'error': 'Нет валидных ключей задач'}), 400
+        
+        jql = 'key IN (' + ','.join(formatted_keys) + ')'
+        
+        # Получаем все задачи с changelog
+        issues = jira.search_issues(jql, fields='*all', expand='changelog', maxResults=50)
+        
+        # Формируем результат
+        result = {}
+        for issue in issues:
+            task_data = {
+                'key': issue.key,
+                'id': issue.id,
+                'summary': issue.fields.summary if issue.fields.summary else '',
+                'status': issue.fields.status.name if issue.fields.status else '',
+                'assignee': issue.fields.assignee.displayName if issue.fields.assignee else None,
+                'created': issue.fields.created,
+                'updated': issue.fields.updated,
+                'resolutiondate': issue.fields.resolutiondate,
+                'timespent': issue.fields.timespent,
+                'timeoriginalestimate': issue.fields.timeoriginalestimate,
+                'issuetype': issue.fields.issuetype.name if issue.fields.issuetype else '',
+                'priority': issue.fields.priority.name if issue.fields.priority else '',
+                'duedate': issue.fields.duedate,
+            }
+            
+            # Добавляем changelog
+            if hasattr(issue, 'changelog') and issue.changelog:
+                changelog = []
+                for history in issue.changelog.histories:
+                    history_item = {
+                        'author': history.author.displayName if hasattr(history.author, 'displayName') else str(history.author),
+                        'created': history.created,
+                        'items': []
+                    }
+                    for item in history.items:
+                        history_item['items'].append({
+                            'field': item.field,
+                            'from': item.fromString,
+                            'to': item.toString
+                        })
+                    changelog.append(history_item)
+                task_data['changelog'] = changelog
+            
+            result[issue.key] = task_data
+        
+        logger.info(f"✅ Batch-запрос: получено {len(result)} из {len(formatted_keys)} задач")
+        return jsonify({'success': True, 'tasks': result, 'count': len(result)})
+    
+    except Exception as e:
+        import traceback
+        logger.error(f"❌ Ошибка batch-запроса: {e}")
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/report', methods=['POST'])
