@@ -244,26 +244,28 @@ class TestValidateIssue:
         mock_issue.key = 'TEST-123'
 
         # Создаём mock changelog с переходом от jira_user
-        mock_changelog = Mock()
-        mock_history = Mock()
+        # Важно: histories должен быть списком, который можно обратить через reversed()
         mock_history_item = Mock()
         mock_history_item.field = 'status'
         mock_history_item.toString = 'Закрыт'
         mock_history_item.to = '10001'
+        
+        mock_author = Mock()
+        mock_author.name = 'jira_user'  # Пользователь демона
+        
+        mock_history = Mock()
         mock_history.items = [mock_history_item]
-        mock_history.author = Mock()
-        mock_history.author.name = 'jira_user'  # Пользователь демона
-        mock_changelog.histories = [mock_history]
-
-        mock_issue_with_changelog = Mock()
-        mock_issue_with_changelog.changelog = mock_changelog
-
-        mock_jira = Mock()
-        mock_jira.issue.return_value = mock_issue_with_changelog
+        mock_history.author = mock_author
+        
+        mock_changelog = Mock()
+        mock_changelog.histories = [mock_history]  # Список для reversed()
+        
+        # Добавляем changelog прямо в mock_issue (теперь используем его напрямую)
+        mock_issue.changelog = mock_changelog
 
         with patch('core.jira_report.CLOSED_STATUS_IDS', ['10001']):
             with patch('core.jira_report.JIRA_USER', 'jira_user'):
-                problems = validate_issue(mock_issue, jira=mock_jira)
+                problems = validate_issue(mock_issue, jira=None)  # jira=None, т.к. changelog уже в issue
                 # Закрыто пользователем демона — проблем нет
                 assert not any('Статус' in p for p in problems)
 
@@ -282,26 +284,27 @@ class TestValidateIssue:
         mock_issue.key = 'TEST-123'
 
         # Changelog с переходом от другого пользователя
-        mock_changelog = Mock()
-        mock_history = Mock()
         mock_history_item = Mock()
         mock_history_item.field = 'status'
         mock_history_item.toString = 'Закрыт'
         mock_history_item.to = '10001'
+        
+        mock_author = Mock()
+        mock_author.name = 'petrov'  # Другой пользователь
+        
+        mock_history = Mock()
         mock_history.items = [mock_history_item]
-        mock_history.author = Mock()
-        mock_history.author.name = 'petrov'  # Другой пользователь
+        mock_history.author = mock_author
+        
+        mock_changelog = Mock()
         mock_changelog.histories = [mock_history]
-
-        mock_issue_with_changelog = Mock()
-        mock_issue_with_changelog.changelog = mock_changelog
-
-        mock_jira = Mock()
-        mock_jira.issue.return_value = mock_issue_with_changelog
+        
+        # Добавляем changelog прямо в mock_issue
+        mock_issue.changelog = mock_changelog
 
         with patch('core.jira_report.CLOSED_STATUS_IDS', ['10001']):
             with patch('core.jira_report.JIRA_USER', 'jira_user'):
-                problems = validate_issue(mock_issue, jira=mock_jira)
+                problems = validate_issue(mock_issue, jira=None)  # jira=None, т.к. changelog уже в issue
                 # Закрыто не пользователем демона — это проблема
                 assert any('Статус' in p for p in problems)
 

@@ -281,14 +281,14 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
                     break
 
             # Если не исключение, проверяем changelog (кто перевёл в "Закрыт")
-            if not is_correct_close and jira:
+            # Используем предзагруженный changelog из issues_normal (экономия запросов к API)
+            if not is_correct_close:
                 try:
-                    # Получаем историю переходов задачи
-                    issue_with_changelog = jira.issue(issue.key, expand='changelog')
-                    if hasattr(issue_with_changelog, 'changelog') and issue_with_changelog.changelog:
+                    # Проверяем, есть ли changelog в предзагруженном объекте
+                    if hasattr(issue, 'changelog') and issue.changelog:
                         # Ищем последний переход в статус "Закрыт"
                         found_correct_close = False
-                        for history in reversed(issue_with_changelog.changelog.histories):
+                        for history in reversed(issue.changelog.histories):
                             for item in history.items:
                                 if item.field == 'status' and item.toString:
                                     # Проверяем, был ли это переход в закрытый статус
@@ -305,9 +305,13 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
                                         break
                             if found_correct_close:
                                 break
+                    else:
+                        # Changelog отсутствует — это проблема
+                        logger.warning(f"⚠️  Отсутствует changelog для {issue.key}")
+                        problems.append('Не удалось проверить историю переходов')
                 except Exception as e:
                     # Если не удалось получить changelog, считаем это проблемой
-                    logger.warning(f"⚠️  Не удалось получить changelog для {issue.key}: {e}")
+                    logger.warning(f"⚠️  Ошибка при проверке changelog для {issue.key}: {e}")
                     problems.append('Не удалось проверить историю переходов')
 
             # Если статус "Закрыт" и не корректно закрыт — это проблема
@@ -508,12 +512,16 @@ def generate_report(
                           f"ORDER BY created DESC")
 
         # Получаем все задачи для проблемных (больший период)
+        # Добавляем expand='changelog' для предзагрузки истории переходов (экономия запросов)
         issues_all = jira.search_issues(jql_issues, maxResults=False,
-                                        fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, creator')
+                                        fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, creator',
+                                        expand='changelog')
 
         # Получаем задачи для обычных отчётов (меньший период)
+        # Добавляем expand='changelog' для предзагрузки истории переходов (экономия запросов)
         issues_normal = jira.search_issues(jql_normal, maxResults=False,
-                                           fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created')
+                                           fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created',
+                                           expand='changelog')
         
         # Обработка для обычных отчётов
         proj_spent = 0.0
