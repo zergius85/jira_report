@@ -522,14 +522,16 @@ def generate_report(
 
         # Получаем все задачи для проблемных (больший период)
         # Добавляем expand='changelog' для предзагрузки истории переходов (экономия запросов)
+        # Добавляем поле 'updated' для Risk Zone
         issues_all = jira.search_issues(jql_issues, maxResults=False,
-                                        fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, creator',
+                                        fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, creator',
                                         expand='changelog')
 
         # Получаем задачи для обычных отчётов (меньший период)
         # Добавляем expand='changelog' для предзагрузки истории переходов (экономия запросов)
+        # Добавляем поле 'updated' для Risk Zone
         issues_normal = jira.search_issues(jql_normal, maxResults=False,
-                                           fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created',
+                                           fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated',
                                            expand='changelog')
         
         # Обработка для обычных отчётов
@@ -797,37 +799,39 @@ def generate_report(
     if include_risk_zone:
         risk_issues = []
         today = datetime.now()
-        
-        for issue in issues_normal:
-            risk_factors = []
-            
-            # 1. Задачи без исполнителя
-            if not issue.fields.assignee:
-                risk_factors.append('Без исполнителя')
-            
-            # 2. Задачи с истёкшим сроком (Due Date)
-            if issue.fields.duedate:
-                due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
-                if due_date < today and issue.fields.status.name.lower() not in ['закрыт', 'closed', 'done']:
-                    days_overdue = (today - due_date).days
-                    risk_factors.append(f'Просрочена на {days_overdue} дн.')
-            
-            # 3. Задачи, которые не двигались > 5 дней
-            if issue.fields.updated:
-                updated = datetime.strptime(issue.fields.updated[:19], '%Y-%m-%dT%H:%M:%S')
-                days_inactive = (today - updated).days
-                if days_inactive > 5 and issue.fields.status.name.lower() not in ['закрыт', 'closed', 'done']:
-                    risk_factors.append(f'Не двигается {days_inactive} дн.')
-            
-            # Если есть факторы риска - добавляем в отчёт
-            if risk_factors:
-                assignee = issue.fields.assignee.displayName if issue.fields.assignee else 'Без исполнителя'
-                risk_issues.append({
-                    'URL': f"{JIRA_SERVER}/browse/{issue.key}",
-                    'Ключ': issue.key,
-                    'Задача': issue.fields.summary,
-                    'Исполнитель': assignee,
-                    'Статус': issue.fields.status.name,
+
+        # Проверяем, что issues_normal определён и не пуст
+        if 'issues_normal' in locals() and issues_normal:
+            for issue in issues_normal:
+                risk_factors = []
+
+                # 1. Задачи без исполнителя
+                if not issue.fields.assignee:
+                    risk_factors.append('Без исполнителя')
+
+                # 2. Задачи с истёкшим сроком (Due Date)
+                if issue.fields.duedate:
+                    due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
+                    if due_date < today and issue.fields.status.name.lower() not in ['закрыт', 'closed', 'done']:
+                        days_overdue = (today - due_date).days
+                        risk_factors.append(f'Просрочена на {days_overdue} дн.')
+
+                # 3. Задачи, которые не двигались > 5 дней
+                if hasattr(issue.fields, 'updated') and issue.fields.updated:
+                    updated = datetime.strptime(issue.fields.updated[:19], '%Y-%m-%dT%H:%M:%S')
+                    days_inactive = (today - updated).days
+                    if days_inactive > 5 and issue.fields.status.name.lower() not in ['закрыт', 'closed', 'done']:
+                        risk_factors.append(f'Не двигается {days_inactive} дн.')
+
+                # Если есть факторы риска - добавляем в отчёт
+                if risk_factors:
+                    assignee = issue.fields.assignee.displayName if issue.fields.assignee else 'Без исполнителя'
+                    risk_issues.append({
+                        'URL': f"{JIRA_SERVER}/browse/{issue.key}",
+                        'Ключ': issue.key,
+                        'Задача': issue.fields.summary,
+                        'Исполнитель': assignee,
+                        'Статус': issue.fields.status.name,
                     'Факторы риска': '; '.join(risk_factors),
                     'Приоритет': issue.fields.priority.name if issue.fields.priority else 'Normal'
                 })
