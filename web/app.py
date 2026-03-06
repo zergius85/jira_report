@@ -89,44 +89,64 @@ def _api_assignees_logic():
 
         assignees = {}
 
-        # Получаем ВСЕХ пользователей через search_users(username='', includeActive=True)
-        # Для Jira Server используем параметр username вместо query
+        # Пробуем разные методы поиска пользователей для совместимости
+        methods_tried = []
+        
+        # Метод 1: search_users(query='') - для Jira Cloud
         try:
-            logger.info("  → search_users(username='')...")
-            # Для Jira Server используем пустой username для получения всех
-            users = jira.search_users(username='', includeActive=True, includeInactive=False, maxResults=1000)
-            logger.info(f"     Всего пользователей: {len(users)}")
-
+            logger.info("  → search_users(query='') [Jira Cloud]...")
+            users = jira.search_users(query='', maxResults=1000)
+            methods_tried.append('query')
             for user in users:
-                if isinstance(user, dict):
-                    # Включаем всех, у кого active=True (явно)
-                    is_active = user.get('active', False) is True
-                    key = user.get('name') or user.get('accountId') or user.get('key')
-                    name = user.get('displayName', key) or user.get('name', key)
-                else:
-                    is_active = getattr(user, 'active', False) is True
-                    key = getattr(user, 'name', None) or getattr(user, 'accountId', None) or getattr(user, 'key', None)
-                    name = getattr(user, 'displayName', None) or getattr(user, 'name', key)
+                _add_user_to_assignees(user, assignees)
+            logger.info(f"     Найдено пользователей: {len(assignees)}")
+        except Exception as e1:
+            logger.debug(f"  ✗ Метод query не сработал: {e1}")
+            
+            # Метод 2: search_users(user='') - для старых Jira Server
+            try:
+                logger.info("  → search_users(user='') [Jira Server]...")
+                users = jira.search_users(user='', maxResults=1000)
+                methods_tried.append('user')
+                for user in users:
+                    _add_user_to_assignees(user, assignees)
+                logger.info(f"     Найдено пользователей: {len(assignees)}")
+            except Exception as e2:
+                logger.debug(f"  ✗ Метод user не сработал: {e2}")
+                
+                # Метод 3: Получаем из задач (fallback)
+                logger.info("  → Получаем исполнителей из задач [fallback]...")
+                methods_tried.append('fallback')
+                return _get_assignees_from_issues(jira)
 
-                if is_active and key:
-                    assignees[key] = name
-
-            logger.info(f"     Активных: {len(assignees)}")
-        except Exception as e:
-            logger.error(f"  ✗ Ошибка при загрузке пользователей: {e}")
-            # Пробуем альтернативный метод - получаем пользователей из задач
-            logger.info("  → Пробуем альтернативный метод (из задач)...")
+        if not assignees:
+            logger.warning("  ⚠️  Ни один метод не вернул пользователей, пробуем fallback...")
             return _get_assignees_from_issues(jira)
 
         # Сортируем по имени
         result = [{'key': k, 'name': v} for k, v in sorted(assignees.items(), key=lambda x: x[1])]
-        logger.info(f"✅ Возвращаем {len(result)} исполнителей")
+        logger.info(f"✅ Возвращаем {len(result)} исполнителей (метод: {', '.join(methods_tried)})")
         return jsonify({'success': True, 'assignees': result})
     except Exception as e:
         import traceback
         logger.error(f"❌ Ошибка загрузки исполнителей: {e}")
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _add_user_to_assignees(user, assignees_dict):
+    """Добавляет пользователя в словарь исполнителей"""
+    if isinstance(user, dict):
+        is_active = user.get('active', False) is True
+        key = user.get('name') or user.get('accountId') or user.get('key')
+        name = user.get('displayName', key) or user.get('name', key)
+    else:
+        is_active = getattr(user, 'active', False) is True
+        key = getattr(user, 'name', None) or getattr(user, 'accountId', None) or getattr(user, 'key', None)
+        name = getattr(user, 'displayName', None) or getattr(user, 'name', key)
+    
+    if is_active and key:
+        assignees_dict[key] = name
 
 
 def _get_assignees_from_issues(jira):
@@ -139,11 +159,7 @@ def _get_assignees_from_issues(jira):
         assignees = {}
         for issue in issues:
             if issue.fields.assignee:
-                assignee = issue.fields.assignee
-                key = getattr(assignee, 'name', None) or getattr(assignee, 'accountId', None) or getattr(assignee, 'key', None)
-                name = getattr(assignee, 'displayName', None) or getattr(assignee, 'name', key)
-                if key:
-                    assignees[key] = name
+                _add_user_to_assignees(issue.fields.assignee, assignees)
         
         result = [{'key': k, 'name': v} for k, v in sorted(assignees.items(), key=lambda x: x[1])]
         logger.info(f"✅ Найдено {len(result)} исполнителей из задач")
