@@ -89,11 +89,12 @@ def _api_assignees_logic():
 
         assignees = {}
 
-        # Получаем ВСЕХ пользователей через search_users('')
+        # Получаем ВСЕХ пользователей через search_users(query='*', startAt=0, maxResults=1000)
         # Исключаем только тех, у кого active=False (отключённые/удалённые)
         try:
-            logger.info("  → search_users('')...")
-            users = jira.search_users('')
+            logger.info("  → search_users(query='*')...")
+            # Используем query='*' для получения всех пользователей
+            users = jira.search_users(query='*', startAt=0, maxResults=1000)
             logger.info(f"     Всего пользователей: {len(users)}")
 
             for user in users:
