@@ -8,8 +8,11 @@ set -e
 
 # SCRIPT_DIR теперь указывает на родительскую директорию (корень проекта)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# SERVICES_DIR указывает на директорию со скриптами службы
+SERVICES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICE_NAME="jira-report"
-SERVICE_FILE="${SERVICE_NAME}.service"
+SERVICE_FILE="${SERVICES_DIR}/${SERVICE_NAME}.service"
+SERVICE_FILE_TEMPLATE="${SERVICES_DIR}/${SERVICE_NAME}.service.template"
 SYSTEMD_DIR="/etc/systemd/system"
 ENV_FILE="$SCRIPT_DIR/.env"
 CONFIG_FILE="$SCRIPT_DIR/core/config.py"
@@ -349,7 +352,7 @@ echo "📝 Настройка файла службы (режим: $MODE)..."
 
 # Создаём временный файл службы с правильным режимом
 TEMP_SERVICE=$(mktemp)
-cp "$SCRIPT_DIR/${SERVICE_FILE}.template" "$TEMP_SERVICE" 2>/dev/null || cp "$SCRIPT_DIR/${SERVICE_FILE}" "$TEMP_SERVICE"
+cp "$SERVICE_FILE_TEMPLATE" "$TEMP_SERVICE" 2>/dev/null || cp "$SERVICE_FILE" "$TEMP_SERVICE"
 
 # Заменяем FLASK_ENV в файле службы
 sed -i "s/FLASK_ENV=development/FLASK_ENV=$MODE/g" "$TEMP_SERVICE"
