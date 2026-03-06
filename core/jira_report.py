@@ -19,8 +19,8 @@ import io
 from dateutil.relativedelta import relativedelta
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
-# Импортируем настройки из config.py
-from config import (
+# Импортируем настройки из core.config
+from core.config import (
     JIRA_SERVER,
     JIRA_USER,
     JIRA_PASS,
@@ -287,6 +287,7 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
                     issue_with_changelog = jira.issue(issue.key, expand='changelog')
                     if hasattr(issue_with_changelog, 'changelog') and issue_with_changelog.changelog:
                         # Ищем последний переход в статус "Закрыт"
+                        found_correct_close = False
                         for history in reversed(issue_with_changelog.changelog.histories):
                             for item in history.items:
                                 if item.field == 'status' and item.toString:
@@ -300,8 +301,9 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
                                         # Если переход сделал пользователь демона — это корректно
                                         if JIRA_USER and JIRA_USER.lower() in author_name.lower():
                                             is_correct_close = True
+                                            found_correct_close = True
                                         break
-                            if is_correct_close or (hasattr(item, 'to') and item.to in CLOSED_STATUS_IDS):
+                            if found_correct_close:
                                 break
                 except Exception as e:
                     # Если не удалось получить changelog, считаем это проблемой

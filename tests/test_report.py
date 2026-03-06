@@ -99,13 +99,15 @@ class TestGetColumnOrder:
         cols = get_column_order('detail')
         assert 'URL' in cols
         assert 'Задача' in cols
-        assert len(cols) == 9
+        assert 'Дата решения' in cols
+        assert len(cols) == 10
 
     def test_detail_columns_extra_verbose(self):
         cols = get_column_order('detail', extra_verbose=True)
         assert 'URL' in cols
         assert 'ID' in cols
-        assert len(cols) == 10
+        assert 'Дата решения' in cols
+        assert len(cols) == 11
 
     def test_issues_columns(self):
         cols = get_column_order('issues')
@@ -128,25 +130,25 @@ class TestGetColumnOrder:
 class TestValidateConfig:
     """Тесты валидации конфигурации"""
 
-    @patch('jira_report.JIRA_SERVER', 'https://test.com')
-    @patch('jira_report.JIRA_USER', 'test@test.com')
-    @patch('jira_report.JIRA_PASS', 'password')
+    @patch('core.jira_report.JIRA_SERVER', 'https://test.com')
+    @patch('core.jira_report.JIRA_USER', 'test@test.com')
+    @patch('core.jira_report.JIRA_PASS', 'password')
     def test_valid_config(self):
         is_valid, errors = validate_config()
         assert is_valid is True
         assert len(errors) == 0
 
-    @patch('jira_report.JIRA_SERVER', None)
-    @patch('jira_report.JIRA_USER', None)
-    @patch('jira_report.JIRA_PASS', None)
+    @patch('core.jira_report.JIRA_SERVER', None)
+    @patch('core.jira_report.JIRA_USER', None)
+    @patch('core.jira_report.JIRA_PASS', None)
     def test_missing_all_config(self):
         is_valid, errors = validate_config()
         assert is_valid is False
         assert len(errors) == 3
 
-    @patch('jira_report.JIRA_SERVER', None)
-    @patch('jira_report.JIRA_USER', 'test@test.com')
-    @patch('jira_report.JIRA_PASS', 'password')
+    @patch('core.jira_report.JIRA_SERVER', None)
+    @patch('core.jira_report.JIRA_USER', 'test@test.com')
+    @patch('core.jira_report.JIRA_PASS', 'password')
     def test_missing_server(self):
         is_valid, errors = validate_config()
         assert is_valid is False
@@ -204,7 +206,7 @@ class TestValidateIssue:
         mock_issue.fields.assignee.name = 'ivanov'
         mock_issue.fields.assignee.displayName = 'Ivanov Ivan'
 
-        with patch('jira_report.CLOSED_STATUS_IDS', ['10001']):
+        with patch('core.jira_report.CLOSED_STATUS_IDS', ['10001']):
             # jira=None, changelog проверить нельзя
             problems = validate_issue(mock_issue, jira=None)
             assert any('Статус' in p for p in problems)
@@ -221,7 +223,7 @@ class TestValidateIssue:
         mock_issue.fields.assignee.name = 'holin'
         mock_issue.fields.assignee.displayName = 'Holin Petr'
 
-        with patch('jira_report.CLOSED_STATUS_IDS', ['10001']):
+        with patch('core.jira_report.CLOSED_STATUS_IDS', ['10001']):
             problems = validate_issue(mock_issue, jira=None)
             # Для holin статус "Закрыт" не должен быть проблемой
             assert not any('Статус' in p for p in problems)
@@ -237,10 +239,10 @@ class TestValidateIssue:
         mock_issue.fields.assignee = Mock()
         mock_issue.fields.assignee.name = 'ivanov'
         mock_issue.fields.assignee.displayName = 'Ivanov Ivan'
-        
+
         # Ключ задачи
         mock_issue.key = 'TEST-123'
-        
+
         # Создаём mock changelog с переходом от jira_user
         mock_changelog = Mock()
         mock_history = Mock()
@@ -252,15 +254,15 @@ class TestValidateIssue:
         mock_history.author = Mock()
         mock_history.author.name = 'jira_user'  # Пользователь демона
         mock_changelog.histories = [mock_history]
-        
+
         mock_issue_with_changelog = Mock()
         mock_issue_with_changelog.changelog = mock_changelog
-        
+
         mock_jira = Mock()
         mock_jira.issue.return_value = mock_issue_with_changelog
 
-        with patch('jira_report.CLOSED_STATUS_IDS', ['10001']):
-            with patch('jira_report.JIRA_USER', 'jira_user'):
+        with patch('core.jira_report.CLOSED_STATUS_IDS', ['10001']):
+            with patch('core.jira_report.JIRA_USER', 'jira_user'):
                 problems = validate_issue(mock_issue, jira=mock_jira)
                 # Закрыто пользователем демона — проблем нет
                 assert not any('Статус' in p for p in problems)
@@ -276,9 +278,9 @@ class TestValidateIssue:
         mock_issue.fields.assignee = Mock()
         mock_issue.fields.assignee.name = 'ivanov'
         mock_issue.fields.assignee.displayName = 'Ivanov Ivan'
-        
+
         mock_issue.key = 'TEST-123'
-        
+
         # Changelog с переходом от другого пользователя
         mock_changelog = Mock()
         mock_history = Mock()
@@ -290,15 +292,15 @@ class TestValidateIssue:
         mock_history.author = Mock()
         mock_history.author.name = 'petrov'  # Другой пользователь
         mock_changelog.histories = [mock_history]
-        
+
         mock_issue_with_changelog = Mock()
         mock_issue_with_changelog.changelog = mock_changelog
-        
+
         mock_jira = Mock()
         mock_jira.issue.return_value = mock_issue_with_changelog
 
-        with patch('jira_report.CLOSED_STATUS_IDS', ['10001']):
-            with patch('jira_report.JIRA_USER', 'jira_user'):
+        with patch('core.jira_report.CLOSED_STATUS_IDS', ['10001']):
+            with patch('core.jira_report.JIRA_USER', 'jira_user'):
                 problems = validate_issue(mock_issue, jira=mock_jira)
                 # Закрыто не пользователем демона — это проблема
                 assert any('Статус' in p for p in problems)
@@ -313,7 +315,7 @@ class TestValidateIssue:
         mock_issue.fields.assignee = Mock()
         mock_issue.fields.assignee.name = 'ivanov'
 
-        with patch('jira_report.CLOSED_STATUS_IDS', ['10001']):
+        with patch('core.jira_report.CLOSED_STATUS_IDS', ['10001']):
             problems = validate_issue(mock_issue)
             assert len(problems) == 0
 

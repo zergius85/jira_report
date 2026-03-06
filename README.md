@@ -147,6 +147,8 @@ python jira_report.py -b issues -vv
 | `FLASK_HOST` | `0.0.0.0` | Хост для веб-сервера |
 | `LOG_LEVEL` | `DEBUG`/`INFO` | Уровень логирования (зависит от режима) |
 
+**Примечание:** `core/config.py` содержит общие настройки и хранится в git. Секреты хранятся в `.env` (не tracked в git).
+
 ### Переключение режимов
 
 Для **продакшена** добавьте в `.env`:
@@ -212,7 +214,6 @@ FLASK_ENV=production
 jira_report/
 ├── app.py                  # Точка входа Web-приложения
 ├── jira_report.py          # Точка входа консольного режима
-├── config.py               # Обёртка для core/config.py
 ├── requirements.txt        # Зависимости Python
 ├── pytest.ini             # Настройки тестов
 ├── .gitignore             # Игнорируемые файлы
@@ -272,7 +273,7 @@ jira_report/
 pytest tests/
 
 # Проверка синтаксиса
-python -m py_compile app.py jira_report.py
+python -m py_compile app.py core/jira_report.py core/config.py web/app.py
 ```
 
 ---
