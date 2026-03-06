@@ -89,18 +89,17 @@ def _api_assignees_logic():
 
         assignees = {}
 
-        # Получаем ВСЕХ пользователей через search_users(query='*', startAt=0, maxResults=1000)
-        # Исключаем только тех, у кого active=False (отключённые/удалённые)
+        # Получаем ВСЕХ пользователей через search_users(username='', includeActive=True)
+        # Для Jira Server используем параметр username вместо query
         try:
-            logger.info("  → search_users(query='*')...")
-            # Используем query='*' для получения всех пользователей
-            users = jira.search_users(query='*', startAt=0, maxResults=1000)
+            logger.info("  → search_users(username='')...")
+            # Для Jira Server используем пустой username для получения всех
+            users = jira.search_users(username='', includeActive=True, includeInactive=False, maxResults=1000)
             logger.info(f"     Всего пользователей: {len(users)}")
 
             for user in users:
                 if isinstance(user, dict):
                     # Включаем всех, у кого active=True (явно)
-                    # active=False или None — исключаем
                     is_active = user.get('active', False) is True
                     key = user.get('name') or user.get('accountId') or user.get('key')
                     name = user.get('displayName', key) or user.get('name', key)
@@ -115,7 +114,9 @@ def _api_assignees_logic():
             logger.info(f"     Активных: {len(assignees)}")
         except Exception as e:
             logger.error(f"  ✗ Ошибка при загрузке пользователей: {e}")
-            raise
+            # Пробуем альтернативный метод - получаем пользователей из задач
+            logger.info("  → Пробуем альтернативный метод (из задач)...")
+            return _get_assignees_from_issues(jira)
 
         # Сортируем по имени
         result = [{'key': k, 'name': v} for k, v in sorted(assignees.items(), key=lambda x: x[1])]
@@ -126,6 +127,30 @@ def _api_assignees_logic():
         logger.error(f"❌ Ошибка загрузки исполнителей: {e}")
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _get_assignees_from_issues(jira):
+    """Альтернативный метод: получаем исполнителей из последних задач"""
+    try:
+        # Получаем последние 1000 задач для извлечения исполнителей
+        issues = jira.search_issues('assignee is not null ORDER BY updated DESC', maxResults=1000,
+                                    fields='assignee')
+        
+        assignees = {}
+        for issue in issues:
+            if issue.fields.assignee:
+                assignee = issue.fields.assignee
+                key = getattr(assignee, 'name', None) or getattr(assignee, 'accountId', None) or getattr(assignee, 'key', None)
+                name = getattr(assignee, 'displayName', None) or getattr(assignee, 'name', key)
+                if key:
+                    assignees[key] = name
+        
+        result = [{'key': k, 'name': v} for k, v in sorted(assignees.items(), key=lambda x: x[1])]
+        logger.info(f"✅ Найдено {len(result)} исполнителей из задач")
+        return jsonify({'success': True, 'assignees': result})
+    except Exception as e:
+        logger.error(f"❌ Альтернативный метод не сработал: {e}")
+        raise
 
 @app.route('/health')
 def health_check():
