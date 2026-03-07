@@ -45,10 +45,10 @@ else:
 def conditional_cache(timeout=300):
     """
     Декоратор для условного кэширования: кэширует только в production.
-    
+
     Args:
         timeout: Время кэширования в секундах
-    
+
     Usage:
         @conditional_cache(timeout=300)
         def api_projects():
@@ -65,6 +65,35 @@ def conditional_cache(timeout=300):
                 return f(*args, **kwargs)
         return wrapper
     return decorator
+
+
+def validate_json_request(f):
+    """
+    Декоратор для валидации JSON в API endpoints.
+    
+    Usage:
+        @app.route('/api/report', methods=['POST'])
+        @validate_json_request
+        def api_report():
+            data = request.get_json()
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not request.is_json:
+            return jsonify({
+                'success': False,
+                'error': 'Content-Type должен быть application/json'
+            }), 400
+        
+        data = request.get_json()
+        if data is None:
+            return jsonify({
+                'success': False,
+                'error': 'Неверный формат JSON'
+            }), 400
+        
+        return f(*args, **kwargs)
+    return decorated
 
 
 # =============================================
@@ -228,23 +257,47 @@ def _get_assignees_from_issues(jira):
 
 @app.route('/health')
 def health_check():
-    """Health check endpoint для мониторинга"""
+    """
+    Health check endpoint для мониторинга.
+    
+    Возвращает детальную информацию о состоянии системы:
+    - Статус подключения к Jira
+    - Информация о пользователе
+    - Версия Jira (если доступна)
+    - Время отклика
+    """
+    import time
+    
+    checks = {}
+    overall_status = 'ok'
+    
+    # Проверка подключения к Jira
+    start_time = time.time()
     try:
-        # Проверяем подключение к Jira
         jira = get_jira_connection()
-        jira.myself()
-        jira_status = 'ok'
+        myself = jira.myself()
+        jira_latency = round((time.time() - start_time) * 1000)  # мс
+        
+        checks['jira'] = {
+            'status': 'ok',
+            'latency_ms': jira_latency,
+            'user': myself.get('displayName') if isinstance(myself, dict) else str(myself),
+            'server': JIRA_SERVER
+        }
     except Exception as e:
         logger.error(f"Jira health check failed: {e}")
-        jira_status = 'error'
-
-    return jsonify({
-        'status': 'ok' if jira_status == 'ok' else 'degraded',
-        'timestamp': datetime.now().isoformat(),
-        'checks': {
-            'jira': jira_status
+        checks['jira'] = {
+            'status': 'error',
+            'error': str(e)
         }
-    }), 200 if jira_status == 'ok' else 503
+        overall_status = 'degraded'
+    
+    return jsonify({
+        'status': overall_status,
+        'timestamp': datetime.now().isoformat(),
+        'version': '2.1.0',
+        'checks': checks
+    }), 200 if overall_status == 'ok' else 503
 
 @app.route('/api/issue-types')
 def api_issue_types():
@@ -409,9 +462,10 @@ def api_task_info_batch():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/report', methods=['POST'])
+@validate_json_request
 def api_report():
     try:
-        data = request.json
+        data = request.get_json()
         # Поддержка множественного выбора (список) или одиночного (строка)
         projects_raw = data.get('projects', []) or data.get('project', '').strip() or None
         assignees_raw = data.get('assignees', []) or data.get('assignee', '').strip() or None
@@ -493,9 +547,10 @@ def api_report():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/download', methods=['POST'])
+@validate_json_request
 def api_download():
     try:
-        data = request.json
+        data = request.get_json()
         # Поддержка множественного выбора
         projects_raw = data.get('projects', []) or data.get('project', '').strip() or None
         assignees_raw = data.get('assignees', []) or data.get('assignee', '').strip() or None
@@ -541,6 +596,29 @@ def api_download():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    # Настройка ротации логов для production
+    if IS_PRODUCTION:
+        from logging.handlers import RotatingFileHandler
+        import os
+        
+        # Создаём директорию для логов
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
+        
+        # Настраиваем ротацию: 10MB, 5 бэкапов
+        file_handler = RotatingFileHandler(
+            'logs/jira_report.log',
+            maxBytes=10*1024*1024,
+            backupCount=5,
+            encoding='utf-8'
+        )
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s'
+        ))
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
+        app.logger.info("🚀 Запуск Jira Report System с ротацией логов")
+    
     mode = "prod" if IS_PRODUCTION else "dev"
     print("🚀 Запуск веб-интерфейса...")
     print(f"📍 Откройте в браузере: http://localhost:{ACTIVE_PORT}")

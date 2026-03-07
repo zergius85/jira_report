@@ -35,7 +35,8 @@ from core.config import (
     LOG_DATE_FORMAT,
     MAX_REPORT_DAYS,
     RISK_ZONE_INACTIVITY_THRESHOLD,
-    MAX_SEARCH_RESULTS
+    MAX_SEARCH_RESULTS,
+    MAX_EXCEL_ROWS
 )
 
 # --- НАСТРОЙКА ЛОГИРОВАНИЯ ---
@@ -870,10 +871,26 @@ def generate_excel(report_data: Dict[str, Any], output: Optional[Union[str, io.B
 
     Returns:
         Union[str, io.BytesIO]: Имя файла или BytesIO объект
+        
+    Raises:
+        ValueError: Если отчёт превышает MAX_EXCEL_ROWS строк
     """
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
+
+    # Проверка на максимальный размер
+    total_rows = 0
+    for key in ['summary', 'assignees', 'detail', 'issues', 'internal', 'risk_zone']:
+        df = report_data.get(key)
+        if df is not None and not df.empty:
+            total_rows += len(df)
     
+    if total_rows > MAX_EXCEL_ROWS:
+        raise ValueError(
+            f'Отчёт слишком большой: {total_rows} строк (максимум {MAX_EXCEL_ROWS}). '
+            'Разбейте отчёт на несколько периодов.'
+        )
+
     if output is None:
         output = f"jira_report_{report_data['period'].replace(' — ', '_to_').replace(' ', '')}.xlsx"
 
