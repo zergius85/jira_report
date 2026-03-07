@@ -7,6 +7,7 @@
 """
 import sys
 import os
+import pandas as pd
 
 # Добавляем корень проекта в path для корректных импортов
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -96,7 +97,6 @@ if __name__ == "__main__":
         if args.verbose:
             print("\n📝 ДЕТАЛИЗАЦИЯ ПО ЗАДАЧАМ:")
             print("="*100)
-            import pandas as pd
             pd.set_option('display.max_columns', None)
             pd.set_option('display.width', None)
             print(report['detail'].to_string(index=False))
@@ -104,7 +104,6 @@ if __name__ == "__main__":
     if 'issues' in report and not report['issues'].empty:
         print("\n⚠️ ПРОБЛЕМНЫЕ ЗАДАЧИ:")
         print("="*100)
-        import pandas as pd
         pd.set_option('display.max_columns', None)
         pd.set_option('display.width', None)
         print(report['issues'].to_string(index=False))

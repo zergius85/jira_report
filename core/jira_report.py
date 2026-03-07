@@ -32,7 +32,10 @@ from core.config import (
     REPORT_BLOCKS,
     LOG_LEVEL,
     LOG_FORMAT,
-    LOG_DATE_FORMAT
+    LOG_DATE_FORMAT,
+    MAX_REPORT_DAYS,
+    RISK_ZONE_INACTIVITY_THRESHOLD,
+    MAX_SEARCH_RESULTS
 )
 
 # --- НАСТРОЙКА ЛОГИРОВАНИЯ ---
@@ -71,6 +74,12 @@ def validate_config() -> Tuple[bool, List[str]]:
     return (len(errors) == 0, errors)
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((ConnectionError, JIRAError)),
+    reraise=True
+)
 def get_jira_connection() -> JIRA:
     """
     Устанавливает соединение с Jira с автоматическими повторными попытками.
@@ -81,18 +90,9 @@ def get_jira_connection() -> JIRA:
     Raises:
         ConnectionError: При ошибке подключения после всех попыток
     """
-    return _get_jira_connection_impl()
-
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    retry=retry_if_exception_type((ConnectionError, JIRAError)),
-    reraise=True
-)
-def _get_jira_connection_impl() -> JIRA:
     try:
         logger.info(f"🔌 Подключение к Jira: {JIRA_SERVER}")
-        
+
         if not SSL_VERIFY:
             jira = JIRA(
                 server=JIRA_SERVER,
@@ -104,12 +104,12 @@ def _get_jira_connection_impl() -> JIRA:
                 server=JIRA_SERVER,
                 basic_auth=(JIRA_USER, JIRA_PASS)
             )
-        
+
         # Проверка подключения
         jira.myself()
         logger.info("✅ Успешное подключение к Jira")
         return jira
-        
+
     except JIRAError as e:
         logger.error(f"❌ Ошибка подключения к Jira: {e.text}")
         raise ConnectionError(f"Не удалось подключиться к Jira: {e.text}")
@@ -134,16 +134,39 @@ def get_default_start_date() -> datetime:
 def convert_seconds_to_hours(seconds: Optional[int]) -> float:
     """
     Конвертирует секунды в часы.
-    
+
     Args:
         seconds: Время в секундах
-        
+
     Returns:
         float: Время в часах
     """
     if seconds is None:
         return 0.0
     return round(seconds / 3600, 2)
+
+
+def normalize_filter(
+    value: Optional[Union[str, List[str]]],
+    upper: bool = False
+) -> List[str]:
+    """
+    Нормализует значение фильтра: строку превращает в список, None в пустой список.
+
+    Args:
+        value: Значение фильтра (строка, список или None)
+        upper: Преобразовать ли в верхний регистр
+
+    Returns:
+        List[str]: Нормализованный список значений
+    """
+    if isinstance(value, str):
+        value = value.upper() if upper else value
+        return [value]
+    elif value is None:
+        return []
+    else:
+        return [v.upper() if upper else v for v in value]
 
 
 def get_closed_status_ids() -> List[str]:
@@ -331,6 +354,9 @@ def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
 
     Returns:
         List[str]: Список названий колонок
+        
+    Raises:
+        ValueError: Если блок не найден
     """
     if block == 'summary':
         if extra_verbose:
@@ -352,7 +378,12 @@ def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
         if extra_verbose:
             return ['URL', 'ID', 'Проект ID', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
         return ['URL', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
+    elif block == 'risk_zone':
+        if extra_verbose:
+            return ['URL', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факторы риска', 'Приоритет']
+        return ['URL', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факторы риска', 'Приоритет']
     else:
+        logger.warning(f"⚠️  Неизвестный блок '{block}', используются колонки по умолчанию")
         return ['Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Дата создания', 'Дата исполнения', 'Факт (ч)', 'Оценка (ч)']
         
 def generate_report(
@@ -391,22 +422,9 @@ def generate_report(
         closed_status_ids = get_closed_status_ids()
 
     # Нормализация множественных фильтров
-    if isinstance(project_keys, str):
-        project_keys = [project_keys.upper()]
-    elif project_keys is None:
-        project_keys = []
-    else:
-        project_keys = [p.upper() for p in project_keys]
-
-    if isinstance(assignee_filter, str):
-        assignee_filter = [assignee_filter]
-    elif assignee_filter is None:
-        assignee_filter = []
-
-    if isinstance(issue_types, str):
-        issue_types = [issue_types]
-    elif issue_types is None:
-        issue_types = []
+    project_keys = normalize_filter(project_keys, upper=True)
+    assignee_filter = normalize_filter(assignee_filter)
+    issue_types = normalize_filter(issue_types)
 
     # Обработка дат: end_date имеет приоритет над days
     if start_date:
@@ -816,11 +834,11 @@ def generate_report(
                         days_overdue = (today - due_date).days
                         risk_factors.append(f'Просрочена на {days_overdue} дн.')
 
-                # 3. Задачи, которые не двигались > 5 дней
+                # 3. Задачи, которые не двигались > порога неактивности
                 if hasattr(issue.fields, 'updated') and issue.fields.updated:
                     updated = datetime.strptime(issue.fields.updated[:19], '%Y-%m-%dT%H:%M:%S')
                     days_inactive = (today - updated).days
-                    if days_inactive > 5 and issue.fields.status.name.lower() not in ['закрыт', 'closed', 'done']:
+                    if days_inactive > RISK_ZONE_INACTIVITY_THRESHOLD and issue.fields.status.name.lower() not in ['закрыт', 'closed', 'done']:
                         risk_factors.append(f'Не двигается {days_inactive} дн.')
 
                 # Если есть факторы риска - добавляем в отчёт

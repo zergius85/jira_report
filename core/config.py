@@ -71,8 +71,19 @@ REPORT_BLOCKS = {
     'assignees': 'Нагрузка по исполнителям',
     'detail': 'Детализация по задачам',
     'issues': 'Проблемные задачи',
-    'internal': 'Непонятное (NEW, local)'
+    'internal': 'Непонятное (NEW, local)',
+    'risk_zone': 'Зависшие задачи (Risk Zone)'
 }
+
+# =============================================
+# КОНСТАНТЫ ДЛЯ ОТЧЁТОВ
+# =============================================
+# Максимальное количество дней для отчёта
+MAX_REPORT_DAYS = 365
+# Порог неактивности задач для Risk Zone (дни)
+RISK_ZONE_INACTIVITY_THRESHOLD = 5
+# Максимум результатов при поиске пользователей/задач
+MAX_SEARCH_RESULTS = 1000
 
 # =============================================
 # ЛОГИРОВАНИЕ
@@ -84,6 +95,6 @@ LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 # =============================================
 # ПУТИ
 # =============================================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
-TESTS_DIR = os.path.join(BASE_DIR, 'tests')
+CORE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATES_DIR = os.path.join(CORE_DIR, 'templates')
+TESTS_DIR = os.path.join(CORE_DIR, 'tests')

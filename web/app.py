@@ -6,12 +6,22 @@ Flask-приложение для предоставления API и UI.
 """
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_caching import Cache
-from core.jira_report import generate_report, generate_excel, get_jira_connection
-from core.config import REPORT_BLOCKS, EXCLUDED_PROJECTS, ACTIVE_PORT, FLASK_HOST, IS_PRODUCTION, JIRA_SERVER
+from core.jira_report import generate_report, generate_excel, get_jira_connection, normalize_filter
+from core.config import (
+    REPORT_BLOCKS,
+    EXCLUDED_PROJECTS,
+    ACTIVE_PORT,
+    FLASK_HOST,
+    IS_PRODUCTION,
+    JIRA_SERVER,
+    MAX_REPORT_DAYS,
+    MAX_SEARCH_RESULTS
+)
 from datetime import datetime
 import io
 import os
 import logging
+from functools import wraps
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +40,31 @@ else:
     # В dev-режиме кэш отключен
     cache = None
     cache_init = False
+
+
+def conditional_cache(timeout=300):
+    """
+    Декоратор для условного кэширования: кэширует только в production.
+    
+    Args:
+        timeout: Время кэширования в секундах
+    
+    Usage:
+        @conditional_cache(timeout=300)
+        def api_projects():
+            return _api_projects_logic()
+    """
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            if cache_init and cache:
+                # Создаём кэшированную версию функции
+                cached_f = cache.cached(timeout=timeout)(f)
+                return cached_f(*args, **kwargs)
+            else:
+                return f(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 # =============================================
@@ -75,20 +110,12 @@ def index():
     return render_template('index.html', blocks=REPORT_BLOCKS, JIRA_SERVER=JIRA_SERVER)
 
 @app.route('/api/projects')
+@conditional_cache(timeout=300)
 def api_projects():
     """Получить список проектов"""
-    # Кэширование только для production
-    if cache_init:
-        return _api_projects_cached()
-    else:
-        return _api_projects_logic()
+    return _get_api_projects()
 
-if cache_init:
-    @cache.cached(timeout=300)
-    def _api_projects_cached():
-        return _api_projects_logic()
-
-def _api_projects_logic():
+def _get_api_projects():
     """Получить список проектов"""
     try:
         jira = get_jira_connection()
@@ -107,20 +134,12 @@ def _api_projects_logic():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/assignees')
+@conditional_cache(timeout=300)
 def api_assignees():
     """Получить список всех активных исполнителей"""
-    # Кэширование только для production
-    if cache_init:
-        return _api_assignees_cached()
-    else:
-        return _api_assignees_logic()
+    return _get_api_assignees()
 
-if cache_init:
-    @cache.cached(timeout=300)
-    def _api_assignees_cached():
-        return _api_assignees_logic()
-
-def _api_assignees_logic():
+def _get_api_assignees():
     """Получить список всех активных исполнителей"""
     try:
         jira = get_jira_connection()
@@ -134,18 +153,18 @@ def _api_assignees_logic():
         # Метод 1: search_users(query='') - для Jira Cloud
         try:
             logger.info("  → search_users(query='') [Jira Cloud]...")
-            users = jira.search_users(query='', maxResults=1000)
+            users = jira.search_users(query='', maxResults=MAX_SEARCH_RESULTS)
             methods_tried.append('query')
             for user in users:
                 _add_user_to_assignees(user, assignees)
             logger.info(f"     Найдено пользователей: {len(assignees)}")
         except Exception as e1:
             logger.debug(f"  ✗ Метод query не сработал: {e1}")
-            
+
             # Метод 2: search_users(user='') - для старых Jira Server
             try:
                 logger.info("  → search_users(user='') [Jira Server]...")
-                users = jira.search_users(user='', maxResults=1000)
+                users = jira.search_users(user='', maxResults=MAX_SEARCH_RESULTS)
                 methods_tried.append('user')
                 for user in users:
                     _add_user_to_assignees(user, assignees)
@@ -191,8 +210,8 @@ def _add_user_to_assignees(user, assignees_dict):
 def _get_assignees_from_issues(jira):
     """Альтернативный метод: получаем исполнителей из последних задач"""
     try:
-        # Получаем последние 1000 задач для извлечения исполнителей
-        issues = jira.search_issues('assignee is not null ORDER BY updated DESC', maxResults=1000,
+        # Получаем последние задачи для извлечения исполнителей
+        issues = jira.search_issues('assignee is not null ORDER BY updated DESC', maxResults=MAX_SEARCH_RESULTS,
                                     fields='assignee')
         
         assignees = {}
@@ -394,17 +413,14 @@ def api_report():
     try:
         data = request.json
         # Поддержка множественного выбора (список) или одиночного (строка)
-        projects = data.get('projects', []) or data.get('project', '').strip() or None
-        if isinstance(projects, str):
-            projects = [projects]
+        projects_raw = data.get('projects', []) or data.get('project', '').strip() or None
+        assignees_raw = data.get('assignees', []) or data.get('assignee', '').strip() or None
+        issue_types_raw = data.get('issue_types', []) or data.get('issue_type', '').strip() or None
 
-        assignees = data.get('assignees', []) or data.get('assignee', '').strip() or None
-        if isinstance(assignees, str):
-            assignees = [assignees]
-
-        issue_types = data.get('issue_types', []) or data.get('issue_type', '').strip() or None
-        if isinstance(issue_types, str):
-            issue_types = [issue_types]
+        # Нормализация фильтров
+        projects = normalize_filter(projects_raw, upper=True) if projects_raw else []
+        assignees = normalize_filter(assignees_raw) if assignees_raw else []
+        issue_types = normalize_filter(issue_types_raw) if issue_types_raw else []
 
         start_date = data.get('start_date', '').strip() or None
         end_date = data.get('end_date', '').strip() or None
@@ -412,8 +428,8 @@ def api_report():
         blocks = data.get('blocks', None)
         extra_verbose = data.get('extra_verbose', False)
 
-        if days < 0 or days > 365:
-            return jsonify({'error': 'Период должен быть от 0 до 365 дней (0 = без ограничений)'}), 400
+        if days < 0 or days > MAX_REPORT_DAYS:
+            return jsonify({'error': f'Период должен быть от 0 до {MAX_REPORT_DAYS} дней (0 = без ограничений)'}), 400
 
         report = generate_report(
             project_keys=projects,
@@ -481,17 +497,14 @@ def api_download():
     try:
         data = request.json
         # Поддержка множественного выбора
-        projects = data.get('projects', []) or data.get('project', '').strip() or None
-        if isinstance(projects, str):
-            projects = [projects]
+        projects_raw = data.get('projects', []) or data.get('project', '').strip() or None
+        assignees_raw = data.get('assignees', []) or data.get('assignee', '').strip() or None
+        issue_types_raw = data.get('issue_types', []) or data.get('issue_type', '').strip() or None
 
-        assignees = data.get('assignees', []) or data.get('assignee', '').strip() or None
-        if isinstance(assignees, str):
-            assignees = [assignees]
-
-        issue_types = data.get('issue_types', []) or data.get('issue_type', '').strip() or None
-        if isinstance(issue_types, str):
-            issue_types = [issue_types]
+        # Нормализация фильтров
+        projects = normalize_filter(projects_raw, upper=True) if projects_raw else []
+        assignees = normalize_filter(assignees_raw) if assignees_raw else []
+        issue_types = normalize_filter(issue_types_raw) if issue_types_raw else []
 
         start_date = data.get('start_date', '').strip() or None
         end_date = data.get('end_date', '').strip() or None
