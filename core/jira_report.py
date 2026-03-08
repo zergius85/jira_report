@@ -5,6 +5,7 @@ Jira Report System — Ядро отчётов
 Модуль для сбора, обработки и выгрузки данных из Jira.
 Поддерживает консольный режим и работу через Web-интерфейс.
 """
+import re
 from typing import Optional, List, Dict, Any, Tuple, Union
 from jira import JIRA, JIRAError
 import pandas as pd
@@ -168,6 +169,63 @@ def normalize_filter(
         return []
     else:
         return [v.upper() if upper else v for v in value]
+
+
+def sanitize_jql_identifier(value: str) -> str:
+    """
+    Санитизирует идентификатор для использования в JQL-запросе.
+
+    Разрешённые символы: буквы, цифры, дефис, подчёркивание, точка.
+
+    Args:
+        value: Значение для санитизации
+
+    Returns:
+        str: Очищенное значение
+
+    Raises:
+        ValueError: Если значение содержит недопустимые символы
+    """
+    if not value:
+        raise ValueError("Пустое значение идентификатора")
+
+    # Разрешённые символы для ключей проекта, пользователей, типов задач
+    if not re.match(r'^[A-Za-z0-9_\-\.@]+$', value):
+        raise ValueError(
+            f"Недопустимые символы в идентификаторе: {value}. "
+            "Разрешены только буквы, цифры, дефис, подчёркивание, точка и @"
+        )
+    
+    return value
+
+
+def sanitize_jql_string_literal(value: str) -> str:
+    """
+    Санитизирует строковое значение для использования в JQL (внутри кавычек).
+    
+    Экранирует одиночные кавычки и удаляет потенциально опасные конструкции.
+    
+    Args:
+        value: Значение для санитизации
+        
+    Returns:
+        str: Очищенное и экранированное значение
+    """
+    if not value:
+        return ''
+    
+    # Удаляем потенциально опасные SQL-подобные конструкции
+    dangerous_patterns = ['--', '/*', '*/', ';', 'EXEC', 'DROP', 'DELETE', 'UPDATE']
+    value_upper = value.upper()
+    for pattern in dangerous_patterns:
+        if pattern in value_upper:
+            logging.warning(f"Обнаружена потенциально опасная конструкция в JQL: {pattern}")
+            value = value.replace(pattern, '').replace(pattern.lower(), '')
+    
+    # Экранируем одиночные кавычки (заменяем ' на '')
+    value = value.replace("'", "''")
+    
+    return value
 
 
 def get_closed_status_ids() -> List[str]:
@@ -495,23 +553,49 @@ def generate_report(
     # Формируем фильтр по типам задач для JQL
     issue_type_filter = ''
     if issue_types and len(issue_types) > 0:
-        issue_type_filter = ' AND issuetype IN (' + ','.join(issue_types) + ')'
-    
+        # Санизируем каждый тип задачи (только разрешённые символы)
+        sanitized_types = []
+        for t in issue_types:
+            try:
+                sanitized_types.append(sanitize_jql_identifier(t))
+            except ValueError as e:
+                logging.warning(f"Пропущен недопустимый тип задачи '{t}': {e}")
+        if sanitized_types:
+            issue_type_filter = ' AND issuetype IN (' + ','.join(sanitized_types) + ')'
+
     # Формируем фильтр по исполнителям для JQL
     assignee_filter_jql = ''
     if assignee_filter and len(assignee_filter) > 0:
-        # assignee_filter содержит username (key), используем напрямую
-        assignee_list = assignee_filter
-        assignee_filter_jql = ' AND assignee IN (' + ','.join(assignee_list) + ')'
+        # Санизируем каждый username (только разрешённые символы)
+        sanitized_assignees = []
+        for a in assignee_filter:
+            try:
+                sanitized_assignees.append(sanitize_jql_identifier(a))
+            except ValueError as e:
+                logging.warning(f"Пропущен недопустимый пользователь '{a}': {e}")
+        if sanitized_assignees:
+            assignee_filter_jql = ' AND assignee IN (' + ','.join(sanitized_assignees) + ')'
 
     for proj_key in projects_keys:
+        # Санизируем ключ проекта
+        try:
+            proj_key = sanitize_jql_identifier(proj_key)
+        except ValueError as e:
+            logging.warning(f"Пропущен недопустимый ключ проекта: {e}")
+            continue
+        
         proj_name = projects_map.get(proj_key, proj_key)
+
+        # Санизируем даты (только формат YYYY-MM-DD)
+        start_date_safe = sanitize_jql_string_literal(start_date_str)
+        end_date_safe = sanitize_jql_string_literal(end_date_str)
+        issues_end_safe = sanitize_jql_string_literal(issues_end_str)
 
         # Обычные отчёты - фильтр по duedate (плановая дата исполнения)
         if days > 0:
             jql_normal = (f"project = {proj_key} "
-                          f"AND duedate >= '{start_date_str}' "
-                          f"AND duedate <= '{end_date_str}' "
+                          f"AND duedate >= '{start_date_safe}' "
+                          f"AND duedate <= '{end_date_safe}' "
                           f"AND duedate is not null"
                           f"{issue_type_filter}"
                           f"{assignee_filter_jql} "
@@ -527,8 +611,8 @@ def generate_report(
         # Проблемные задачи - фильтр по created + 2 месяца
         if days > 0:
             jql_issues = (f"project = {proj_key} "
-                          f"AND created >= '{start_date_str}' "
-                          f"AND created <= '{issues_end_str}'"
+                          f"AND created >= '{start_date_safe}' "
+                          f"AND created <= '{issues_end_safe}'"
                           f"{issue_type_filter}"
                           f"{assignee_filter_jql} "
                           f"ORDER BY created ASC")

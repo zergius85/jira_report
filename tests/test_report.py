@@ -338,5 +338,59 @@ class TestReportBlocks:
             assert len(value) > 0
 
 
+class TestSanitizeJqlIdentifier:
+    """Тесты санитизации JQL-идентификаторов"""
+
+    def test_valid_project_key(self):
+        from core.jira_report import sanitize_jql_identifier
+        assert sanitize_jql_identifier('WEB') == 'WEB'
+        assert sanitize_jql_identifier('MY-PROJECT') == 'MY-PROJECT'
+        assert sanitize_jql_identifier('test_123') == 'test_123'
+
+    def test_valid_username(self):
+        from core.jira_report import sanitize_jql_identifier
+        assert sanitize_jql_identifier('ivanov') == 'ivanov'
+        assert sanitize_jql_identifier('user@domain.com') == 'user@domain.com'
+        assert sanitize_jql_identifier('john.doe') == 'john.doe'
+
+    def test_invalid_characters_raise(self):
+        from core.jira_report import sanitize_jql_identifier
+        with pytest.raises(ValueError):
+            sanitize_jql_identifier("'; DROP TABLE users;--")
+        with pytest.raises(ValueError):
+            sanitize_jql_identifier("project' OR '1'='1")
+        with pytest.raises(ValueError):
+            sanitize_jql_identifier("test/*comment*/")
+
+    def test_empty_string_raises(self):
+        from core.jira_report import sanitize_jql_identifier
+        with pytest.raises(ValueError):
+            sanitize_jql_identifier('')
+
+
+class TestSanitizeJqlStringLiteral:
+    """Тесты санитизации строковых литералов JQL"""
+
+    def test_escapes_single_quotes(self):
+        from core.jira_report import sanitize_jql_string_literal
+        assert sanitize_jql_string_literal("test'value") == "test''value"
+
+    def test_removes_sql_comments(self):
+        from core.jira_report import sanitize_jql_string_literal
+        result = sanitize_jql_string_literal("test--comment")
+        assert '--' not in result
+        result = sanitize_jql_string_literal("test/*comment*/")
+        assert '/*' not in result and '*/' not in result
+
+    def test_removes_dangerous_keywords(self):
+        from core.jira_report import sanitize_jql_string_literal
+        result = sanitize_jql_string_literal("DROP TABLE")
+        assert 'DROP' not in result.upper()
+
+    def test_empty_string_returns_empty(self):
+        from core.jira_report import sanitize_jql_string_literal
+        assert sanitize_jql_string_literal('') == ''
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
