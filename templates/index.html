@@ -116,6 +116,246 @@
             font-size: 12px;
         }
         
+        /* Быстрые пресеты */
+        .quick-presets {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .preset-btn {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            font-size: 13px;
+        }
+        .preset-btn:hover {
+            border-color: #3498db;
+            background: #f8f9fa;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .preset-btn .preset-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 4px;
+        }
+        .preset-btn .preset-desc {
+            font-size: 11px;
+            color: #6c757d;
+        }
+        
+        /* Скрываемая шапка */
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 12px 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 6px;
+            color: white;
+        }
+        .filter-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .toggle-filters-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        .toggle-filters-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .filters-content {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        .filters-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+            visibility: hidden;
+        }
+        .filters-content.expanded {
+            max-height: 2000px;
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* Улучшенный дашборд */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            color: white;
+        }
+        .dashboard-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .dashboard-period-selector {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .dashboard-period-selector option {
+            color: #333;
+        }
+        
+        /* KPI карточки */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .kpi-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid #3498db;
+            position: relative;
+            overflow: hidden;
+        }
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, rgba(52,152,219,0.1) 0%, transparent 70%);
+            border-radius: 0 0 0 100%;
+        }
+        .kpi-card.warning { border-left-color: #f39c12; }
+        .kpi-card.danger { border-left-color: #e74c3c; }
+        .kpi-card.success { border-left-color: #27ae60; }
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .kpi-label {
+            font-size: 13px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .kpi-trend {
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .kpi-trend.up { color: #27ae60; }
+        .kpi-trend.down { color: #e74c3c; }
+        .kpi-trend.neutral { color: #95a5a6; }
+        
+        /* Risk Zone виджет */
+        .risk-zone-widget {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .risk-zone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .risk-zone-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #856404;
+        }
+        .risk-zone-list {
+            list-style: none;
+        }
+        .risk-zone-item {
+            padding: 12px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            border-left: 3px solid #e74c3c;
+        }
+        .risk-zone-item-key {
+            font-weight: 600;
+            color: #3498db;
+        }
+        .risk-zone-item-summary {
+            font-size: 13px;
+            color: #555;
+            margin: 4px 0;
+        }
+        .risk-zone-item-meta {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        /* Charts grid */
+        .charts-grid-improved {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .chart-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 15px;
+        }
+        
+        /* Таблицы - исправленные колонки */
+        .table-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .problem-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #fee;
+            color: #c0392b;
+            border-radius: 12px;
+            font-size: 11px;
+            margin: 2px 0;
+            cursor: help;
+            border: 1px solid #fcc;
+        }
+        .problem-badge:hover {
+            background: #fcc;
+        }
+        
         /* Header с пресетами */
         .header-bar {
             display: flex;
@@ -481,87 +721,102 @@
 
         <!-- Форма -->
         <div class="card">
-            <!-- Header с пресетами -->
-            <div class="header-bar">
-                <div class="header-title">🔧 Параметры отчёта</div>
-                <div class="preset-controls">
-                    <span class="preset-info" id="preset_info">Сохранённые пресеты хранятся в браузере</span>
-                    <button class="btn btn-select btn-sm" onclick="openPresetManager()">⚙️ Управление пресетами</button>
-                    <button class="btn btn-select btn-sm" onclick="savePreset()" title="Сохранить текущие настройки">💾 Сохранить</button>
-                    <select id="preset_select" onchange="loadPreset()" style="padding: 6px 12px; font-size: 13px; border-radius: 3px; border: 1px solid #ccc;">
-                        <option value="">📁 Загрузить пресет...</option>
-                    </select>
-                </div>
+            <!-- Быстрые пресеты -->
+            <div class="quick-presets">
+                <button class="preset-btn" onclick="applyQuickPreset('last_month')">
+                    <div class="preset-title">📅 Прошлый месяц</div>
+                    <div class="preset-desc">1-е число — последнее число</div>
+                </button>
+                <button class="preset-btn" onclick="applyQuickPreset('current_month')">
+                    <div class="preset-title">📅 Текущий месяц</div>
+                    <div class="preset-desc">1-е число — сегодня</div>
+                </button>
+                <button class="preset-btn" onclick="applyQuickPreset('last_week')">
+                    <div class="preset-title">📊 Прошлая неделя</div>
+                    <div class="preset-desc">Понедельник — воскресенье</div>
+                </button>
+                <button class="preset-btn" onclick="applyQuickPreset('this_week')">
+                    <div class="preset-title">📊 Эта неделя</div>
+                    <div class="preset-desc">Понедельник — сегодня</div>
+                </button>
             </div>
-
-            <!-- Трёхколоночная форма -->
-            <div class="form-three-columns">
-                <!-- Левая колонка - Фильтры (2/4) -->
-                <div class="form-column">
-                    <div class="column-title">📊 Фильтры</div>
-                    <div class="form-row" style="grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <div class="form-group">
-                            <label for="project">📦 Проекты</label>
-                            <select id="project" multiple size="6" style="height: 140px;">
-                                <option value="">Все проекты</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="assignee">👤 Исполнители</label>
-                            <select id="assignee" multiple size="6" style="height: 140px;">
-                                <option value="">Все исполнители</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="issue_type">📝 Типы задач</label>
-                        <select id="issue_type" multiple size="3" style="height: 70px;">
-                            <option value="">Все типы</option>
+            
+            <!-- Скрываемая шапка с фильтрами -->
+            <div class="filter-header">
+                <div class="filter-title">🔧 Параметры отчёта</div>
+                <button class="toggle-filters-btn" onclick="toggleFilters()">
+                    <span id="toggle_btn_text">▼ Скрыть фильтры</span>
+                </button>
+            </div>
+            
+            <!-- Содержимое фильтров -->
+            <div class="filters-content expanded" id="filters_content">
+                <!-- Header с пресетами -->
+                <div class="header-bar" style="margin-bottom: 15px;">
+                    <div class="header-title">⚙️ Дополнительные настройки</div>
+                    <div class="preset-controls">
+                        <span class="preset-info" id="preset_info">Сохранённые пресеты хранятся в браузере</span>
+                        <button class="btn btn-select btn-sm" onclick="openPresetManager()">⚙️ Управление пресетами</button>
+                        <button class="btn btn-select btn-sm" onclick="savePreset()" title="Сохранить текущие настройки">💾 Сохранить</button>
+                        <select id="preset_select" onchange="loadPreset()" style="padding: 6px 12px; font-size: 13px; border-radius: 3px; border: 1px solid #ccc;">
+                            <option value="">📁 Загрузить пресет...</option>
                         </select>
                     </div>
-                    <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-                        <div class="form-group">
-                            <label for="start_date">📅 Дата начала</label>
-                            <input type="date" id="start_date">
-                        </div>
-                        <div class="form-group">
-                            <label for="end_date">📅 Дата окончания</label>
-                            <input type="date" id="end_date">
-                            <small style="color: #999; font-size: 10px;">Приоритет над периодом</small>
-                        </div>
-                        <div class="form-group">
-                            <label for="days">Период (дней)</label>
-                            <input type="number" id="days" value="30" min="0" max="365">
-                            <small style="color: #999; font-size: 10px;">0 = без ограничений</small>
-                        </div>
-                    </div>
                 </div>
 
-                <!-- Средняя колонка - Блоки отчёта (1/4) -->
-                <div class="form-column">
-                    <div class="column-title">📦 Блоки отчёта</div>
-                    <div class="checkbox-group" id="blocks_container"></div>
-                </div>
-
-                <!-- Правая колонка - Опции и экспорт (1/4) -->
-                <div class="form-column">
-                    <div class="column-title">⚙️ Опции</div>
-                    <label class="checkbox-item" style="margin-bottom: 10px;">
-                        <input type="checkbox" id="extra_verbose">
-                        <span>Показывать ID в [скобках]</span>
-                    </label>
-
-                    <div style="margin-top: 20px;">
-                        <button class="btn btn-primary" id="generate_btn" onclick="generateReport()">📋 Сгенерировать</button>
-                        <button class="btn btn-success" onclick="openExportModal()">💾 Экспорт</button>
+                <!-- Трёхколоночная форма -->
+                <div class="form-three-columns">
+                    <!-- Левая колонка - Фильтры -->
+                    <div class="form-column">
+                        <div class="column-title">📊 Фильтры</div>
+                        <div class="form-row" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group">
+                                <label for="project">📦 Проекты</label>
+                                <select id="project" multiple size="6" style="height: 140px;">
+                                    <option value="">Все проекты</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="assignee">👤 Исполнители</label>
+                                <select id="assignee" multiple size="6" style="height: 140px;">
+                                    <option value="">Все исполнители</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="issue_type">📝 Типы задач</label>
+                            <select id="issue_type" multiple size="3" style="height: 70px;">
+                                <option value="">Все типы</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <!-- Debug секция -->
-                    <div class="debug-section" style="margin-top: 20px;">
-                        <h3>🔍 Отладка</h3>
-                        <button class="debug-btn" onclick="showDebugRequest()">Запрос</button>
-                        <button class="debug-btn" onclick="showDebugResponse()">Ответ</button>
-                        <div id="debug_content" class="debug-content hidden"></div>
+                    <!-- Средняя колонка - Блоки отчёта -->
+                    <div class="form-column">
+                        <div class="column-title">📦 Блоки отчёта</div>
+                        <div class="checkbox-group" id="blocks_container"></div>
+                    </div>
+
+                    <!-- Правая колонка - Опции -->
+                    <div class="form-column">
+                        <div class="column-title">⚙️ Опции</div>
+                        <label class="checkbox-item" style="margin-bottom: 10px;">
+                            <input type="checkbox" id="extra_verbose">
+                            <span>Показывать ID в [скобках]</span>
+                        </label>
+
+                        <div style="margin-top: 20px;">
+                            <button class="btn btn-primary" id="generate_btn" onclick="generateReport()">📋 Сгенерировать</button>
+                            <button class="btn btn-success" onclick="openExportModal()">💾 Экспорт</button>
+                        </div>
+
+                        <!-- Debug секция -->
+                        <div class="debug-section" style="margin-top: 20px;">
+                            <h3>🔍 Отладка</h3>
+                            <button class="debug-btn" onclick="showDebugRequest()">Запрос</button>
+                            <button class="debug-btn" onclick="showDebugResponse()">Ответ</button>
+                            <div id="debug_content" class="debug-content hidden"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -613,25 +868,94 @@
 
             <!-- Дашборд -->
             <div id="tab-dashboard" class="tab-content active">
-                <div class="dashboard-grid">
-                    <div class="chart-container">
-                        <h3>📈 Динамика закрытия задач (по дате решения)</h3>
+                <!-- Заголовок дашборда -->
+                <div class="dashboard-header">
+                    <div class="dashboard-title">📊 Jira Report Dashboard</div>
+                    <select class="dashboard-period-selector" id="dashboard_period" onchange="updateDashboardPeriod()">
+                        <option value="7">📅 7 дней</option>
+                        <option value="14">📅 2 недели</option>
+                        <option value="30" selected>📅 30 дней</option>
+                        <option value="90">📅 3 месяца</option>
+                    </select>
+                </div>
+                
+                <!-- KPI карточки -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Всего задач</div>
+                        <div class="kpi-value" id="kpi_total_tasks">0</div>
+                        <div class="kpi-trend neutral" id="kpi_total_tasks_trend">
+                            <span>─</span> <span>нет данных</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card success">
+                        <div class="kpi-label">Закрыто</div>
+                        <div class="kpi-value" id="kpi_closed">0</div>
+                        <div class="kpi-trend up" id="kpi_closed_trend">
+                            <span>📈</span> <span>0%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card warning">
+                        <div class="kpi-label">В работе</div>
+                        <div class="kpi-value" id="kpi_in_progress">0</div>
+                        <div class="kpi-trend neutral" id="kpi_in_progress_trend">
+                            <span>─</span> <span>0%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card danger">
+                        <div class="kpi-label">Рисковые</div>
+                        <div class="kpi-value" id="kpi_risk">0</div>
+                        <div class="kpi-trend down" id="kpi_risk_trend">
+                            <span>⚠️</span> <span>+0%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Факт (часы)</div>
+                        <div class="kpi-value" id="kpi_spent">0</div>
+                        <div class="kpi-trend neutral" id="kpi_spent_trend">
+                            <span>─</span> <span>0ч</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Оценка (часы)</div>
+                        <div class="kpi-value" id="kpi_estimated">0</div>
+                        <div class="kpi-trend neutral" id="kpi_estimated_trend">
+                            <span>─</span> <span>0ч</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Risk Zone виджет -->
+                <div class="risk-zone-widget" id="risk_zone_widget" style="display: none;">
+                    <div class="risk-zone-header">
+                        <div class="risk-zone-title">🔴 Risk Zone — Зависшие задачи</div>
+                        <button class="btn btn-sm" onclick="switchTab('risk')" style="background: #e74c3c; color: white;">Показать все →</button>
+                    </div>
+                    <ul class="risk-zone-list" id="risk_zone_list">
+                        <!-- Заполняется JS -->
+                    </ul>
+                </div>
+                
+                <!-- Графики -->
+                <div class="charts-grid-improved">
+                    <div class="chart-card">
+                        <div class="chart-card-title">📈 Динамика закрытия задач (по дате решения)</div>
                         <canvas id="chartClosed"></canvas>
                     </div>
-                    <div class="chart-container">
-                        <h3>📥 Динамика создания задач (по дате создания)</h3>
+                    <div class="chart-card">
+                        <div class="chart-card-title">📥 Динамика создания задач (по дате создания)</div>
                         <canvas id="chartCreated"></canvas>
                     </div>
-                    <div class="chart-container">
-                        <h3>👥 Нагрузка по исполнителям</h3>
+                    <div class="chart-card">
+                        <div class="chart-card-title">👥 Нагрузка по исполнителям</div>
                         <canvas id="chartAssignees"></canvas>
                     </div>
-                    <div class="chart-container">
-                        <h3>📊 Статусы задач</h3>
+                    <div class="chart-card">
+                        <div class="chart-card-title">📊 Статусы задач</div>
                         <canvas id="chartStatuses"></canvas>
                     </div>
-                    <div class="chart-container">
-                        <h3>🏷️ Типы задач</h3>
+                    <div class="chart-card">
+                        <div class="chart-card-title">🏷️ Типы задач</div>
                         <canvas id="chartTypes"></canvas>
                     </div>
                 </div>
@@ -754,6 +1078,7 @@
         let debugData = { request: null, response: null };
         let lastReportData = null;
         let charts = {};
+        let previousReportData = null; // Для сравнения периодов
 
         // ========== Инициализация ==========
         window.onload = async function() {
@@ -774,6 +1099,193 @@
             await loadIssueTypes();
             loadPresetList();
         };
+        
+        // ========== Быстрые пресеты ==========
+        function applyQuickPreset(preset) {
+            const today = new Date();
+            let startDate, endDate;
+            
+            switch(preset) {
+                case 'last_month':
+                    // 1-е число — последнее число прошлого месяца
+                    const prevMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+                    const prevMonthYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+                    startDate = new Date(prevMonthYear, prevMonth, 1);
+                    endDate = new Date(prevMonthYear, prevMonth + 1, 0);
+                    break;
+                    
+                case 'current_month':
+                    // 1-е число — сегодня
+                    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    break;
+                    
+                case 'last_week':
+                    // Прошлая неделя (Пн-Вс)
+                    const dayOfWeek = today.getDay() || 7; // 1-7 (Вс=7)
+                    const lastMonday = new Date(today);
+                    lastMonday.setDate(today.getDate() - dayOfWeek - 6);
+                    const lastSunday = new Date(lastMonday);
+                    lastSunday.setDate(lastMonday.getDate() + 6);
+                    startDate = lastMonday;
+                    endDate = lastSunday;
+                    break;
+                    
+                case 'this_week':
+                    // Эта неделя (Пн-сегодня)
+                    const thisMonday = new Date(today);
+                    thisMonday.setDate(today.getDate() - (dayOfWeek === 7 ? 0 : dayOfWeek - 1));
+                    startDate = thisMonday;
+                    endDate = new Date(today);
+                    break;
+            }
+            
+            document.getElementById('start_date').value = formatDate(startDate);
+            document.getElementById('end_date').value = formatDate(endDate);
+            document.getElementById('days').value = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+            
+            // Генерируем отчёт
+            generateReport();
+        }
+        
+        // ========== Скрываемые фильтры ==========
+        function toggleFilters() {
+            const content = document.getElementById('filters_content');
+            const btnText = document.getElementById('toggle_btn_text');
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                content.classList.add('collapsed');
+                btnText.textContent = '▶ Показать фильтры';
+            } else {
+                content.classList.remove('collapsed');
+                content.classList.add('expanded');
+                btnText.textContent = '▼ Скрыть фильтры';
+            }
+        }
+        
+        // ========== Обновление дашборда ==========
+        function updateDashboardPeriod() {
+            const days = parseInt(document.getElementById('dashboard_period').value);
+            const today = new Date();
+            const startDate = new Date(today);
+            startDate.setDate(today.getDate() - days + 1);
+            
+            document.getElementById('start_date').value = formatDate(startDate);
+            document.getElementById('end_date').value = formatDate(today);
+            document.getElementById('days').value = days;
+            
+            generateReport();
+        }
+        
+        // ========== Обновление KPI ==========
+        function updateKPI(data, previousData) {
+            const totals = data.totals || {};
+            const prevTotals = previousData ? previousData.totals : null;
+            
+            // Всего задач
+            document.getElementById('kpi_total_tasks').textContent = totals.tasks || 0;
+            updateKpiTrend('kpi_total_tasks_trend', totals.tasks, prevTotals ? prevTotals.tasks : null);
+            
+            // Закрыто
+            document.getElementById('kpi_closed').textContent = totals.correct || 0;
+            updateKpiTrend('kpi_closed_trend', totals.correct, prevTotals ? prevTotals.correct : null, true);
+            
+            // В работе (примерно)
+            const inProgress = (totals.tasks || 0) - (totals.correct || 0);
+            document.getElementById('kpi_in_progress').textContent = inProgress;
+            updateKpiTrend('kpi_in_progress_trend', inProgress, prevTotals ? prevTotals.tasks - prevTotals.correct : null);
+            
+            // Рисковые
+            const riskCount = data.risk_zone ? data.risk_zone.length : 0;
+            document.getElementById('kpi_risk').textContent = riskCount;
+            updateKpiTrend('kpi_risk_trend', riskCount, null, false, true);
+            
+            // Факт
+            document.getElementById('kpi_spent').textContent = (totals.spent || 0).toFixed(1);
+            updateKpiTrend('kpi_spent_trend', totals.spent, prevTotals ? prevTotals.spent : null, true, false, 'ч');
+            
+            // Оценка
+            document.getElementById('kpi_estimated').textContent = (totals.estimated || 0).toFixed(1);
+            updateKpiTrend('kpi_estimated_trend', totals.estimated, prevTotals ? prevTotals.estimated : null, true, false, 'ч');
+            
+            // Risk Zone виджет
+            updateRiskZoneWidget(data.risk_zone);
+        }
+        
+        function updateKpiTrend(elementId, current, previous, isHigherBetter = false, isRisk = false, suffix = '%') {
+            const element = document.getElementById(elementId);
+            if (previous === null || previous === undefined || previous === 0) {
+                element.className = 'kpi-trend neutral';
+                element.innerHTML = '<span>─</span> <span>нет данных</span>';
+                return;
+            }
+            
+            const change = ((current - previous) / previous * 100).toFixed(1);
+            const absChange = Math.abs(change);
+            const isUp = change > 0;
+            const isDown = change < 0;
+            
+            let icon = isUp ? '📈' : '📉';
+            let trendClass = 'neutral';
+            
+            if (isRisk) {
+                // Для рисковых: рост = плохо, снижение = хорошо
+                if (isUp) {
+                    trendClass = 'down';
+                    icon = '⚠️';
+                } else {
+                    trendClass = 'up';
+                    icon = '✅';
+                }
+            } else if (isHigherBetter) {
+                // Для хороших метрик: рост = хорошо
+                trendClass = isUp ? 'up' : 'down';
+            } else {
+                // Для нейтральных: просто показываем направление
+                trendClass = isUp ? 'up' : 'down';
+            }
+            
+            element.className = `kpi-trend ${trendClass}`;
+            element.innerHTML = `<span>${icon}</span> <span>${isUp ? '+' : ''}${change}${suffix}</span>`;
+        }
+        
+        function updateRiskZoneWidget(riskZone) {
+            const widget = document.getElementById('risk_zone_widget');
+            const list = document.getElementById('risk_zone_list');
+            
+            if (!riskZone || riskZone.length === 0) {
+                widget.style.display = 'none';
+                return;
+            }
+            
+            widget.style.display = 'block';
+            list.innerHTML = '';
+            
+            // Показываем первые 5 задач
+            riskZone.slice(0, 5).forEach(task => {
+                const li = document.createElement('li');
+                li.className = 'risk-zone-item';
+                li.innerHTML = `
+                    <div class="risk-zone-item-key">${task.key || task.URL || 'N/A'}</div>
+                    <div class="risk-zone-item-summary">${task.Задача || task.summary || 'N/A'}</div>
+                    <div class="risk-zone-item-meta">
+                        ${task.Исполнитель ? `👤 ${task.Исполнитель} | ` : ''}
+                        ${task['Факторы риска'] || task.risk_factors || 'N/A'}
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+            
+            if (riskZone.length > 5) {
+                const more = document.createElement('li');
+                more.style.textAlign = 'center';
+                more.style.padding = '10px';
+                more.style.color = '#666';
+                more.textContent = `... и ещё ${riskZone.length - 5} задач`;
+                list.appendChild(more);
+            }
+        }
 
         // ========== Даты ==========
         function setDefaultDates() {
@@ -1113,12 +1625,12 @@
         async function generateReport() {
             const params = getParams();
             debugData.request = params;
-            
+
             const loading = document.getElementById('loading');
             const errorDiv = document.getElementById('error');
             const stats = document.getElementById('stats');
             const reports = document.getElementById('reports_container');
-            
+
             loading.classList.remove('hidden');
             errorDiv.classList.add('hidden');
             stats.classList.add('hidden');
@@ -1140,12 +1652,19 @@
                 debugData.response = data;
                 lastReportData = data;
 
+                // Получаем предыдущий период для сравнения
+                const previousData = await getPreviousPeriodData(params);
+                previousReportData = previousData;
+
                 // Статистика
                 document.getElementById('stat_projects').textContent = data.totals.projects;
                 document.getElementById('stat_correct').textContent = data.totals.correct;
                 document.getElementById('stat_issues').textContent = data.totals.issues;
                 document.getElementById('stat_spent').textContent = data.totals.spent;
                 document.getElementById('stat_estimated').textContent = data.totals.estimated;
+
+                // Обновляем KPI на дашборде
+                updateKPI(data, previousData);
 
                 // Рендер таблиц
                 renderTable('summary', data.summary);
@@ -1176,6 +1695,44 @@
                 loading.classList.add('hidden');
             }
         }
+        
+        // ========== Получение данных предыдущего периода ==========
+        async function getPreviousPeriodData(currentParams) {
+            try {
+                const startDate = currentParams.start_date ? new Date(currentParams.start_date) : null;
+                const endDate = currentParams.end_date ? new Date(currentParams.end_date) : null;
+                
+                if (!startDate || !endDate) return null;
+                
+                // Вычисляем предыдущий период
+                const daysDiff = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+                const prevEndDate = new Date(startDate);
+                prevEndDate.setDate(prevEndDate.getDate() - 1);
+                const prevStartDate = new Date(prevEndDate);
+                prevStartDate.setDate(prevStartDate.getDate() - daysDiff + 1);
+                
+                // Запрашиваем данные за предыдущий период
+                const prevParams = {
+                    ...currentParams,
+                    start_date: formatDate(prevStartDate),
+                    end_date: formatDate(prevEndDate),
+                    days: daysDiff
+                };
+                
+                const response = await fetch('/api/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(prevParams)
+                });
+                
+                if (!response.ok) return null;
+                
+                return await response.json();
+            } catch (e) {
+                console.warn('Не удалось получить данные предыдущего периода:', e);
+                return null;
+            }
+        }
 
         function updateCount(name, data) {
             const count = data ? (Array.isArray(data) ? data.length : data.length || 0) : 0;
@@ -1200,12 +1757,52 @@
             const thead = table.querySelector('thead');
             const tbody = table.querySelector('tbody');
 
-            const columns = Object.keys(data[0]);
+            // Определяем порядок колонок для каждой таблицы
+            let columns = [];
+            if (name === 'summary') {
+                columns = ['Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
+            } else if (name === 'assignees') {
+                columns = ['Исполнитель', 'Задач', 'Корректных', 'С ошибками', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
+            } else if (name === 'issues') {
+                // Для проблемных задач - особая логика с развёрнутыми проблемами
+                renderIssuesTable(data);
+                return;
+            } else {
+                // Для остальных таблиц используем все доступные колонки
+                columns = Object.keys(data[0]);
+            }
 
             thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('${name}', '${col}')">${col}</th>`).join('') + '</tr>';
             tbody.innerHTML = data.map(row =>
                 '<tr>' + columns.map(col => `<td>${formatCell(row[col], col, row)}</td>`).join('') + '</tr>'
             ).join('');
+        }
+        
+        // Рендер таблицы проблемных задач с развёрнутыми проблемами
+        function renderIssuesTable(data) {
+            const table = document.getElementById('issues_table');
+            if (!table) return;
+            
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            
+            // Фиксированные колонки
+            const columns = ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы'];
+            
+            thead.innerHTML = '<tr>' + columns.map(col => `<th>${col}</th>`).join('') + '</tr>';
+            
+            tbody.innerHTML = data.map(row => {
+                const problems = row['Проблемы'] || row.problems || '';
+                const problemList = Array.isArray(problems) ? problems : (problems || '').split(/[,;]/).filter(p => p.trim());
+                
+                return '<tr>' + columns.map(col => {
+                    if (col === 'Проблемы') {
+                        // Форматируем проблемы как список бейджей
+                        return `<td>${problemList.map(p => `<span class="problem-badge" title="${p.trim()}">${p.trim()}</span>`).join('')}</td>`;
+                    }
+                    return `<td>${formatCell(row[col], col, row)}</td>`;
+                }).join('') + '</tr>';
+            }).join('');
         }
 
         function formatCell(value, column, row) {
