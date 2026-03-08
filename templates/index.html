@@ -735,15 +735,24 @@
             background: white;
             color: #666;
             user-select: none;
+            position: relative;
         }
         .issues-filter-chip:hover {
             border-color: #3498db;
             background: #f8f9fa;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .issues-filter-chip.active {
-            background: #3498db;
             color: white;
-            border-color: #3498db;
+            border-color: transparent;
+        }
+        .issues-filter-chip .chip-count {
+            margin-left: 6px;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.3);
         }
         .issues-filter-chip[data-filter="Без исполнителя"] { background: #ffebee; border-color: #ffcdd2; }
         .issues-filter-chip[data-filter="Без исполнителя"].active { background: #e53935; }
@@ -753,6 +762,8 @@
         .issues-filter-chip[data-filter="Нет фактического"].active { background: #1e88e5; }
         .issues-filter-chip[data-filter="Статус"] { background: #f3e5f5; border-color: #e1bee7; }
         .issues-filter-chip[data-filter="Статус"].active { background: #8e24aa; }
+        .issues-filter-chip[data-filter="Не двигается"] { background: #fffde7; border-color: #fff9c4; }
+        .issues-filter-chip[data-filter="Не двигается"].active { background: #fbc02d; }
         
         /* Мобильная адаптация */
         @media (max-width: 1200px) {
@@ -1148,10 +1159,21 @@
                     <span>Проблемные задачи <span class="badge warning" id="issues_count">0</span></span>
                 </h2>
                 <div class="issues-filter-container">
-                    <span class="issues-filter-chip" data-filter="Без исполнителя" onclick="toggleIssueFilter(this)">👤 Без исполнителя</span>
-                    <span class="issues-filter-chip" data-filter="Просрочена" onclick="toggleIssueFilter(this)">⏰ Просрочена</span>
-                    <span class="issues-filter-chip" data-filter="Нет фактического" onclick="toggleIssueFilter(this)">⏱️ Нет факта</span>
-                    <span class="issues-filter-chip" data-filter="Статус" onclick="toggleIssueFilter(this)">❌ Статус</span>
+                    <span class="issues-filter-chip" data-filter="Без исполнителя" onclick="toggleIssueFilter(this)">
+                        👤 Без исполнителя <span class="chip-count" id="filter_count_no_assignee">0</span>
+                    </span>
+                    <span class="issues-filter-chip" data-filter="Просрочена" onclick="toggleIssueFilter(this)">
+                        ⏰ Просрочена <span class="chip-count" id="filter_count_overdue">0</span>
+                    </span>
+                    <span class="issues-filter-chip" data-filter="Нет фактического" onclick="toggleIssueFilter(this)">
+                        ⏱️ Нет факта <span class="chip-count" id="filter_count_no_time">0</span>
+                    </span>
+                    <span class="issues-filter-chip" data-filter="Статус" onclick="toggleIssueFilter(this)">
+                        ❌ Статус <span class="chip-count" id="filter_count_status">0</span>
+                    </span>
+                    <span class="issues-filter-chip" data-filter="Не двигается" onclick="toggleIssueFilter(this)">
+                        😴 Не двигается <span class="chip-count" id="filter_count_inactive">0</span>
+                    </span>
                     <span class="issues-filter-chip" onclick="resetIssuesFilter()">✖ Сбросить всё</span>
                 </div>
                 <div class="table-container">
@@ -2048,6 +2070,9 @@
                 // Графики
                 console.log('📈 Рендер графиков...');
                 renderCharts(data);
+                
+                // Обновляем счётчики фильтров проблем
+                updateIssueFilterCounts(data.issues);
 
                 stats.classList.remove('hidden');
                 reports.classList.remove('hidden');
@@ -2273,8 +2298,8 @@
         }
 
         // ========== Фильтрация проблемных задач ==========
-        let issuesFilter = null;
-        let originalIssuesData = null;
+        let issuesFilters = new Set(); // Множество активных фильтров
+        let issuesDataForFilter = null; // Кэш данных для фильтрации
         
         function toggleIssueFilter(chip) {
             const filterText = chip.getAttribute('data-filter');
@@ -2285,19 +2310,12 @@
                 return;
             }
             
-            // Снимаем активный класс с остальных
-            document.querySelectorAll('.issues-filter-chip').forEach(c => {
-                if (c !== chip) c.classList.remove('active');
-            });
-            
-            // Переключаем текущий
-            if (issuesFilter === filterText) {
-                // Уже активен - снимаем фильтр
-                issuesFilter = null;
+            // Переключаем фильтр
+            if (issuesFilters.has(filterText)) {
+                issuesFilters.delete(filterText);
                 chip.classList.remove('active');
             } else {
-                // Активируем фильтр
-                issuesFilter = filterText;
+                issuesFilters.add(filterText);
                 chip.classList.add('active');
             }
             
@@ -2309,24 +2327,32 @@
             const tbody = table.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr'));
             
+            // Если фильтров нет - показываем все
+            if (issuesFilters.size === 0) {
+                rows.forEach(row => row.style.display = '');
+                console.log('🔍 Фильтр проблем: все');
+                return;
+            }
+            
             // Фильтруем строки
             rows.forEach((row, index) => {
                 const problemsCell = row.children[7]; // Колонка "Проблемы"
                 const problemsText = problemsCell.textContent.toLowerCase();
                 
-                if (!issuesFilter || problemsText.includes(issuesFilter.toLowerCase())) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
+                // Показываем если хотя бы один фильтр совпадает
+                const matches = Array.from(issuesFilters).some(filter => 
+                    problemsText.includes(filter.toLowerCase())
+                );
+                
+                row.style.display = matches ? '' : 'none';
             });
             
-            console.log(`🔍 Фильтр проблем: ${issuesFilter || 'все'}`);
+            console.log(`🔍 Фильтр проблем: ${Array.from(issuesFilters).join(', ') || 'все'}`);
         }
         
         function resetIssuesFilter() {
-            issuesFilter = null;
-            originalIssuesData = null;
+            issuesFilters.clear();
+            issuesDataForFilter = null;
             
             // Сбрасываем активные классы
             document.querySelectorAll('.issues-filter-chip').forEach(chip => {
@@ -2341,6 +2367,57 @@
             });
             
             console.log('🔍 Фильтр проблем: сброшен');
+        }
+        
+        // Подсчёт количества проблем для фильтра
+        function updateIssueFilterCounts(issuesData) {
+            if (!issuesData || issuesData.length === 0) {
+                // Сброс счётчиков
+                ['no_assignee', 'overdue', 'no_time', 'status', 'inactive'].forEach(key => {
+                    const el = document.getElementById(`filter_count_${key}`);
+                    if (el) el.textContent = '0';
+                });
+                return;
+            }
+            
+            // Подсчёт по типам проблем
+            const counts = {
+                'Без исполнителя': 0,
+                'Просрочена': 0,
+                'Нет фактического': 0,
+                'Статус': 0,
+                'Не двигается': 0,
+            };
+            
+            issuesData.forEach(task => {
+                const problems = task['Проблемы'] || task.problems || '';
+                const problemList = problems.split(/[,;]/).map(p => p.trim()).filter(p => p);
+                
+                problemList.forEach(problem => {
+                    if (problem.includes('Без исполнителя')) counts['Без исполнителя']++;
+                    else if (problem.includes('Просрочена') || problem.includes('позже дедлайна')) counts['Просрочена']++;
+                    else if (problem.includes('фактического')) counts['Нет фактического']++;
+                    else if (problem.includes('Статус')) counts['Статус']++;
+                    else if (problem.includes('двигается')) counts['Не двигается']++;
+                });
+            });
+            
+            // Обновляем счётчики
+            const elMap = {
+                'Без исполнителя': 'filter_count_no_assignee',
+                'Просрочена': 'filter_count_overdue',
+                'Нет фактического': 'filter_count_no_time',
+                'Статус': 'filter_count_status',
+                'Не двигается': 'filter_count_inactive',
+            };
+            
+            for (const [problem, count] of Object.entries(counts)) {
+                const el = document.getElementById(elMap[problem]);
+                if (el) {
+                    el.textContent = count > 0 ? count : '';
+                    el.style.display = count > 0 ? 'inline-block' : 'none';
+                }
+            }
         }
         
         // ========== Графики ==========
@@ -2443,13 +2520,14 @@
                     const problems = task['Проблемы'] || '';
                     const problemList = problems.split(/[,;]/).map(p => p.trim()).filter(p => p);
                     problemList.forEach(problem => {
-                        // Упрощаем названия проблем для группировки
+                        // Группировка проблем для диаграммы
                         let simplified = problem;
                         if (problem.includes('Без исполнителя')) simplified = 'Без исполнителя';
-                        else if (problem.includes('Просрочена')) simplified = 'Просрочена';
+                        else if (problem.includes('Просрочена') || problem.includes('позже дедлайна')) simplified = 'Просрочена';
                         else if (problem.includes('фактического')) simplified = 'Нет факта';
                         else if (problem.includes('Статус')) simplified = 'Некорректный статус';
                         else if (problem.includes('даты решения')) simplified = 'Нет даты решения';
+                        else if (problem.includes('двигается')) simplified = 'Не двигается';
                         
                         byProblem[simplified] = (byProblem[simplified] || 0) + 1;
                     });
@@ -2459,7 +2537,7 @@
                     labels: Object.keys(byProblem),
                     datasets: [{
                         data: Object.values(byProblem),
-                        backgroundColor: ['#e74c3c', '#f39c12', '#e67e22', '#9b59b6', '#3498db', '#95a5a6']
+                        backgroundColor: ['#e53935', '#fb8c00', '#1e88e5', '#8e24aa', '#3498db', '#fbc02d']
                     }]
                 }, 'Типы проблем');
             }
