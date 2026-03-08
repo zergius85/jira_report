@@ -965,9 +965,12 @@ def generate_report(
     if include_risk_zone:
         risk_issues = []
         today = datetime.now()
+        
+        logger.info(f"🔍 Проверка Risk Zone... issues_normal: {'issues_normal' in locals()}")
 
         # Проверяем, что issues_normal определён и не пуст
         if 'issues_normal' in locals() and issues_normal:
+            logger.info(f"   Найдено {len(issues_normal)} задач для проверки")
             for issue in issues_normal:
                 risk_factors = []
 
@@ -998,13 +1001,20 @@ def generate_report(
                         'Задача': issue.fields.summary,
                         'Исполнитель': assignee,
                         'Статус': issue.fields.status.name,
-                    'Факторы риска': '; '.join(risk_factors),
-                    'Приоритет': issue.fields.priority.name if issue.fields.priority else 'Normal'
-                })
-        
+                        'Факторы риска': '; '.join(risk_factors),
+                        'Приоритет': issue.fields.priority.name if issue.fields.priority else 'Normal'
+                    })
+            
+            logger.info(f"   Найдено {len(risk_issues)} рисковых задач")
+        else:
+            logger.warning("   ⚠️  issues_normal не определён или пуст")
+
         if risk_issues:
             result['risk_zone'] = pd.DataFrame(risk_issues)
             result['risk_zone'] = result['risk_zone'].sort_values('Приоритет', ascending=False)
+            logger.info(f"✅ Risk Zone заполнен: {len(risk_issues)} задач")
+        else:
+            logger.info("ℹ️  Risk Zone пуст (нет рисковых задач)")
 
     return result
 

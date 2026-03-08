@@ -708,9 +708,92 @@
         }
         .risk-info strong { color: #856404; }
 
+        /* Мобильная адаптация */
         @media (max-width: 1200px) {
             .form-three-columns {
                 grid-template-columns: 1fr;
+            }
+            .quick-presets {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .charts-grid-improved {
+                grid-template-columns: 1fr;
+            }
+            .dashboard-header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            .risk-zone-widget {
+                padding: 15px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .quick-presets {
+                grid-template-columns: 1fr;
+            }
+            .quick-presets .preset-btn {
+                padding: 10px 12px;
+            }
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            .kpi-value {
+                font-size: 24px;
+            }
+            .kpi-label {
+                font-size: 11px;
+            }
+            .filter-header {
+                padding: 10px 12px;
+            }
+            .filter-title {
+                font-size: 14px;
+            }
+            .toggle-filters-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            .tabs {
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch;
+            }
+            .tab-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+            .table-container {
+                height: 400px;
+            }
+            table {
+                font-size: 12px;
+            }
+            th, td {
+                padding: 6px 8px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5em;
+            }
+            .preset-btn .preset-desc {
+                display: none;
+            }
+            .dashboard-title {
+                font-size: 16px;
+            }
+            .dashboard-period-selector {
+                font-size: 12px;
+                padding: 6px 10px;
             }
         }
     </style>
