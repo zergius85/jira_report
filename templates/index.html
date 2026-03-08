@@ -707,7 +707,17 @@
             font-size: 13px;
         }
         .risk-info strong { color: #856404; }
-
+        
+        /* Бейдж режима приложения */
+        #app_mode_badge.dev {
+            background: #f39c12;
+            color: white;
+        }
+        #app_mode_badge.prod {
+            background: #27ae60;
+            color: white;
+        }
+        
         /* Мобильная адаптация */
         @media (max-width: 1200px) {
             .form-three-columns {
@@ -729,6 +739,9 @@
             }
             .risk-zone-widget {
                 padding: 15px;
+            }
+            #app_mode_badge {
+                display: none; /* Скрываем на планшетах */
             }
         }
         
@@ -800,7 +813,11 @@
 </head>
 <body>
     <div class="container">
-        <h1>📊 Jira Report Generator <span id="report_period_display" style="font-size: 0.5em; color: #666; font-weight: normal; margin-left: 10px;"></span></h1>
+        <h1>
+            📊 Jira Report Generator
+            <span id="report_period_display" style="font-size: 0.5em; color: #666; font-weight: normal; margin-left: 10px;"></span>
+            <span id="app_mode_badge" style="font-size: 0.4em; padding: 3px 10px; border-radius: 12px; margin-left: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"></span>
+        </h1>
 
         <!-- Форма -->
         <div class="card">
@@ -1179,6 +1196,9 @@
 
         // ========== Инициализация ==========
         window.onload = async function() {
+            // Отображаем режим приложения
+            displayAppMode();
+            
             // Устанавливаем даты: прошлый месяц полностью
             setDefaultDates();
 
@@ -1224,6 +1244,32 @@
             }
             
             displayEl.textContent = periodText;
+        }
+        
+        // ========== Отображение режима приложения ==========
+        function displayAppMode() {
+            const modeEl = document.getElementById('app_mode_badge');
+            if (!modeEl) return;
+            
+            // Получаем режим из переменной JIRA_SERVER (можно добавить другую)
+            // По умолчанию считаем dev если хост localhost или 127.0.0.1
+            const hostname = window.location.hostname;
+            const port = window.location.port;
+            
+            let mode = 'dev';
+            let modeText = 'DEV';
+            
+            // Production если порт 5000 или хост не localhost
+            if (port === '5000' || (hostname !== 'localhost' && hostname !== '127.0.0.1')) {
+                mode = 'prod';
+                modeText = 'PROD';
+            }
+            
+            modeEl.textContent = modeText;
+            modeEl.className = mode;
+            modeEl.title = mode === 'prod' ? 'Production режим' : 'Development режим';
+            
+            console.log(`🔧 Режим приложения: ${modeText}`);
         }
         
         // ========== Быстрые пресеты ==========
