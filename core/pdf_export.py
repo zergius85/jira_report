@@ -14,13 +14,27 @@ from core.config import REPORTS_DIR
 
 logger = logging.getLogger(__name__)
 
+# Проверка доступности WeasyPrint
+WEASYPRINT_AVAILABLE = False
 try:
     from weasyprint import HTML, CSS
-    from weasyprint.text.fonts import FontConfiguration
+    
+    # FontConfiguration в разных версиях WeasyPrint находится в разных местах
+    # Версия 52.5 (для Python 3.7)
+    try:
+        from weasyprint.text.fonts import FontConfiguration
+    except ImportError:
+        # Более старые версии
+        try:
+            from weasyprint.fonts import FontConfiguration
+        except ImportError:
+            # Если не найдено — используем None
+            FontConfiguration = None
+    
     WEASYPRINT_AVAILABLE = True
-except ImportError:
-    WEASYPRINT_AVAILABLE = False
-    logger.warning("⚠️  WeasyPrint не установлен. Экспорт в PDF недоступен.")
+    logger.info("✅ WeasyPrint доступен")
+except ImportError as e:
+    logger.warning(f"⚠️  WeasyPrint не установлен. Экспорт в PDF недоступен: {e}")
 
 
 def generate_pdf_report(
@@ -44,16 +58,17 @@ def generate_pdf_report(
     if not WEASYPRINT_AVAILABLE:
         logger.error("WeasyPrint недоступен")
         return None
-    
+
     try:
         html_content = _render_pdf_html(report_data, include_charts, client_mode)
-        
+
         # Генерируем PDF
-        font_config = FontConfiguration()
-        
-        pdf_bytes = HTML(string=html_content).write_pdf(
-            stylesheets=[
-                CSS(string='''
+        # FontConfiguration может быть None если не найден в импорте
+        if FontConfiguration is not None:
+            font_config = FontConfiguration()
+            pdf_bytes = HTML(string=html_content).write_pdf(
+                stylesheets=[
+                    CSS(string='''
                     @page {
                         size: A4;
                         margin: 2cm;
@@ -160,7 +175,7 @@ def generate_pdf_report(
                     }
                 ''')
             ],
-            font_config=font_config,
+            font_config=font_config if FontConfiguration is not None else None,
         )
         
         # Сохраняем если указан filename
