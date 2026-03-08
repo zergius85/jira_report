@@ -570,6 +570,7 @@ def api_download():
         projects_raw = data.get('projects', []) or data.get('project', '').strip() or None
         assignees_raw = data.get('assignees', []) or data.get('assignee', '').strip() or None
         issue_types_raw = data.get('issue_types', []) or data.get('issue_type', '').strip() or None
+        export_format = data.get('format', 'xlsx')  # Новый параметр: format
 
         # Нормализация фильтров
         projects = normalize_filter(projects_raw, upper=True) if projects_raw else []
@@ -594,6 +595,41 @@ def api_download():
             extra_verbose=extra_verbose
         )
 
+        # PDF экспорт
+        if export_format == 'pdf':
+            try:
+                from core.pdf_export import generate_pdf_report
+                pdf_bytes = generate_pdf_report(report)
+                
+                if not pdf_bytes:
+                    logger.warning("PDF экспорт не удался, возвращаем Excel")
+                    # Fallback на Excel
+                    output = io.BytesIO()
+                    generate_excel(report, output)
+                    output.seek(0)
+                    filename = f"jira_report_{report['period'].replace(' — ', '_to_').replace(' ', '')}.xlsx"
+                    return send_file(
+                        output,
+                        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        as_attachment=True,
+                        download_name=filename
+                    )
+                
+                filename = f"jira_report_{report['period'].replace(' — ', '_to_').replace(' ', '')}.pdf"
+                return send_file(
+                    io.BytesIO(pdf_bytes),
+                    mimetype='application/pdf',
+                    as_attachment=True,
+                    download_name=filename
+                )
+            except ImportError:
+                logger.error("WeasyPrint не установлен")
+                return jsonify({'error': 'PDF экспорт недоступен'}), 503
+            except Exception as e:
+                logger.error(f"Ошибка PDF экспорта: {e}")
+                return jsonify({'error': str(e)}), 500
+
+        # Excel экспорт (по умолчанию)
         output = io.BytesIO()
         generate_excel(report, output)
         output.seek(0)

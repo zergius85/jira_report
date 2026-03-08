@@ -828,12 +828,12 @@
             <div class="filter-header">
                 <div class="filter-title">🔧 Параметры отчёта</div>
                 <button class="toggle-filters-btn" onclick="toggleFilters()">
-                    <span id="toggle_btn_text">▼ Скрыть фильтры</span>
+                    <span id="toggle_btn_text">▶ Показать фильтры</span>
                 </button>
             </div>
             
             <!-- Содержимое фильтров -->
-            <div class="filters-content expanded" id="filters_content">
+            <div class="filters-content collapsed" id="filters_content">
                 <!-- Header с пресетами -->
                 <div class="header-bar" style="margin-bottom: 15px;">
                     <div class="header-title">⚙️ Дополнительные настройки</div>
@@ -1247,7 +1247,38 @@
             }
         }
         
-        // ========== Обновление дашборда ==========
+        // ========== Получение параметров ==========
+        function getSelectedValues(selectId) {
+            const select = document.getElementById(selectId);
+            if (!select) return [];
+            return Array.from(select.selectedOptions).map(opt => opt.value);
+        }
+        
+        function getSelectedBlocks() {
+            return Array.from(document.querySelectorAll('#blocks_container input[type="checkbox"]:checked')).map(cb => cb.value);
+        }
+        
+        function getParams() {
+            const projects = getSelectedValues('project');
+            const assignees = getSelectedValues('assignee');
+            const issueTypes = getSelectedValues('issue_type');
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+            const days = parseInt(document.getElementById('days').value) || 0;
+
+            console.log('📝 Параметры отчёта:', { projects, assignees, issueTypes, startDate, endDate, days });
+
+            return {
+                projects: projects.length > 0 ? projects : null,
+                assignees: assignees.length > 0 ? assignees : null,
+                issue_types: issueTypes.length > 0 ? issueTypes : null,
+                start_date: startDate || null,
+                end_date: endDate || null,
+                days: days,
+                blocks: getSelectedBlocks(),
+                extra_verbose: document.getElementById('extra_verbose').checked
+            };
+        }
         function updateDashboardPeriod() {
             const days = parseInt(document.getElementById('dashboard_period').value);
             const today = new Date();
@@ -1622,14 +1653,81 @@
         async function downloadReport() {
             const format = document.querySelector('input[name="export_format"]:checked').value;
             closeExportModal();
-            
+
             if (format === 'xlsx') {
                 await downloadExcel();
             } else if (format === 'csv') {
-                alert('CSV экспорт будет реализован в ближайшее время. Пока доступен только Excel.');
-                await downloadExcel();
+                console.log('📊 CSV экспорт...');
+                await downloadCSV();
             } else if (format === 'pdf') {
-                alert('PDF экспорт требует дополнительной настройки сервера. Пока доступен только Excel.');
+                console.log('📄 PDF экспорт...');
+                await downloadPDF();
+            }
+        }
+        
+        async function downloadPDF() {
+            const params = getParams();
+            
+            try {
+                const response = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...params, format: 'pdf' })
+                });
+                
+                if (!response.ok) {
+                    // Если PDF недоступен, пробуем Excel
+                    console.warn('PDF недоступен, пробуем Excel...');
+                    await downloadExcel();
+                    return;
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `jira_report_${new Date().toISOString().split('T')[0]}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                console.log('✅ PDF скачан');
+            } catch (e) {
+                console.error('❌ Ошибка PDF экспорта:', e);
+                alert('Ошибка при скачивании PDF. Попробуйте Excel формат.');
+                await downloadExcel();
+            }
+        }
+        
+        async function downloadCSV() {
+            const params = getParams();
+            
+            try {
+                const response = await fetch('/api/download/csv', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params)
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Ошибка скачивания CSV');
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `jira_report_${new Date().toISOString().split('T')[0]}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                console.log('✅ CSV скачан');
+            } catch (e) {
+                console.error('❌ Ошибка CSV экспорта:', e);
+                alert('Ошибка при скачивании CSV. Попробуйте Excel формат.');
                 await downloadExcel();
             }
         }
@@ -1709,6 +1807,8 @@
             const params = getParams();
             debugData.request = params;
 
+            console.log('🚀 Генерация отчёта...', params);
+
             const loading = document.getElementById('loading');
             const errorDiv = document.getElementById('error');
             const stats = document.getElementById('stats');
@@ -1720,18 +1820,25 @@
             reports.classList.add('hidden');
 
             try {
+                console.log('📡 Отправка запроса на /api/report...');
+                
                 const response = await fetch('/api/report', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(params)
                 });
 
+                console.log('📥 Получен ответ:', response.status);
+
                 if (!response.ok) {
                     const error = await response.json();
+                    console.error('❌ Ошибка API:', error);
                     throw new Error(error.error || 'Ошибка генерации отчёта');
                 }
 
                 const data = await response.json();
+                console.log('✅ Данные получены:', data);
+                
                 debugData.response = data;
                 lastReportData = data;
 
@@ -1750,6 +1857,7 @@
                 updateKPI(data, previousData);
 
                 // Рендер таблиц
+                console.log('📊 Рендер таблиц...');
                 renderTable('summary', data.summary);
                 renderTable('assignees', data.assignees);
                 renderTable('detail', data.detail);
@@ -1766,6 +1874,7 @@
                 updateCount('risk', data.risk_zone);
 
                 // Графики
+                console.log('📈 Рендер графиков...');
                 renderCharts(data);
 
                 stats.classList.remove('hidden');
@@ -1773,6 +1882,7 @@
                 switchTab('dashboard');
 
             } catch (e) {
+                console.error('❌ Ошибка генерации отчёта:', e);
                 showError(e.message);
             } finally {
                 loading.classList.add('hidden');
