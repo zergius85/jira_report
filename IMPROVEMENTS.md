@@ -1,762 +1,142 @@
-# 💡 Предложения по улучшению кода
+# 💡 История улучшений кода
 
-Документ содержит детальный анализ кода и конкретные предложения по рефакторингу.
+Архив реализованных улучшений и оптимизаций для Jira Report System.
 
-**Дата анализа:** 5 марта 2026
-**Последнее обновление:** 7 марта 2026
+**Последнее обновление:** 8 марта 2026
 
 ---
 
 ## 📋 Содержание
 
-1. [Реализованные улучшения](#реализованные-улучшения)
-2. [Оптимизация запросов к Jira API](#оптимизация-запросов-к-jira-api)
-3. [Архитектурные улучшения](#архитектурные-улучшения)
-4. [Улучшения кода core/jira_report.py](#улучшения-кода-corejira_reportpy)
-5. [Улучшения кода web/app.py](#улучшения-кода-webapppy)
-6. [Улучшения конфигурации](#улучшения-конфигурации)
-7. [Тестирование](#тестирование)
+1. [Март 2026 — Безопасность (P0)](#март-2026---безопасность-p0)
+2. [Март 2026 — Production-ready](#март-2026---production-ready)
+3. [Март 2026 — Рефакторинг кода](#март-2026---рефакторинг-кода)
+4. [Февраль 2026 — Оптимизация производительности](#февраль-2026---оптимизация-производительности)
 
 ---
 
-## ✅ Реализованные улучшения
+## Март 2026 — Безопасность (P0)
 
-### Март 2026 — Рефакторинг кода
+**Статус:** ✅ Реализовано (8 марта 2026)
 
-**Статус:** ✅ Реализовано (коммит 6cea1ed)
+### Санитизация JQL-запросов
 
-#### P0 — Критические исправления:
-- **Исправлено дублирование BASE_DIR** → переименовано в `CORE_DIR` для путей внутри core/
-- **Добавлен risk_zone в REPORT_BLOCKS** — блок теперь валидируется корректно
+**Проблема:** Пользовательский ввод напрямую подставлялся в JQL-запрос без проверки.
 
-#### P1 — Средней важности:
-- **Удалена обёрка get_jira_connection()** — декоратор `@retry` перенесён на основную функцию
-- **Удалено дублирование импорта pandas** — вынесено в начало файла
-- **Вынесены магические числа в константы:**
-  - `MAX_REPORT_DAYS = 365`
-  - `RISK_ZONE_INACTIVITY_THRESHOLD = 5`
-  - `MAX_SEARCH_RESULTS = 1000`
+**Решение:**
+- Добавлены функции `sanitize_jql_identifier()` и `sanitize_jql_string_literal()`
+- Все входные данные (проекты, пользователи, типы задач, даты) проходят валидацию
+- Недопустимые символы блокируются (защита от SQL injection-подобных атак)
+- Добавлены тесты для функций санитизации
 
-#### P2 — Мелкие улучшения:
-- **Создана utility-функция `normalize_filter()`** — устранено дублирование кода нормализации
-- **Создан декоратор `@conditional_cache()`** — кэширование только в production
-- **Приведено именование функций** — `_api_*_logic()` → `_get_api_*()`
-- **Добавлено логирование в get_column_order()** — предупреждение для неизвестных блоков
+**Файлы:**
+- `core/jira_report.py` — функции санитизации
+- `tests/test_report.py` — тесты `TestSanitizeJqlIdentifier`, `TestSanitizeJqlStringLiteral`
+- `.env.example` — обновлена документация SSL_VERIFY
 
 ---
 
-### Февраль 2026 — Оптимизация производительности
+## Март 2026 — Production-ready
+
+**Статус:** ✅ Реализовано (коммит 1481941)
+
+### P0 — Критические для production:
+
+| Улучшение | Описание | Файл |
+|-----------|----------|------|
+| **Gunicorn** | Production WSGI-сервер вместо Flask dev | `requirements.txt`, `jira-report.service.template` |
+| **Валидация JSON** | Декоратор `@validate_json_request` для API | `web/app.py` |
+| **Проверка Content-Type** | Для `/api/report` и `/api/download` | `web/app.py` |
+
+### P1 — Средний приоритет:
+
+| Улучшение | Описание | Файл |
+|-----------|----------|------|
+| **.env.example** | Шаблон конфигурации в корне | `.env.example` |
+| **Ротация логов** | `RotatingFileHandler`, 10MB, 5 бэкапов | `web/app.py` |
+| **MAX_EXCEL_ROWS** | Ограничение размера отчёта (10000 строк) | `core/config.py` |
+
+### P2 — Низкий приоритет:
+
+| Улучшение | Описание | Файл |
+|-----------|----------|------|
+| **Health check** | Расширенная проверка: latency, user, version | `web/app.py` |
+
+---
+
+## Март 2026 — Рефакторинг кода
+
+**Статус:** ✅ Реализовано (коммит 6cea1ed, 7 марта 2026)
+
+### P0 — Критические исправления:
+
+| Проблема | Решение |
+|----------|---------|
+| Дублирование `BASE_DIR` | Переименовано в `CORE_DIR` для путей внутри core/ |
+| `risk_zone` не в `REPORT_BLOCKS` | Добавлен в словарь блоков |
+
+### P1 — Средней важности:
+
+| Проблема | Решение |
+|----------|---------|
+| Обёртка `get_jira_connection()` | Удалена, `@retry` на основной функции |
+| Дублирование импорта pandas | Вынесено в начало файла |
+| Магические числа | Константы: `MAX_REPORT_DAYS`, `RISK_ZONE_INACTIVITY_THRESHOLD`, `MAX_SEARCH_RESULTS` |
+
+### P2 — Мелкие улучшения:
+
+| Улучшение | Описание |
+|-----------|----------|
+| `normalize_filter()` | Utility-функция для нормализации фильтров |
+| `@conditional_cache()` | Кэширование только в production |
+| Именование функций | `_get_api_projects()`, `_get_api_assignees()` |
+| Логирование | `get_column_order()` для неизвестных блоков |
+
+---
+
+## Февраль 2026 — Оптимизация производительности
 
 **Статус:** ✅ Реализовано
 
-#### Предзагрузка changelog
-- Добавлен `expand='changelog'` в запросы — экономия 50-90% запросов к API
+### Предзагрузка changelog
 
-#### Кэширование проектов
-- Кэш для `jira.project()` на 1 час — экономия 11% запросов
+**Экономия:** 50-90% запросов к Jira API
 
-#### Batch-запросы
+**Изменения:**
+- Добавлен `expand='changelog'` в запросы `search_issues()`
+- Changelog доступен напрямую из объекта задачи
+
+### Кэширование проектов
+
+**Экономия:** 11% запросов
+
+**Изменения:**
+- Кэш для `jira.project()` на 1 час
+- Декоратор `@conditional_cache()`
+
+### Batch-запросы
+
+**Экономия:** 90% запросов при работе с UI
+
+**Изменения:**
 - Endpoint `/api/task-info-batch` — получение до 50 задач за один запрос
 
 ---
 
-## Оптимизация запросов к Jira API
-
-### 🔴 Проблема: множественные запросы при генерации отчёта
-
-**Анализ:** При генерации отчёта по 10 проектам с 500 задачами (из них 50 со статусом "Закрыт") делается:
-
-| Запрос | Количество | Всего |
-|--------|------------|-------|
-| `jira.projects()` | 1 | 1 |
-| `jira.project(proj_key)` | 10 | 10 |
-| `jira.search_issues()` | 2 на проект | 20 |
-| `jira.issue(key, expand='changelog')` | 1 на задачу с "Закрыт" | 50 |
-| **ИТОГО:** | | **~81 запрос** |
-
-**Причина:** В функции `validate_issue()` (core/jira_report.py:287) для каждой задачи со статусом "Закрыт" делается отдельный запрос для получения changelog:
-
-```python
-issue_with_changelog = jira.issue(issue.key, expand='changelog')
-```
-
----
-
-### ✅ Решение 1: Предзагрузка changelog в основном запросе
-
-**Сложность:** Низкая  
-**Время:** 15 минут  
-**Эффект:** -50 запросов (экономия 62%)
-
-**Изменения в core/jira_report.py:**
-
-```python
-# Было:
-issues_normal = jira.search_issues(jql_normal, maxResults=False,
-                                   fields='summary, assignee, timespent, ...')
-
-# Стало:
-issues_normal = jira.search_issues(jql_normal, maxResults=False,
-                                   fields='summary, assignee, timespent, ...',
-                                   expand='changelog')
-```
-
-**В функции `validate_issue()`:**
-
-```python
-# Было:
-if not is_correct_close and jira:
-    issue_with_changelog = jira.issue(issue.key, expand='changelog')
-    # ... проверка changelog
-
-# Стало:
-if not is_correct_close and hasattr(issue, 'changelog') and issue.changelog:
-    # ... проверка changelog из предзагруженного
-```
-
----
-
-### ⚡ Решение 2: Кэширование `jira.project()`
-
-**Сложность:** Низкая  
-**Время:** 10 минут  
-**Эффект:** -9 запросов (экономия 11%)
-
-**Изменения в web/app.py:**
-
-```python
-# Добавить кэширование для проектов
-if cache_init:
-    @cache.cached(timeout=3600)  # 1 час
-    def _get_project_cached(proj_key):
-        return jira.project(proj_key)
-    
-    proj = _get_project_cached(proj_key)
-else:
-    proj = jira.project(proj_key)
-```
-
----
-
-### 🚀 Решение 3: Batch-запросы для `/api/task-info`
-
-**Сложность:** Средняя  
-**Время:** 1 час  
-**Эффект:** -90% запросов при кликах в UI
-
-**Новый endpoint:**
-
-```python
-@app.route('/api/task-info-batch', methods=['POST'])
-def api_task_info_batch():
-    """Получить информацию о нескольких задачах за один запрос"""
-    data = request.json
-    task_keys = data.get('task_keys', [])[:50]  # Макс 50 за раз
-    
-    if not task_keys:
-        return jsonify({'error': 'task_keys required'}), 400
-    
-    jira = get_jira_connection()
-    jql = 'key IN (' + ','.join(task_keys) + ')'
-    issues = jira.search_issues(jql, fields='*all', expand='changelog')
-    
-    result = []
-    for issue in issues:
-        result.append({
-            'key': issue.key,
-            'summary': issue.fields.summary,
-            'status': issue.fields.status.name,
-            # ... другие поля
-        })
-    
-    return jsonify({'success': True, 'tasks': result})
-```
-
----
-
-### 📊 Итоговая экономия
+## 📊 Итоговая экономия запросов
 
 | Сценарий | До оптимизации | После | Экономия |
 |----------|----------------|-------|----------|
-| Отчёт (10 проектов, 500 задач, 50 "Закрыт") | ~81 запрос | ~20 запросов | **75%** |
+| Отчёт (10 проектов, 500 задач) | ~81 запрос | ~20 запросов | **75%** |
 | Клик по 10 задачам в UI | 10 запросов | 1 запрос | **90%** |
 
 ---
 
-## Архитектурные улучшения
-
-### 1. Выделение классов для основных сущностей
-
-**Проблема:** Вся логика находится в функциях, нет инкапсуляции.
-
-**Решение:** Создать классы:
-
-```python
-# core/models.py
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Optional, List
-
-@dataclass
-class JiraIssue:
-    key: str
-    id: str
-    summary: str
-    assignee: Optional[str]
-    status: str
-    timespent: Optional[int]
-    timeoriginalestimate: Optional[int]
-    resolutiondate: Optional[datetime]
-    created: datetime
-    issuetype: str
-    problems: List[str]
-
-@dataclass
-class ReportBlock:
-    name: str
-    description: str
-    data: Any
-    columns: List[str]
-
-@dataclass
-class ReportResult:
-    period: str
-    blocks: List[ReportBlock]
-    totals: Dict[str, Any]
-```
-
-**Преимущества:**
-- Типизация данных
-- Упрощение тестирования
-- Лучшая читаемость
-
----
-
-### 2. Разделение ответственности в jira_report.py
-
-**Проблема:** Функция `generate_report()` делает слишком много (800+ строк).
-
-**Решение:** Разбить на классы:
-
-```python
-# core/report_generator.py
-class ReportGenerator:
-    def __init__(self, jira_connection, config):
-        self.jira = jira_connection
-        self.config = config
-    
-    def generate(self, filters) -> ReportResult:
-        issues = self._fetch_issues(filters)
-        validated = self._validate_issues(issues)
-        return self._build_report(validated)
-
-# core/issue_fetcher.py
-class IssueFetcher:
-    def __init__(self, jira_connection):
-        self.jira = jira_connection
-    
-    def fetch_by_project(self, project_key, jql) -> List[JiraIssue]:
-        ...
-    
-    def fetch_all(self, jql) -> List[JiraIssue]:
-        ...
-
-# core/issue_validator.py
-class IssueValidator:
-    def __init__(self, config):
-        self.config = config
-    
-    def validate(self, issue: JiraIssue) -> List[str]:
-        problems = []
-        if not issue.resolutiondate:
-            problems.append('Нет даты решения')
-        if not issue.timespent:
-            problems.append('Нет фактического времени')
-        return problems
-```
-
----
-
-### 3. Использование SQLAlchemy для кэширования
-
-**Проблема:** При каждом запуске идёт запрос в Jira за всеми задачами.
-
-**Решение:** Добавить локальную БД (SQLite) для кэширования:
-
-```python
-# core/database.py
-from sqlalchemy import create_engine, Column, String, DateTime, Integer
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-
-Base = declarative_base()
-
-class CachedIssue(Base):
-    __tablename__ = 'issues'
-    id = Column(String, primary_key=True)
-    key = Column(String)
-    summary = Column(String)
-    # ... другие поля
-    cached_at = Column(DateTime)
-
-engine = create_engine('sqlite:///jira_cache.db')
-Session = sessionmaker(bind=engine)
-```
-
-**Преимущества:**
-- Ускорение повторных запусков
-- Возможность работать офлайн
-- История изменений
-
----
-
-## Улучшения кода core/jira_report.py
-
-### 4. Устранение дублирования кода
-
-**Проблема:** Нормализация фильтров повторяется:
-
-```python
-# Сейчас (строки ~400-410):
-if isinstance(project_keys, str):
-    project_keys = [project_keys.upper()]
-elif project_keys is None:
-    project_keys = []
-else:
-    project_keys = [p.upper() for p in project_keys]
-
-if isinstance(assignee_filter, str):
-    assignee_filter = [assignee_filter]
-elif assignee_filter is None:
-    assignee_filter = []
-```
-
-**Решение:** Создать utility-функцию:
-
-```python
-# core/utils.py
-def normalize_filter(value: Optional[Union[str, List[str]]]) -> List[str]:
-    """Нормализует фильтр: строка -> список, None -> пустой список"""
-    if value is None:
-        return []
-    if isinstance(value, str):
-        return [value.upper()]
-    return [v.upper() for v in value]
-
-# Использование:
-project_keys = normalize_filter(project_keys)
-assignee_filter = normalize_filter(assignee_filter)
-```
-
----
-
-### 5. Обработка ошибок валидации
-
-**Проблема:** Функция `validate_issue()` возвращает список проблем, но неясно, что делать с исключениями.
-
-**Решение:** Создать результат валидации:
-
-```python
-# core/validation.py
-from dataclasses import dataclass
-from typing import List, Optional
-
-@dataclass
-class ValidationResult:
-    is_valid: bool
-    problems: List[str]
-    warnings: List[str]
-    error: Optional[str] = None  # Если произошла ошибка валидации
-
-class IssueValidator:
-    def validate(self, issue: JiraIssue) -> ValidationResult:
-        try:
-            problems = []
-            warnings = []
-            
-            if not issue.resolutiondate:
-                problems.append('Нет даты решения')
-            if not issue.timespent:
-                problems.append('Нет фактического времени')
-            
-            return ValidationResult(
-                is_valid=len(problems) == 0,
-                problems=problems,
-                warnings=warnings
-            )
-        except Exception as e:
-            return ValidationResult(
-                is_valid=False,
-                problems=[],
-                warnings=[],
-                error=str(e)
-            )
-```
-
----
-
-### 6. Магические числа и строки
-
-**Проблема:** В коде много магических значений:
-
-```python
-# Строка ~770
-if days_inactive > 5 and issue.fields.status.name.lower() not in ['закрыт', 'closed', 'done']:
-```
-
-**Решение:** Вынести в константы:
-
-```python
-# core/constants.py
-CLOSED_STATUSES = ['закрыт', 'closed', 'done', 'закрыто']
-DEFAULT_INACTIVE_DAYS_THRESHOLD = 5
-MAX_REPORT_DAYS = 365
-DEFAULT_REPORT_DAYS = 30
-
-# Использование:
-if days_inactive > DEFAULT_INACTIVE_DAYS_THRESHOLD 
-    and issue.fields.status.name.lower() not in CLOSED_STATUSES:
-```
-
----
-
-### 7. Формирование JQL-запросов
-
-**Проблема:** JQL собирается конкатенацией строк:
-
-```python
-jql_normal = (f"project = {proj_key} "
-              f"AND resolved >= '{start_date_str}' "
-              f"AND resolved <= '{end_date_str}'"
-              f"{issue_type_filter}"
-              f"{assignee_filter_jql} "
-              f"ORDER BY resolved ASC")
-```
-
-**Решение:** Использовать builder:
-
-```python
-# core/jql_builder.py
-class JQLBuilder:
-    def __init__(self):
-        self.conditions = []
-        self.order_by = None
-    
-    def project(self, key: str) -> 'JQLBuilder':
-        self.conditions.append(f"project = {key}")
-        return self
-    
-    def resolved_between(self, start: str, end: str) -> 'JQLBuilder':
-        self.conditions.append(f"resolved >= '{start}' AND resolved <= '{end}'")
-        return self
-    
-    def assignee_in(self, assignees: List[str]) -> 'JQLBuilder':
-        if assignees:
-            self.conditions.append(f"assignee IN ({','.join(assignees)})")
-        return self
-    
-    def order_by(self, field: str, asc: bool = True) -> 'JQLBuilder':
-        self.order_by = f"ORDER BY {field} {'ASC' if asc else 'DESC'}"
-        return self
-    
-    def build(self) -> str:
-        jql = " AND ".join(self.conditions)
-        if self.order_by:
-            jql += f" {self.order_by}"
-        return jql
-
-# Использование:
-jql = (JQLBuilder()
-    .project(proj_key)
-    .resolved_between(start_date_str, end_date_str)
-    .assignee_in(assignee_filter)
-    .order_by('resolved', asc=True)
-    .build())
-```
-
----
-
-## Улучшения кода web/app.py
-
-### 8. Выделение API routes в blueprint
-
-**Проблема:** Все routes в одном файле.
-
-**Решение:** Использовать Flask Blueprints:
-
-```python
-# web/api/__init__.py
-from flask import Blueprint
-
-api_bp = Blueprint('api', __name__, url_prefix='/api')
-
-# web/api/projects.py
-from . import api_bp
-
-@api_bp.route('/projects')
-def api_projects():
-    ...
-
-# web/api/assignees.py
-from . import api_bp
-
-@api_bp.route('/assignees')
-def api_assignees():
-    ...
-
-# web/app.py
-from web.api import api_bp
-app.register_blueprint(api_bp)
-```
-
----
-
-### 9. Централизованная обработка ошибок
-
-**Проблема:** В каждом endpoint свой try/except.
-
-**Решение:** Использовать error handlers:
-
-```python
-# web/error_handlers.py
-from flask import jsonify
-from werkzeug.exceptions import HTTPException
-
-def register_error_handlers(app):
-    @app.errorhandler(HTTPException)
-    def handle_http_error(e):
-        return jsonify({
-            'success': False,
-            'error': e.description,
-            'code': e.code
-        }), e.code
-    
-    @app.errorhandler(Exception)
-    def handle_generic_error(e):
-        app.logger.error(f"Unhandled error: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Внутренняя ошибка сервера'
-        }), 500
-
-# web/app.py
-from web.error_handlers import register_error_handlers
-register_error_handlers(app)
-```
-
----
-
-### 10. Валидация запросов API
-
-**Проблема:** Параметры проверяются внутри каждой функции.
-
-**Решение:** Использовать декоратор валидации:
-
-```python
-# web/validators.py
-from functools import wraps
-from flask import request, jsonify
-
-def validate_report_request(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not request.is_json:
-            return jsonify({'error': 'Content-Type must be application/json'}), 400
-        
-        data = request.get_json()
-        errors = []
-        
-        days = data.get('days', 0)
-        if not isinstance(days, int) or days < 0 or days > 365:
-            errors.append('days должен быть от 0 до 365')
-        
-        if errors:
-            return jsonify({'success': False, 'errors': errors}), 400
-        
-        return f(*args, **kwargs)
-    return decorated
-
-# Использование:
-@app.route('/api/report', methods=['POST'])
-@validate_report_request
-def api_report():
-    ...
-```
-
----
-
-## Улучшения конфигурации
-
-### 11. Использование Pydantic для конфигурации
-
-**Проблема:** Конфигурация загружается из env без валидации.
-
-**Решение:** Использовать Pydantic:
-
-```python
-# core/config.py
-from pydantic import BaseSettings, HttpUrl, Field
-from typing import List
-
-class Settings(BaseSettings):
-    jira_server: HttpUrl = Field(..., env='JIRA_SERVER')
-    jira_user: str = Field(..., env='JIRA_USER')
-    jira_pass: str = Field(..., env='JIRA_PASS')
-    
-    excluded_projects: List[str] = Field(default_factory=list)
-    ssl_verify: bool = True
-    flask_env: str = 'development'
-    
-    class Config:
-        env_file = '.env'
-        case_sensitive = False
-
-settings = Settings()
-
-# Использование:
-from core.config import settings
-jira = JIRA(server=settings.jira_server, ...)
-```
-
-**Преимущества:**
-- Автоматическая валидация типов
-- Чёткая схема конфигурации
-- Лучшая документация
-
----
-
-### 12. Разделение секретов и настроек
-
-**Проблема:** Все настройки в одном `.env`.
-
-**Решение:** Разделить на `.env` (секреты) и `settings.yaml` (настройки):
-
-```yaml
-# settings.yaml
-projects:
-  excluded:
-    - TEST
-    - DEMO
-  
-report:
-  default_days: 30
-  max_days: 365
-  
-ui:
-  items_per_page: 50
-```
-
-```python
-# core/config.py
-import yaml
-
-class Config:
-    def __init__(self):
-        with open('settings.yaml') as f:
-            settings = yaml.safe_load(f)
-        
-        self.excluded_projects = settings['projects']['excluded']
-        self.default_days = settings['report']['default_days']
-        
-        # Секреты из env
-        self.jira_server = os.getenv('JIRA_SERVER')
-```
-
----
-
-## Тестирование
-
-### 13. Покрытие тестами
-
-**Текущее состояние:** Тестируются только utility-функции.
-
-**Цель:** Добавить тесты для:
-- `generate_report()` — интеграционные тесты с mock Jira
-- API endpoints — тесты с Flask test client
-- Валидации — параметризованные тесты
-
-```python
-# tests/test_api.py
-import pytest
-from web.app import app
-
-@pytest.fixture
-def client():
-    app.config['TESTING'] = True
-    with app.test_client() as client:
-        yield client
-
-def test_api_projects_success(client):
-    response = client.get('/api/projects')
-    assert response.status_code == 200
-    data = response.get_json()
-    assert data['success'] is True
-```
-
----
-
-### 14. Mock Jira для тестов
-
-**Проблема:** Тесты требуют подключения к реальной Jira.
-
-**Решение:** Создать фиктивную Jira:
-
-```python
-# tests/mocks.py
-from unittest.mock import Mock
-
-def create_mock_jira():
-    jira = Mock()
-    
-    # Mock проектов
-    project = Mock()
-    project.key = 'TEST'
-    project.name = 'Test Project'
-    jira.projects.return_value = [project]
-    
-    # Mock search_issues
-    issue = Mock()
-    issue.key = 'TEST-1'
-    issue.fields.status.name = 'Done'
-    issue.fields.timespent = 3600
-    jira.search_issues.return_value = [issue]
-    
-    return jira
-
-# tests/test_report.py
-def test_generate_report():
-    mock_jira = create_mock_jira()
-    with patch('core.jira_report.get_jira_connection', return_value=mock_jira):
-        report = generate_report()
-        assert report['total_tasks'] > 0
-```
-
----
-
-## 📊 Приоритеты внедрения
-
-| Приоритет | Задача | Сложность | Время | Экономия запросов | Статус |
-|-----------|--------|-----------|-------|-------------------|--------|
-| 🔴 Высокий | **Предзагрузка changelog (1.1)** | Низкая | 15 мин | **-62%** | ✅ **Выполнено** |
-| 🔴 Высокий | **Кэширование project() (1.2)** | Низкая | 10 мин | **-11%** | ✅ **Выполнено** |
-| 🔴 Высокий | Выделение классов (2-3) | Средняя | 4 часа | — | ⏳ Ожидает |
-| 🟡 Средний | **Batch-запросы (1.3)** | Средняя | 1 час | **-90% (UI)** | ✅ **Выполнено** |
-| 🟡 Средний | **Устранение дублирования (4)** | Низкая | 30 мин | — | ✅ **Выполнено** |
-| 🟡 Средний | **Магические числа (6)** | Низкая | 15 мин | — | ✅ **Выполнено** |
-| 🟡 Средний | JQL Builder (7) | Средняя | 1 час | — | ⏳ Ожидает |
-| 🟡 Средний | **Декоратор кэширования** | Низкая | 30 мин | — | ✅ **Выполнено** |
-| 🟡 Средний | Blueprint для API (8) | Низкая | 1 час | — | ⏳ Ожидает |
-| 🟢 Низкий | Pydantic config (11) | Средняя | 2 часа | — | ⏳ Ожидает |
-| 🟢 Низкий | Расширение тестов (13-14) | Высокая | 6 часов | — | ⏳ Ожидает |
-
----
-
-## 📝 Changelog предложений
-
-| Дата | Предложение | Статус |
-|------|-------------|--------|
-| 2026-03-07 | **Рефакторинг кода (P0-P2)** — BASE_DIR, константы, normalize_filter, кэширование | ✅ Выполнено |
-| 2026-03-06 | Batch-запросы для /api/task-info-batch | ✅ Выполнено |
-| 2026-03-06 | Кэширование jira.project() | ✅ Выполнено |
-| 2026-03-06 | Оптимизация запросов к Jira API | ✅ Выполнено |
-| 2026-03-05 | Начальный анализ | ✅ Создано |
+## 📝 Changelog
+
+| Дата | Версия | Изменения |
+|------|--------|-----------|
+| 2026-03-08 | **2.2.1** | **Безопасность**: санитизация JQL, тесты, документация SSL |
+| 2026-03-08 | **2.2.0** | **Production-ready**: Gunicorn, валидация JSON, ротация логов |
+| 2026-03-07 | **2.1.0** | **Рефакторинг**: константы, normalize_filter, кэширование |
+| 2026-02-01 | **2.0.0** | **Оптимизация**: changelog, batch-запросы, кэш проектов |
