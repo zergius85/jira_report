@@ -362,9 +362,23 @@ def save_closed_status_ids(status_ids: List[str]) -> None:
     with open(env_path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(env_content)
 
+# Импортируем функции проверки проблем из справочника
+from core.problems_dict import (
+    check_no_assignee,
+    check_no_time_spent,
+    check_no_resolution_date,
+    check_incorrect_status,
+    check_overdue,
+    check_late_creation,
+    check_inactive,
+    PROBLEM_TYPES,
+)
+
 def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: Optional[List[str]] = None) -> List[str]:
     """
     Проверяет задачу на корректность заполнения.
+    
+    Использует справочник проблем (core.problems_dict) для проверки.
 
     Args:
         issue: Объект задачи Jira
@@ -379,24 +393,43 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
     # Используем переданный список или глобальный
     status_ids = closed_status_ids if closed_status_ids else CLOSED_STATUS_IDS
 
-    # Проверка даты решения
-    if not issue.fields.resolutiondate:
-        problems.append('Нет даты решения')
+    # Проверка: нет исполнителя
+    if check_no_assignee(issue):
+        problems.append(PROBLEM_TYPES['NO_ASSIGNEE']['short_name'])
 
-    # Проверка фактического времени
-    if issue.fields.timespent is None or issue.fields.timespent == 0:
-        problems.append('Нет фактического времени')
+    # Проверка: нет фактического времени
+    if check_no_time_spent(issue):
+        problems.append(PROBLEM_TYPES['NO_TIME_SPENT']['short_name'])
 
-    # Проверка: дата создания больше duedate на 7+ дней (просрочка планирования)
+    # Проверка: нет даты решения
+    if check_no_resolution_date(issue):
+        problems.append(PROBLEM_TYPES['NO_RESOLUTION_DATE']['short_name'])
+
+    # Проверка: просрочка планирования (создана позже дедлайна)
     if issue.fields.created and issue.fields.duedate:
+        threshold = PROBLEM_TYPES['LATE_CREATION'].get('threshold_days', 7)
+        if check_late_creation(issue, threshold):
+            try:
+                created_date = datetime.strptime(issue.fields.created[:10], '%Y-%m-%d')
+                due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
+                days_diff = (created_date - due_date).days
+                problems.append(f"Создана на {days_diff} дн. позже дедлайна")
+            except Exception:
+                pass  # Если не удалось сравнить даты — не считаем проблемой
+
+    # Проверка: просрочена (дедлайн истёк)
+    if check_overdue(issue):
+        problems.append(PROBLEM_TYPES['OVERDUE']['short_name'])
+
+    # Проверка: не двигается (неактивна)
+    threshold_inactive = PROBLEM_TYPES['INACTIVE'].get('threshold_days', RISK_ZONE_INACTIVITY_THRESHOLD)
+    if check_inactive(issue, threshold_inactive):
         try:
-            created_date = datetime.strptime(issue.fields.created[:10], '%Y-%m-%d')
-            due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
-            days_diff = (created_date - due_date).days
-            if days_diff >= 7:
-                problems.append(f'Создана на {days_diff} дн. позже дедлайна')
+            updated = datetime.strptime(issue.fields.updated[:19], '%Y-%m-%dT%H:%M:%S')
+            days_inactive = (datetime.now() - updated).days
+            problems.append(f"Не двигается {days_inactive} дн.")
         except Exception:
-            pass  # Если не удалось сравнить даты — не считаем проблемой
+            pass
 
     # Проверка статуса "Закрыт" по ID
     if issue.fields.status:
@@ -453,7 +486,7 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
 
             # Если статус "Закрыт" и не корректно закрыт — это проблема
             if not is_correct_close:
-                problems.append(f"Статус '{status_name}' (ID: {status_id})")
+                problems.append(PROBLEM_TYPES['INCORRECT_STATUS']['short_name'])
 
     return problems
 
