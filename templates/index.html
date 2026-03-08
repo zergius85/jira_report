@@ -815,6 +815,7 @@
     <div class="container">
         <h1>
             📊 Jira Report Generator
+            <span id="app_version_badge" style="font-size: 0.4em; padding: 3px 8px; border-radius: 8px; background: #3498db; color: white; margin-left: 15px; font-weight: 600;">v2.5.0</span>
             <span id="report_period_display" style="font-size: 0.5em; color: #666; font-weight: normal; margin-left: 10px;"></span>
             <span id="app_mode_badge" style="font-size: 0.4em; padding: 3px 10px; border-radius: 12px; margin-left: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"></span>
         </h1>
@@ -1103,7 +1104,17 @@
 
             <!-- Проблемы -->
             <div id="tab-issues" class="tab-content">
-                <h2 class="section-title">Проблемные задачи <span class="badge warning" id="issues_count">0</span></h2>
+                <h2 class="section-title">
+                    <span>Проблемные задачи <span class="badge warning" id="issues_count">0</span></span>
+                    <span style="font-size: 0.7em; font-weight: normal; margin-left: 15px;">
+                        🔍 Фильтр:
+                        <label style="margin-left: 10px;"><input type="checkbox" onchange="filterIssuesTable('Без исполнителя')" style="margin-right: 4px;"> Без исполнителя</label>
+                        <label style="margin-left: 10px;"><input type="checkbox" onchange="filterIssuesTable('Просрочена')" style="margin-right: 4px;"> Просрочена</label>
+                        <label style="margin-left: 10px;"><input type="checkbox" onchange="filterIssuesTable('Нет фактического')" style="margin-right: 4px;"> Нет факта</label>
+                        <label style="margin-left: 10px;"><input type="checkbox" onchange="filterIssuesTable('Статус')" style="margin-right: 4px;"> Статус</label>
+                        <button onclick="resetIssuesFilter()" style="margin-left: 10px; padding: 4px 10px; font-size: 12px;">✖ Сброс</button>
+                    </span>
+                </h2>
                 <div class="table-container">
                     <table id="issues_table"><thead></thead><tbody></tbody></table>
                 </div>
@@ -2064,6 +2075,7 @@
             return null;
         }
 
+        // Рендер таблицы с улучшенным форматированием
         function renderTable(name, data) {
             const table = document.getElementById(`${name}_table`);
             if (!table || !data || data.length === 0) return;
@@ -2087,9 +2099,34 @@
             }
 
             thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('${name}', '${col}')">${col}</th>`).join('') + '</tr>';
-            tbody.innerHTML = data.map(row =>
-                '<tr>' + columns.map(col => `<td>${formatCell(row[col], col, row)}</td>`).join('') + '</tr>'
-            ).join('');
+            
+            // Рендер строк с цветовым форматированием
+            tbody.innerHTML = data.map((row, index) => {
+                const isNegative = row['Отклонение'] !== undefined && row['Отклонение'] < 0;
+                const isLargeNegative = row['Отклонение'] !== undefined && row['Отклонение'] < -10;
+                
+                return '<tr>' + columns.map(col => {
+                    let cellValue = formatCell(row[col], col, row);
+                    
+                    // Подсветка отклонений
+                    if (col === 'Отклонение' && row[col] !== undefined) {
+                        const val = parseFloat(row[col]);
+                        if (val < 0) {
+                            const severity = val < -10 ? 'color: #e74c3c; font-weight: 600;' : 'color: #e67e22;';
+                            cellValue = `<span style="${severity}">${cellValue}</span>`;
+                        } else if (val > 0) {
+                            cellValue = `<span style="color: #27ae60;">${cellValue}</span>`;
+                        }
+                    }
+                    
+                    // Подсветка "С ошибками"
+                    if (col === 'С ошибками' && row[col] > 0) {
+                        cellValue = `<span style="color: #e74c3c; font-weight: 600;">${cellValue}</span>`;
+                    }
+                    
+                    return `<td>${cellValue}</td>`;
+                }).join('') + '</tr>';
+            }).join('');
         }
         
         // Рендер таблицы проблемных задач с развёрнутыми проблемами
@@ -2103,7 +2140,7 @@
             // Фиксированные колонки
             const columns = ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы'];
             
-            thead.innerHTML = '<tr>' + columns.map(col => `<th>${col}</th>`).join('') + '</tr>';
+            thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('issues', '${col}')">${col}</th>`).join('') + '</tr>';
             
             tbody.innerHTML = data.map(row => {
                 const problems = row['Проблемы'] || row.problems || '';
@@ -2116,7 +2153,7 @@
                         if (problemList.length === 0) {
                             return '<td>-</td>';
                         }
-                        return `<td>${problemList.map(p => `<span class="problem-badge" title="${p.trim()}">${p.trim()}</span>`).join('')}</td>`;
+                        return `<td style="display: flex; flex-direction: column; gap: 4px;">${problemList.map(p => `<span class="problem-badge" title="${p.trim()}">${p.trim()}</span>`).join('')}</td>`;
                     }
                     if (col === 'Автор') {
                         // Проверяем автора
@@ -2195,6 +2232,66 @@
             rows.forEach(row => tbody.appendChild(row));
         }
 
+        // ========== Фильтрация проблемных задач ==========
+        let issuesFilter = null;
+        let originalIssuesData = null;
+        
+        function filterIssuesTable(filterText) {
+            const table = document.getElementById('issues_table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            // Сохраняем оригинальные данные если ещё не сохранены
+            if (!originalIssuesData) {
+                originalIssuesData = lastReportData?.issues || [];
+            }
+            
+            const checkbox = event.target;
+            
+            if (checkbox.checked) {
+                issuesFilter = filterText;
+                // Снимаем остальные чекбоксы
+                document.querySelectorAll('#tab-issues input[type="checkbox"]').forEach(cb => {
+                    if (cb !== checkbox) cb.checked = false;
+                });
+            } else {
+                issuesFilter = null;
+            }
+            
+            // Фильтруем строки
+            rows.forEach((row, index) => {
+                const problemsCell = row.children[7]; // Колонка "Проблемы"
+                const problemsText = problemsCell.textContent.toLowerCase();
+                
+                if (!issuesFilter || problemsText.includes(issuesFilter.toLowerCase())) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            console.log(`🔍 Фильтр проблем: ${issuesFilter || 'все'}`);
+        }
+        
+        function resetIssuesFilter() {
+            issuesFilter = null;
+            originalIssuesData = null;
+            
+            // Сбрасываем чекбоксы
+            document.querySelectorAll('#tab-issues input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+            
+            // Показываем все строки
+            const table = document.getElementById('issues_table');
+            const tbody = table.querySelector('tbody');
+            Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+                row.style.display = '';
+            });
+            
+            console.log('🔍 Фильтр проблем: сброшен');
+        }
+        
         // ========== Графики ==========
         function renderCharts(data) {
             // Динамика по duedate (плановая дата исполнения)
