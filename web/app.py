@@ -29,6 +29,23 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Путь к шаблонам теперь на уровень выше (templates в корне проекта)
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, '..', 'templates'))
 
+# Регистрируем Telegram blueprint
+try:
+    from web.telegram_routes import telegram_bp
+    app.register_blueprint(telegram_bp, url_prefix='/telegram')
+    logger.info("✅ Telegram routes зарегистрированы")
+except Exception as e:
+    logger.warning(f"⚠️  Telegram routes не зарегистрированы: {e}")
+
+# Инициализируем планировщик задач
+try:
+    from core.scheduler import init_scheduler
+    with app.app_context():
+        init_scheduler()
+    logger.info("✅ Планировщик задач инициализирован")
+except Exception as e:
+    logger.warning(f"⚠️  Планировщик задач не инициализирован: {e}")
+
 # Кэширование для API endpoints (только для production!)
 # В dev-режиме кэш отключен для быстрой отладки
 if IS_PRODUCTION:
@@ -674,6 +691,558 @@ def api_download_csv():
     except Exception as e:
         logger.error(f"Ошибка экспорта CSV: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+# =============================================
+# НОВЫЕ API ENDPOINTS (Dashboard 2.0)
+# =============================================
+
+@app.route('/api/reports/history')
+@conditional_cache(timeout=60)
+def api_reports_history():
+    """Получить историю отчётов."""
+    from core.report_service import get_reports_list, initialize_database
+    
+    # Инициализируем БД если нужно
+    initialize_database()
+    
+    limit = request.args.get('limit', 50, type=int)
+    offset = request.args.get('offset', 0, type=int)
+    report_type = request.args.get('type', None)
+    project_key = request.args.get('project', None)
+    
+    reports = get_reports_list(
+        limit=limit,
+        offset=offset,
+        report_type=report_type,
+        project_key=project_key,
+    )
+    
+    return jsonify({
+        'success': True,
+        'reports': [r.to_dict() for r in reports],
+        'count': len(reports),
+    })
+
+
+@app.route('/api/reports/<int:report_id>')
+def api_report_by_id(report_id):
+    """Получить отчёт по ID."""
+    from core.report_service import get_report_by_id, get_comments
+    
+    report = get_report_by_id(report_id)
+    if not report:
+        return jsonify({'success': False, 'error': 'Отчёт не найден'}), 404
+    
+    return jsonify({
+        'success': True,
+        'report': report.to_dict(),
+        'comments': [c.to_dict() for c in get_comments(report_id)],
+    })
+
+
+@app.route('/api/reports/compare')
+def api_reports_compare():
+    """Сравнить два отчёта."""
+    from core.report_service import compare_reports
+    
+    report1_id = request.args.get('report1', type=int)
+    report2_id = request.args.get('report2', type=int)
+    
+    if not report1_id or not report2_id:
+        return jsonify({'success': False, 'error': 'report1 и report2 обязательны'}), 400
+    
+    comparison = compare_reports(report1_id, report2_id)
+    if not comparison:
+        return jsonify({'success': False, 'error': 'Отчёты не найдены'}), 404
+    
+    return jsonify({'success': True, 'comparison': comparison})
+
+
+@app.route('/api/reports/<int:report_id>/comment', methods=['POST'])
+@validate_json_request
+def api_add_comment(report_id):
+    """Добавить комментарий к отчёту."""
+    from core.report_service import add_comment
+    
+    data = request.get_json()
+    text = data.get('text', '').strip()
+    is_pinned = data.get('is_pinned', False)
+    
+    if not text:
+        return jsonify({'success': False, 'error': 'Текст комментария обязателен'}), 400
+    
+    comment = add_comment(
+        report_id=report_id,
+        text=text,
+        created_by='user',
+        is_pinned=is_pinned,
+    )
+    
+    if comment:
+        return jsonify({'success': True, 'comment': comment.to_dict()})
+    else:
+        return jsonify({'success': False, 'error': 'Ошибка добавления комментария'}), 500
+
+
+@app.route('/api/reports/<int:report_id>/comment/<int:comment_id>', methods=['DELETE'])
+def api_delete_comment(report_id, comment_id):
+    """Удалить комментарий."""
+    from core.report_service import delete_comment
+    
+    if delete_comment(comment_id):
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'error': 'Комментарий не найден'}), 404
+
+
+@app.route('/api/scheduled-reports', methods=['GET'])
+def api_scheduled_reports_list():
+    """Список расписаний отчётов."""
+    from core.report_service import get_active_scheduled_reports
+    from core.models import get_session, ScheduledReport
+    
+    session = get_session()
+    try:
+        reports = session.query(ScheduledReport).all()
+        return jsonify({
+            'success': True,
+            'reports': [r.to_dict() for r in reports],
+        })
+    finally:
+        session.close()
+
+
+@app.route('/api/scheduled-reports', methods=['POST'])
+@validate_json_request
+def api_create_scheduled_report():
+    """Создать расписание отчёта."""
+    from core.report_service import create_scheduled_report
+    from core.scheduler import add_scheduled_job
+    
+    data = request.get_json()
+    
+    scheduled = create_scheduled_report(
+        name=data.get('name', 'Без названия'),
+        schedule_type=data.get('schedule_type', 'weekly'),
+        schedule_day=data.get('schedule_day'),
+        schedule_hour=data.get('schedule_hour', 9),
+        projects=data.get('projects', []),
+        assignees=data.get('assignees', []),
+        issue_types=data.get('issue_types', []),
+        blocks=data.get('blocks', []),
+        days=data.get('days', 30),
+        email_recipients=data.get('email_recipients', []),
+        telegram_chats=data.get('telegram_chats', []),
+        send_excel=data.get('send_excel', True),
+        send_pdf=data.get('send_pdf', False),
+    )
+    
+    if scheduled:
+        # Добавляем в планировщик
+        add_scheduled_job(scheduled.id)
+        return jsonify({'success': True, 'report': scheduled.to_dict()})
+    else:
+        return jsonify({'success': False, 'error': 'Ошибка создания расписания'}), 500
+
+
+@app.route('/api/scheduled-reports/<int:report_id>/toggle', methods=['POST'])
+def api_toggle_scheduled_report(report_id):
+    """Переключить статус расписания."""
+    from core.report_service import toggle_scheduled_report
+    from core.scheduler import remove_scheduled_job, add_scheduled_job
+    
+    new_status = toggle_scheduled_report(report_id)
+    if new_status is None:
+        return jsonify({'success': False, 'error': 'Расписание не найдено'}), 404
+    
+    # Обновляем планировщик
+    if new_status:
+        add_scheduled_job(report_id)
+    else:
+        remove_scheduled_job(report_id)
+    
+    return jsonify({'success': True, 'is_active': new_status})
+
+
+@app.route('/api/scheduled-reports/<int:report_id>', methods=['DELETE'])
+def api_delete_scheduled_report(report_id):
+    """Удалить расписание."""
+    from core.models import get_session, ScheduledReport
+    from core.scheduler import remove_scheduled_job
+    
+    session = get_session()
+    try:
+        report = session.query(ScheduledReport).filter(
+            ScheduledReport.id == report_id
+        ).first()
+        if report:
+            session.delete(report)
+            session.commit()
+            remove_scheduled_job(report_id)
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False, 'error': 'Расписание не найдено'}), 404
+    except Exception as e:
+        session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route('/api/telegram/subscribe', methods=['POST'])
+@validate_json_request
+def api_telegram_subscribe():
+    """Подписаться на Telegram уведомления."""
+    from core.report_service import subscribe_telegram
+    from core.telegram_bot import send_welcome_message
+    import asyncio
+    
+    data = request.get_json()
+    chat_id = data.get('chat_id', '').strip()
+    username = data.get('username', '').strip()
+    
+    if not chat_id:
+        return jsonify({'success': False, 'error': 'chat_id обязателен'}), 400
+    
+    subscription = subscribe_telegram(
+        chat_id=chat_id,
+        username=username,
+        notify_risk_zone=data.get('notify_risk_zone', True),
+        notify_scheduled=data.get('notify_scheduled', True),
+        threshold_days=data.get('threshold_days', 7),
+    )
+    
+    if subscription:
+        # Отправляем приветственное сообщение
+        try:
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(send_welcome_message(chat_id, username))
+        except Exception as e:
+            logger.warning(f"Не удалось отправить welcome сообщение: {e}")
+        
+        return jsonify({'success': True, 'subscription': subscription.to_dict()})
+    else:
+        return jsonify({'success': False, 'error': 'Ошибка подписки'}), 500
+
+
+@app.route('/api/telegram/unsubscribe', methods=['POST'])
+@validate_json_request
+def api_telegram_unsubscribe():
+    """Отписаться от Telegram уведомлений."""
+    from core.report_service import unsubscribe_telegram
+    
+    data = request.get_json()
+    chat_id = data.get('chat_id', '').strip()
+    
+    if not chat_id:
+        return jsonify({'success': False, 'error': 'chat_id обязателен'}), 400
+    
+    if unsubscribe_telegram(chat_id):
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'error': 'Подписка не найдена'}), 404
+
+
+@app.route('/api/reports/<int:report_id>/download/pdf')
+def api_download_pdf(report_id):
+    """Скачать PDF отчёт."""
+    from core.report_service import get_report_by_id
+    from core.jira_report import generate_report
+    from core.pdf_export import generate_pdf_report
+    
+    report = get_report_by_id(report_id)
+    if not report:
+        return jsonify({'success': False, 'error': 'Отчёт не найден'}), 404
+    
+    # Если PDF уже сохранён
+    if report.pdf_path and os.path.exists(report.pdf_path):
+        return send_file(
+            report.pdf_path,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"report_{report_id}.pdf",
+        )
+    
+    # Генерируем новый PDF
+    report_data = generate_report(
+        project_keys=report.projects,
+        assignees=report.assignees,
+        issue_types=report.issue_types,
+        blocks=None,  # Все блоки
+        days=0,
+        start_date=report.start_date,
+        end_date=report.end_date,
+    )
+    
+    pdf_bytes = generate_pdf_report(report_data)
+    if not pdf_bytes:
+        return jsonify({'success': False, 'error': 'Ошибка генерации PDF'}), 500
+    
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f"report_{report_id}.pdf",
+    )
+
+
+@app.route('/api/reports/<int:report_id>/download/excel')
+def api_download_excel(report_id):
+    """Скачать Excel отчёт."""
+    from core.report_service import get_report_by_id
+    from core.jira_report import generate_report, generate_excel
+    
+    report = get_report_by_id(report_id)
+    if not report:
+        return jsonify({'success': False, 'error': 'Отчёт не найден'}), 404
+    
+    # Если Excel уже сохранён
+    if report.excel_path and os.path.exists(report.excel_path):
+        return send_file(
+            report.excel_path,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f"report_{report_id}.xlsx",
+        )
+    
+    # Генерируем новый Excel
+    report_data = generate_report(
+        project_keys=report.projects,
+        assignees=report.assignees,
+        issue_types=report.issue_types,
+        blocks=None,
+        days=0,
+        start_date=report.start_date,
+        end_date=report.end_date,
+    )
+    
+    output = io.BytesIO()
+    generate_excel(report_data, output)
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f"report_{report_id}.xlsx",
+    )
+
+
+@app.route('/api/scheduler/status')
+def api_scheduler_status():
+    """Статус планировщика задач."""
+    from core.scheduler import get_scheduler_status, initialize_database
+    
+    initialize_database()
+    
+    status = get_scheduler_status()
+    return jsonify({'success': True, **status})
+
+
+@app.route('/api/metrics/velocity')
+@conditional_cache(timeout=300)
+def api_velocity_metrics():
+    """Метрики Sprint Velocity."""
+    from core.jira_report import generate_report
+    
+    # Получаем данные за последние 30 дней
+    report = generate_report(days=30, blocks=['detail'])
+    
+    if 'detail' not in report or not report['detail']:
+        return jsonify({'success': True, 'velocity': [], 'avg_velocity': 0})
+    
+    # Группируем по неделям
+    detail = report['detail']
+    detail['resolution_date'] = pd.to_datetime(detail['Дата решения'])
+    detail['week'] = detail['resolution_date'].dt.to_period('W').apply(lambda r: r.start_time)
+    
+    velocity = detail.groupby('week').size().reset_index(name='tasks')
+    velocity['week'] = velocity['week'].astype(str)
+    
+    avg_velocity = velocity['tasks'].mean() if len(velocity) > 0 else 0
+    
+    return jsonify({
+        'success': True,
+        'velocity': velocity.to_dict('records'),
+        'avg_velocity': round(avg_velocity, 2),
+    })
+
+
+@app.route('/api/metrics/burndown')
+@conditional_cache(timeout=300)
+def api_burndown_metrics():
+    """Метрики Burndown Chart."""
+    from core.jira_report import generate_report
+    from datetime import timedelta
+    
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+    
+    if not start_date or not end_date:
+        return jsonify({'success': False, 'error': 'start_date и end_date обязательны'}), 400
+    
+    report = generate_report(
+        start_date=start_date,
+        end_date=end_date,
+        blocks=['detail'],
+    )
+    
+    if 'detail' not in report or not report['detail']:
+        return jsonify({'success': True, 'burndown': []})
+    
+    detail = report['detail']
+    detail['created_date'] = pd.to_datetime(detail['Дата создания'])
+    detail['resolution_date'] = pd.to_datetime(detail['Дата решения'])
+    
+    # Строим burndown
+    start = pd.to_datetime(start_date)
+    end = pd.to_datetime(end_date)
+    total_tasks = len(detail)
+    
+    burndown = []
+    current = start
+    remaining = total_tasks
+    
+    while current <= end:
+        closed_by_date = len(detail[detail['resolution_date'] <= current])
+        remaining = total_tasks - closed_by_date
+        
+        burndown.append({
+            'date': current.strftime('%Y-%m-%d'),
+            'remaining': remaining,
+            'ideal': max(0, total_tasks * (1 - (current - start).days / (end - start).days)),
+        })
+        
+        current += timedelta(days=1)
+    
+    return jsonify({
+        'success': True,
+        'burndown': burndown,
+        'total_tasks': total_tasks,
+    })
+
+
+@app.route('/api/metrics/workload')
+@conditional_cache(timeout=300)
+def api_workload_metrics():
+    """Метрики Workload по исполнителям."""
+    from core.jira_report import generate_report
+    
+    report = generate_report(days=30, blocks=['assignees'])
+    
+    if 'assignees' not in report or not report['assignees']:
+        return jsonify({'success': True, 'workload': []})
+    
+    assignees = report['assignees']
+    
+    # Вычисляем перегруженность
+    avg_tasks = assignees['Задач'].mean() if len(assignees) > 0 else 0
+    
+    workload = assignees.to_dict('records')
+    for item in workload:
+        item['is_overloaded'] = item['Задач'] > avg_tasks * 1.5
+        item['workload_ratio'] = round(item['Задач'] / avg_tasks, 2) if avg_tasks > 0 else 0
+    
+    return jsonify({
+        'success': True,
+        'workload': workload,
+        'avg_tasks': round(avg_tasks, 2),
+    })
+
+
+@app.route('/api/metrics/kpi')
+@conditional_cache(timeout=300)
+def api_kpi_metrics():
+    """Custom KPI метрики: Cycle time, Lead time."""
+    from core.jira_report import generate_report
+    
+    report = generate_report(days=30, blocks=['detail'])
+    
+    if 'detail' not in report or not report['detail']:
+        return jsonify({'success': True, 'kpi': {}})
+    
+    detail = report['detail']
+    detail['created'] = pd.to_datetime(detail['Дата создания'])
+    detail['resolved'] = pd.to_datetime(detail['Дата решения'])
+    detail['due'] = pd.to_datetime(detail['Дата исполнения'])
+    
+    # Cycle time: от начала работы до завершения
+    # Lead time: от создания до завершения
+    detail['cycle_time'] = (detail['resolved'] - detail['created']).dt.days
+    detail['lead_time'] = (detail['resolved'] - detail['created']).dt.days
+    
+    kpi = {
+        'avg_cycle_time': round(detail['cycle_time'].mean(), 2),
+        'median_cycle_time': round(detail['cycle_time'].median(), 2),
+        'avg_lead_time': round(detail['lead_time'].mean(), 2),
+        'median_lead_time': round(detail['lead_time'].median(), 2),
+        'on_time_delivery': round(
+            (detail['resolved'] <= detail['due']).sum() / len(detail) * 100, 2
+        ) if len(detail) > 0 else 0,
+    }
+    
+    return jsonify({
+        'success': True,
+        'kpi': kpi,
+    })
+
+
+@app.route('/api/client-pdf', methods=['POST'])
+@validate_json_request
+def api_client_pdf():
+    """Сгенерировать PDF для клиента по конкретной задаче."""
+    from core.pdf_export import generate_client_pdf
+    from core.jira_report import generate_report
+    
+    data = request.get_json()
+    task_key = data.get('task_key', '')
+    
+    if not task_key:
+        return jsonify({'success': False, 'error': 'task_key обязателен'}), 400
+    
+    # Получаем данные задачи
+    jira = get_jira_connection()
+    try:
+        issue = jira.issue(task_key, fields='*all')
+        
+        task_data = {
+            'key': issue.key,
+            'summary': issue.fields.summary,
+            'spent': convert_seconds_to_hours(issue.fields.timespent),
+            'type': issue.fields.issuetype.name if issue.fields.issuetype else '',
+        }
+        
+        # Генерируем отчёт
+        report = generate_report(
+            project_keys=[issue.fields.project.key],
+            blocks=['detail'],
+            days=0,
+        )
+        
+        pdf_bytes = generate_client_pdf(report, task_key, task_data)
+        
+        if not pdf_bytes:
+            return jsonify({'success': False, 'error': 'Ошибка генерации PDF'}), 500
+        
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"{task_key}_report.pdf",
+        )
+    
+    except Exception as e:
+        logger.error(f"Ошибка генерации client PDF: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# Helper для client PDF
+def convert_seconds_to_hours(seconds):
+    if seconds is None:
+        return 0.0
+    return round(seconds / 3600, 2)
+
 
 if __name__ == '__main__':
     # Настройка ротации логов для production

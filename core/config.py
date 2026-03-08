@@ -109,8 +109,28 @@ LOG_FORMAT = '%(asctime)s — %(levelname)s — %(message)s'
 LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 # =============================================
+# TELEGRAM
+# =============================================
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+TELEGRAM_WEBHOOK_URL = os.getenv('TELEGRAM_WEBHOOK_URL')
+
+# =============================================
+# EMAIL (SMTP)
+# =============================================
+SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
+SMTP_USER = os.getenv('SMTP_USER')
+SMTP_PASS = os.getenv('SMTP_PASS')
+EMAIL_FROM = os.getenv('EMAIL_FROM', 'Jira Report <noreply@jira-report.local>')
+
+# =============================================
 # ПУТИ
 # =============================================
 CORE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.join(CORE_DIR, 'templates')
 TESTS_DIR = os.path.join(CORE_DIR, 'tests')
+REPORTS_DIR = os.path.join(CORE_DIR, '..', 'reports')  # Папка для сохранённых отчётов
+
+# Создаём директорию для отчётов если не существует
+if not os.path.exists(REPORTS_DIR):
+    os.makedirs(REPORTS_DIR, exist_ok=True)
