@@ -18,7 +18,19 @@ from core.jira_report import (
     get_column_order,
     validate_config,
     validate_issue,
-    EXCLUDED_ASSIGNEE_CLOSE
+    EXCLUDED_ASSIGNEE_CLOSE,
+    RISK_ZONE_INACTIVITY_THRESHOLD,
+)
+
+# Импортируем справочник проблем для тестов
+from core.problems_dict import (
+    PROBLEM_TYPES,
+    check_no_assignee,
+    check_no_time_spent,
+    check_no_resolution_date,
+    check_overdue,
+    check_late_creation,
+    check_inactive,
 )
 
 
@@ -158,7 +170,23 @@ class TestValidateConfig:
 class TestValidateIssue:
     """Тесты валидации задач"""
 
+    def test_no_assignee(self):
+        """Проверка: нет исполнителя"""
+        mock_issue = Mock()
+        mock_issue.fields.assignee = None
+        
+        assert check_no_assignee(mock_issue) == True
+        
+    def test_has_assignee(self):
+        """Проверка: есть исполнитель"""
+        mock_issue = Mock()
+        mock_issue.fields.assignee = Mock()
+        mock_issue.fields.assignee.name = 'ivanov'
+        
+        assert check_no_assignee(mock_issue) == False
+
     def test_no_resolution_date(self):
+        """Проверка: нет даты решения"""
         mock_issue = Mock()
         mock_issue.fields.resolutiondate = None
         mock_issue.fields.timespent = 3600
@@ -168,9 +196,10 @@ class TestValidateIssue:
         mock_issue.fields.assignee = None
 
         problems = validate_issue(mock_issue)
-        assert 'Нет даты решения' in problems
+        assert PROBLEM_TYPES['NO_RESOLUTION_DATE']['short_name'] in problems
 
     def test_no_time_spent(self):
+        """Проверка: нет фактического времени"""
         mock_issue = Mock()
         mock_issue.fields.resolutiondate = '2024-01-01'
         mock_issue.fields.timespent = None
@@ -180,9 +209,10 @@ class TestValidateIssue:
         mock_issue.fields.assignee = None
 
         problems = validate_issue(mock_issue)
-        assert 'Нет фактического времени' in problems
+        assert PROBLEM_TYPES['NO_TIME_SPENT']['short_name'] in problems
 
     def test_zero_time_spent(self):
+        """Проверка: фактическое время = 0"""
         mock_issue = Mock()
         mock_issue.fields.resolutiondate = '2024-01-01'
         mock_issue.fields.timespent = 0
@@ -192,7 +222,83 @@ class TestValidateIssue:
         mock_issue.fields.assignee = None
 
         problems = validate_issue(mock_issue)
-        assert 'Нет фактического времени' in problems
+        assert PROBLEM_TYPES['NO_TIME_SPENT']['short_name'] in problems
+
+    def test_check_no_time_spent_function(self):
+        """Тест функции check_no_time_spent"""
+        # None
+        mock_issue = Mock()
+        mock_issue.fields.timespent = None
+        assert check_no_time_spent(mock_issue) == True
+        
+        # 0
+        mock_issue.fields.timespent = 0
+        assert check_no_time_spent(mock_issue) == True
+        
+        # Есть время
+        mock_issue.fields.timespent = 3600
+        assert check_no_time_spent(mock_issue) == False
+
+    def test_check_no_resolution_date_function(self):
+        """Тест функции check_no_resolution_date"""
+        # None
+        mock_issue = Mock()
+        mock_issue.fields.resolutiondate = None
+        assert check_no_resolution_date(mock_issue) == True
+        
+        # Есть дата
+        mock_issue.fields.resolutiondate = '2024-01-01'
+        assert check_no_resolution_date(mock_issue) == False
+
+    def test_check_overdue(self):
+        """Тест функции check_overdue"""
+        # Дедлайн в прошлом, статус не закрыт
+        mock_issue = Mock()
+        mock_issue.fields.duedate = '2020-01-01'  # В прошлом
+        mock_issue.fields.status = Mock()
+        mock_issue.fields.status.name = 'In Progress'
+        assert check_overdue(mock_issue) == True
+        
+        # Дедлайн в прошлом, статус закрыт
+        mock_issue.fields.status.name = 'Closed'
+        assert check_overdue(mock_issue) == False
+        
+        # Нет дедлайна
+        mock_issue.fields.duedate = None
+        assert check_overdue(mock_issue) == False
+
+    def test_check_late_creation(self):
+        """Тест функции check_late_creation"""
+        # Создана на 10 дней позже дедлайна
+        mock_issue = Mock()
+        mock_issue.fields.created = '2024-01-15'
+        mock_issue.fields.duedate = '2024-01-05'
+        assert check_late_creation(mock_issue, threshold_days=7) == True
+        
+        # Создана на 5 дней позже дедлайна (меньше порога)
+        mock_issue.fields.created = '2024-01-10'
+        assert check_late_creation(mock_issue, threshold_days=7) == False
+        
+        # Создана до дедлайна
+        mock_issue.fields.created = '2024-01-01'
+        assert check_late_creation(mock_issue, threshold_days=7) == False
+
+    def test_check_inactive(self):
+        """Тест функции check_inactive"""
+        # Не обновлялась 10 дней, статус не закрыт
+        mock_issue = Mock()
+        mock_issue.fields.updated = '2024-01-01T10:00:00'
+        mock_issue.fields.status = Mock()
+        mock_issue.fields.status.name = 'In Progress'
+        
+        with patch('core.problems_dict.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2024, 1, 15)  # 14 дней прошло
+            mock_datetime.strptime = datetime.strptime
+            assert check_inactive(mock_issue, threshold_days=5) == True
+        
+        # Статус закрыт
+        mock_issue.fields.status.name = 'Closed'
+        assert check_inactive(mock_issue, threshold_days=5) == False
 
     def test_closed_status_without_changelog_is_problem(self):
         """Если статус 'Закрыт' и нет changelog (jira=None) — это проблема"""
@@ -209,7 +315,7 @@ class TestValidateIssue:
         with patch('core.jira_report.CLOSED_STATUS_IDS', ['10001']):
             # jira=None, changelog проверить нельзя
             problems = validate_issue(mock_issue, jira=None)
-            assert any('Статус' in p for p in problems)
+            assert any(PROBLEM_TYPES['INCORRECT_STATUS']['short_name'] in p for p in problems)
 
     def test_excluded_assignee_closed_status_ok(self):
         """Для исполнителя из EXCLUDED_ASSIGNEE_CLOSE статус 'Закрыт' — ОК"""
@@ -226,7 +332,7 @@ class TestValidateIssue:
         with patch('core.jira_report.CLOSED_STATUS_IDS', ['10001']):
             problems = validate_issue(mock_issue, jira=None)
             # Для holin статус "Закрыт" не должен быть проблемой
-            assert not any('Статус' in p for p in problems)
+            assert not any(PROBLEM_TYPES['INCORRECT_STATUS']['short_name'] in p for p in problems)
 
     def test_closed_by_jira_user_is_ok(self):
         """Если задача закрыта пользователем демона (JIRA_USER) — это ОК"""
@@ -249,7 +355,7 @@ class TestValidateIssue:
         mock_history_item.field = 'status'
         mock_history_item.toString = 'Закрыт'
         mock_history_item.to = '10001'
-        
+
         mock_author = Mock()
         mock_author.name = 'jira_user'  # Пользователь демона
         
@@ -549,12 +655,91 @@ class TestJQLBuilder:
     def test_reset(self):
         """Тест сброса"""
         from core.jql_builder import JQLBuilder
-        
+
         builder = JQLBuilder().project('WEB')
         builder.reset()
         jql = builder.build()
-        
+
         assert jql == ''
+
+
+class TestProblemsDict:
+    """Тесты справочника проблем"""
+
+    def test_problem_types_exists(self):
+        """Проверка: справочник не пуст"""
+        assert len(PROBLEM_TYPES) > 0
+        assert len(PROBLEM_TYPES) == 7  # 7 типов проблем
+
+    def test_problem_type_structure(self):
+        """Проверка: структура типа проблемы"""
+        for key, problem in PROBLEM_TYPES.items():
+            assert 'id' in problem
+            assert 'short_name' in problem
+            assert 'description' in problem
+            assert 'category' in problem
+            assert 'severity' in problem
+            assert 'check_function' in problem
+            assert 'filter_name' in problem
+            assert 'icon' in problem
+            assert 'color' in problem
+
+    def test_problem_categories(self):
+        """Проверка: категории проблем"""
+        from core.problems_dict import get_problem_categories
+        
+        categories = get_problem_categories()
+        assert 'assignee' in categories
+        assert 'time' in categories
+        assert 'status' in categories
+        assert 'deadline' in categories
+        assert 'activity' in categories
+
+    def test_get_problems_by_category(self):
+        """Проверка: фильтрация по категории"""
+        from core.problems_dict import get_problems_by_category
+        
+        deadline_problems = get_problems_by_category('deadline')
+        assert len(deadline_problems) == 2  # OVERDUE, LATE_CREATION
+        
+        assignee_problems = get_problems_by_category('assignee')
+        assert len(assignee_problems) == 1  # NO_ASSIGNEE
+
+    def test_get_problems_by_severity(self):
+        """Проверка: фильтрация по важности"""
+        from core.problems_dict import get_problems_by_severity
+        
+        high_severity = get_problems_by_severity('high')
+        assert len(high_severity) >= 3  # Как минимум 3 критичных
+        
+        medium_severity = get_problems_by_severity('medium')
+        assert len(medium_severity) >= 3  # Как минимум 3 средних
+
+    def test_get_filter_names(self):
+        """Проверка: получение имён фильтров"""
+        from core.problems_dict import get_filter_names
+        
+        filters = get_filter_names()
+        assert 'Без исполнителя' in filters
+        assert 'Просрочена' in filters
+        assert 'Нет фактического' in filters
+
+    def test_problem_colors(self):
+        """Проверка: цвета проблем"""
+        # Без исполнителя - красный
+        assert PROBLEM_TYPES['NO_ASSIGNEE']['color'] == '#e53935'
+        
+        # Просрочена - оранжевый
+        assert PROBLEM_TYPES['OVERDUE']['color'] == '#fb8c00'
+        
+        # Нет факта - синий
+        assert PROBLEM_TYPES['NO_TIME_SPENT']['color'] == '#1e88e5'
+
+    def test_problem_icons(self):
+        """Проверка: иконки проблем"""
+        assert PROBLEM_TYPES['NO_ASSIGNEE']['icon'] == '👤'
+        assert PROBLEM_TYPES['OVERDUE']['icon'] == '⏰'
+        assert PROBLEM_TYPES['NO_TIME_SPENT']['icon'] == '⏱️'
 
 
 if __name__ == '__main__':
