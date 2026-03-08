@@ -718,6 +718,42 @@
             color: white;
         }
         
+        /* Фильтр проблем (плашки) */
+        .issues-filter-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .issues-filter-chip {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid #ddd;
+            background: white;
+            color: #666;
+            user-select: none;
+        }
+        .issues-filter-chip:hover {
+            border-color: #3498db;
+            background: #f8f9fa;
+        }
+        .issues-filter-chip.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        .issues-filter-chip[data-filter="Без исполнителя"] { background: #ffebee; border-color: #ffcdd2; }
+        .issues-filter-chip[data-filter="Без исполнителя"].active { background: #e53935; }
+        .issues-filter-chip[data-filter="Просрочена"] { background: #fff3e0; border-color: #ffe0b2; }
+        .issues-filter-chip[data-filter="Просрочена"].active { background: #fb8c00; }
+        .issues-filter-chip[data-filter="Нет фактического"] { background: #e3f2fd; border-color: #bbdefb; }
+        .issues-filter-chip[data-filter="Нет фактического"].active { background: #1e88e5; }
+        .issues-filter-chip[data-filter="Статус"] { background: #f3e5f5; border-color: #e1bee7; }
+        .issues-filter-chip[data-filter="Статус"].active { background: #8e24aa; }
+        
         /* Мобильная адаптация */
         @media (max-width: 1200px) {
             .form-three-columns {
@@ -1073,6 +1109,10 @@
                         <div class="chart-card-title">🏷️ Типы задач</div>
                         <canvas id="chartTypes"></canvas>
                     </div>
+                    <div class="chart-card">
+                        <div class="chart-card-title">⚠️ Типы проблем</div>
+                        <canvas id="chartProblems"></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -1106,15 +1146,14 @@
             <div id="tab-issues" class="tab-content">
                 <h2 class="section-title">
                     <span>Проблемные задачи <span class="badge warning" id="issues_count">0</span></span>
-                    <span style="font-size: 0.7em; font-weight: normal; margin-left: 15px;">
-                        🔍 Фильтр:
-                        <label style="margin-left: 10px;"><input type="checkbox" onchange="filterIssuesTable('Без исполнителя')" style="margin-right: 4px;"> Без исполнителя</label>
-                        <label style="margin-left: 10px;"><input type="checkbox" onchange="filterIssuesTable('Просрочена')" style="margin-right: 4px;"> Просрочена</label>
-                        <label style="margin-left: 10px;"><input type="checkbox" onchange="filterIssuesTable('Нет фактического')" style="margin-right: 4px;"> Нет факта</label>
-                        <label style="margin-left: 10px;"><input type="checkbox" onchange="filterIssuesTable('Статус')" style="margin-right: 4px;"> Статус</label>
-                        <button onclick="resetIssuesFilter()" style="margin-left: 10px; padding: 4px 10px; font-size: 12px;">✖ Сброс</button>
-                    </span>
                 </h2>
+                <div class="issues-filter-container">
+                    <span class="issues-filter-chip" data-filter="Без исполнителя" onclick="toggleIssueFilter(this)">👤 Без исполнителя</span>
+                    <span class="issues-filter-chip" data-filter="Просрочена" onclick="toggleIssueFilter(this)">⏰ Просрочена</span>
+                    <span class="issues-filter-chip" data-filter="Нет фактического" onclick="toggleIssueFilter(this)">⏱️ Нет факта</span>
+                    <span class="issues-filter-chip" data-filter="Статус" onclick="toggleIssueFilter(this)">❌ Статус</span>
+                    <span class="issues-filter-chip" onclick="resetIssuesFilter()">✖ Сбросить всё</span>
+                </div>
                 <div class="table-container">
                     <table id="issues_table"><thead></thead><tbody></tbody></table>
                 </div>
@@ -1314,15 +1353,16 @@
                     presetName = 'Прошлая неделя';
                     // Прошлая неделя (Пн-Вс)
                     // getDay(): 0=Вс, 1=Пн, 2=Вт, ..., 6=Сб
-                    const prevSunday = new Date(today);
-                    prevSunday.setDate(today.getDate() - ((today.getDay() + 1) % 7) - 7);
-                    const lastMonday = new Date(prevSunday);
-                    lastMonday.setDate(prevSunday.getDate() + 1);
+                    // Сегодня 8 марта (Вс = 0), значит прошлая неделя: 24 фев (Пн) — 2 марта (Вс)
+                    const currentDay = today.getDay(); // 0 для воскресенья
+                    const daysToLastMonday = currentDay === 0 ? 14 : currentDay + 7; // Если Вс, то 14 дней назад до Пн
+                    const lastMonday = new Date(today);
+                    lastMonday.setDate(today.getDate() - daysToLastMonday);
                     const lastSunday = new Date(lastMonday);
                     lastSunday.setDate(lastMonday.getDate() + 6);
                     startDate = lastMonday;
                     endDate = lastSunday;
-                    console.log(`   Прошлая неделя: ${formatDate(startDate)} — ${formatDate(endDate)}`);
+                    console.log(`   Прошлая неделя: ${formatDate(startDate)} — ${formatDate(endDate)} (getDay=${currentDay})`);
                     break;
                     
                 case 'this_week':
@@ -2236,27 +2276,38 @@
         let issuesFilter = null;
         let originalIssuesData = null;
         
-        function filterIssuesTable(filterText) {
+        function toggleIssueFilter(chip) {
+            const filterText = chip.getAttribute('data-filter');
+            
+            // Если кликнули на "Сбросить всё"
+            if (!filterText) {
+                resetIssuesFilter();
+                return;
+            }
+            
+            // Снимаем активный класс с остальных
+            document.querySelectorAll('.issues-filter-chip').forEach(c => {
+                if (c !== chip) c.classList.remove('active');
+            });
+            
+            // Переключаем текущий
+            if (issuesFilter === filterText) {
+                // Уже активен - снимаем фильтр
+                issuesFilter = null;
+                chip.classList.remove('active');
+            } else {
+                // Активируем фильтр
+                issuesFilter = filterText;
+                chip.classList.add('active');
+            }
+            
+            applyIssuesFilter();
+        }
+        
+        function applyIssuesFilter() {
             const table = document.getElementById('issues_table');
             const tbody = table.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr'));
-            
-            // Сохраняем оригинальные данные если ещё не сохранены
-            if (!originalIssuesData) {
-                originalIssuesData = lastReportData?.issues || [];
-            }
-            
-            const checkbox = event.target;
-            
-            if (checkbox.checked) {
-                issuesFilter = filterText;
-                // Снимаем остальные чекбоксы
-                document.querySelectorAll('#tab-issues input[type="checkbox"]').forEach(cb => {
-                    if (cb !== checkbox) cb.checked = false;
-                });
-            } else {
-                issuesFilter = null;
-            }
             
             // Фильтруем строки
             rows.forEach((row, index) => {
@@ -2277,9 +2328,9 @@
             issuesFilter = null;
             originalIssuesData = null;
             
-            // Сбрасываем чекбоксы
-            document.querySelectorAll('#tab-issues input[type="checkbox"]').forEach(cb => {
-                cb.checked = false;
+            // Сбрасываем активные классы
+            document.querySelectorAll('.issues-filter-chip').forEach(chip => {
+                chip.classList.remove('active');
             });
             
             // Показываем все строки
@@ -2375,7 +2426,7 @@
                     const type = task['Тип'] || 'Unknown';
                     byType[type] = (byType[type] || 0) + 1;
                 });
-                
+
                 createChart('chartTypes', 'pie', {
                     labels: Object.keys(byType),
                     datasets: [{
@@ -2383,6 +2434,34 @@
                         backgroundColor: ['#3498db', '#27ae60', '#e74c3c', '#f39c12', '#9b59b6', '#95a5a6']
                     }]
                 }, 'Типы задач');
+            }
+            
+            // Типы проблем (круговая диаграмма)
+            if (data.issues && data.issues.length > 0) {
+                const byProblem = {};
+                data.issues.forEach(task => {
+                    const problems = task['Проблемы'] || '';
+                    const problemList = problems.split(/[,;]/).map(p => p.trim()).filter(p => p);
+                    problemList.forEach(problem => {
+                        // Упрощаем названия проблем для группировки
+                        let simplified = problem;
+                        if (problem.includes('Без исполнителя')) simplified = 'Без исполнителя';
+                        else if (problem.includes('Просрочена')) simplified = 'Просрочена';
+                        else if (problem.includes('фактического')) simplified = 'Нет факта';
+                        else if (problem.includes('Статус')) simplified = 'Некорректный статус';
+                        else if (problem.includes('даты решения')) simplified = 'Нет даты решения';
+                        
+                        byProblem[simplified] = (byProblem[simplified] || 0) + 1;
+                    });
+                });
+
+                createChart('chartProblems', 'doughnut', {
+                    labels: Object.keys(byProblem),
+                    datasets: [{
+                        data: Object.values(byProblem),
+                        backgroundColor: ['#e74c3c', '#f39c12', '#e67e22', '#9b59b6', '#3498db', '#95a5a6']
+                    }]
+                }, 'Типы проблем');
             }
         }
 
