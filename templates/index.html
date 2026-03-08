@@ -800,7 +800,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📊 Jira Report Generator</h1>
+        <h1>📊 Jira Report Generator <span id="report_period_display" style="font-size: 0.5em; color: #666; font-weight: normal; margin-left: 10px;"></span></h1>
 
         <!-- Форма -->
         <div class="card">
@@ -1197,49 +1197,97 @@
             loadPresetList();
         };
         
+        // ========== Обновление заголовка с периодом ==========
+        function updateReportPeriodDisplay(presetName) {
+            const startEl = document.getElementById('start_date');
+            const endEl = document.getElementById('end_date');
+            const displayEl = document.getElementById('report_period_display');
+            
+            if (!startEl || !endEl || !displayEl) return;
+            
+            const startDate = startEl.value;
+            const endDate = endEl.value;
+            
+            if (!startDate || !endDate) {
+                displayEl.textContent = '';
+                return;
+            }
+            
+            const startFormatted = formatDisplayDate(startDate);
+            const endFormatted = formatDisplayDate(endDate);
+            
+            let periodText = '';
+            if (presetName) {
+                periodText = `[${presetName}: ${startFormatted} — ${endFormatted}]`;
+            } else {
+                periodText = `[${startFormatted} — ${endFormatted}]`;
+            }
+            
+            displayEl.textContent = periodText;
+        }
+        
         // ========== Быстрые пресеты ==========
         function applyQuickPreset(preset) {
             const today = new Date();
             let startDate, endDate;
+            let presetName = '';
+            
+            console.log(`📅 Применение пресета: ${preset}`);
             
             switch(preset) {
                 case 'last_month':
+                    presetName = 'Прошлый месяц';
                     // 1-е число — последнее число прошлого месяца
                     const prevMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
                     const prevMonthYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
                     startDate = new Date(prevMonthYear, prevMonth, 1);
                     endDate = new Date(prevMonthYear, prevMonth + 1, 0);
+                    console.log(`   Прошлый месяц: ${formatDate(startDate)} — ${formatDate(endDate)}`);
                     break;
                     
                 case 'current_month':
+                    presetName = 'Текущий месяц';
                     // 1-е число — сегодня
                     startDate = new Date(today.getFullYear(), today.getMonth(), 1);
                     endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    console.log(`   Текущий месяц: ${formatDate(startDate)} — ${formatDate(endDate)}`);
                     break;
                     
                 case 'last_week':
+                    presetName = 'Прошлая неделя';
                     // Прошлая неделя (Пн-Вс)
-                    const dayOfWeek = today.getDay() || 7; // 1-7 (Вс=7)
-                    const lastMonday = new Date(today);
-                    lastMonday.setDate(today.getDate() - dayOfWeek - 6);
+                    // getDay(): 0=Вс, 1=Пн, 2=Вт, ..., 6=Сб
+                    const prevSunday = new Date(today);
+                    prevSunday.setDate(today.getDate() - ((today.getDay() + 1) % 7) - 7);
+                    const lastMonday = new Date(prevSunday);
+                    lastMonday.setDate(prevSunday.getDate() + 1);
                     const lastSunday = new Date(lastMonday);
                     lastSunday.setDate(lastMonday.getDate() + 6);
                     startDate = lastMonday;
                     endDate = lastSunday;
+                    console.log(`   Прошлая неделя: ${formatDate(startDate)} — ${formatDate(endDate)}`);
                     break;
                     
                 case 'this_week':
+                    presetName = 'Эта неделя';
                     // Эта неделя (Пн-сегодня)
+                    // getDay(): 0=Вс, 1=Пн, 2=Вт, ..., 6=Сб
+                    const currentDayOfWeek = today.getDay();
+                    const mondayOffset = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1; // Если Вс, то 6 дней назад
                     const thisMonday = new Date(today);
-                    thisMonday.setDate(today.getDate() - (dayOfWeek === 7 ? 0 : dayOfWeek - 1));
+                    thisMonday.setDate(today.getDate() - mondayOffset);
                     startDate = thisMonday;
                     endDate = new Date(today);
+                    console.log(`   Эта неделя: ${formatDate(startDate)} — ${formatDate(endDate)}`);
                     break;
             }
             
             document.getElementById('start_date').value = formatDate(startDate);
             document.getElementById('end_date').value = formatDate(endDate);
             document.getElementById('days').value = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+            
+            // Обновляем заголовок с периодом
+            updateReportPeriodDisplay(presetName);
             
             // Генерируем отчёт
             generateReport();
@@ -1870,6 +1918,9 @@
                 const previousData = await getPreviousPeriodData(params);
                 previousReportData = previousData;
 
+                // Обновляем заголовок с периодом (без пресета)
+                updateReportPeriodDisplay(null);
+
                 // Статистика
                 document.getElementById('stat_projects').textContent = data.totals.projects;
                 document.getElementById('stat_correct').textContent = data.totals.correct;
@@ -2010,12 +2061,21 @@
             
             tbody.innerHTML = data.map(row => {
                 const problems = row['Проблемы'] || row.problems || '';
+                // Разбиваем проблемы на список
                 const problemList = Array.isArray(problems) ? problems : (problems || '').split(/[,;]/).filter(p => p.trim());
                 
                 return '<tr>' + columns.map(col => {
                     if (col === 'Проблемы') {
-                        // Форматируем проблемы как список бейджей
+                        // Форматируем проблемы как список бейджей, каждый с новой строки
+                        if (problemList.length === 0) {
+                            return '<td>-</td>';
+                        }
                         return `<td>${problemList.map(p => `<span class="problem-badge" title="${p.trim()}">${p.trim()}</span>`).join('')}</td>`;
+                    }
+                    if (col === 'Автор') {
+                        // Проверяем автора
+                        const author = row['Автор'] || row.author || 'N/A';
+                        return `<td>${author}</td>`;
                     }
                     return `<td>${formatCell(row[col], col, row)}</td>`;
                 }).join('') + '</tr>';

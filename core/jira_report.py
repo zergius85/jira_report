@@ -763,15 +763,30 @@ def generate_report(
                 # Для проблемных задач берём СОЗДАТЕЛЯ задачи (creator)
                 author = 'N/A'
                 author_id = ''
-                if hasattr(issue.fields, 'creator') and issue.fields.creator:
-                    author = issue.fields.creator.displayName if hasattr(issue.fields.creator, 'displayName') else str(issue.fields.creator)
-                    author_id = issue.fields.creator.id if hasattr(issue.fields.creator, 'id') else ''
-                elif hasattr(issue.fields, 'author') and issue.fields.author:
-                    author = issue.fields.author.displayName if hasattr(issue.fields.author, 'displayName') else str(issue.fields.author)
-                    author_id = issue.fields.author.id if hasattr(issue.fields.author, 'id') else ''
-
+                
+                # Пробуем разные способы получения автора
+                try:
+                    # Способ 1: creator (стандартное поле)
+                    if hasattr(issue.fields, 'creator') and issue.fields.creator:
+                        creator = issue.fields.creator
+                        author = getattr(creator, 'displayName', None) or getattr(creator, 'name', None) or str(creator)
+                        author_id = getattr(creator, 'id', '')
+                    # Способ 2: reporter (альтернативное имя)
+                    elif hasattr(issue.fields, 'reporter') and issue.fields.reporter:
+                        reporter = issue.fields.reporter
+                        author = getattr(reporter, 'displayName', None) or getattr(reporter, 'name', None) or str(reporter)
+                        author_id = getattr(reporter, 'id', '')
+                    # Способ 3: author (ещё одно возможное поле)
+                    elif hasattr(issue.fields, 'author') and issue.fields.author:
+                        author_obj = issue.fields.author
+                        author = getattr(author_obj, 'displayName', None) or getattr(author_obj, 'name', None) or str(author_obj)
+                        author_id = getattr(author_obj, 'id', '')
+                except Exception as e:
+                    logger.warning(f"⚠️  Не удалось получить автора для {issue.key}: {e}")
+                
                 # Формируем имя автора с ID если нужно
                 author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
+                logger.debug(f"   Автор для {issue.key}: {author_display}")
 
                 issue_data = {
                     'URL': issue_url,
