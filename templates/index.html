@@ -872,6 +872,20 @@
                                 <option value="">Все типы</option>
                             </select>
                         </div>
+                        <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                            <div class="form-group">
+                                <label for="start_date">📅 Дата начала</label>
+                                <input type="date" id="start_date">
+                            </div>
+                            <div class="form-group">
+                                <label for="end_date">📅 Дата окончания</label>
+                                <input type="date" id="end_date">
+                            </div>
+                            <div class="form-group">
+                                <label for="days">Период (дней)</label>
+                                <input type="number" id="days" value="30" min="0" max="365">
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Средняя колонка - Блоки отчёта -->
@@ -1403,24 +1417,34 @@
 
         // ========== Даты ==========
         function setDefaultDates() {
+            const startEl = document.getElementById('start_date');
+            const endEl = document.getElementById('end_date');
+            const daysEl = document.getElementById('days');
+            
+            // Если элементов нет (например, в скрытой секции), пропускаем
+            if (!startEl || !endEl || !daysEl) {
+                console.warn('⚠️  Элементы дат не найдены, пропускаем инициализацию');
+                return;
+            }
+            
             const today = new Date();
             const year = today.getFullYear();
             const month = today.getMonth();
-            
+
             // 1 число прошлого месяца
             let prevMonthYear = month === 0 ? year - 1 : year;
             let prevMonth = month === 0 ? 11 : month - 1;
             const firstDayPrevMonth = new Date(prevMonthYear, prevMonth, 1);
-            
+
             // Последний день прошлого месяца
             const lastDayPrevMonth = new Date(prevMonthYear, prevMonth + 1, 0);
-            
+
             // Количество дней в прошлом месяце
             const daysInPrevMonth = lastDayPrevMonth.getDate();
-            
-            document.getElementById('start_date').value = formatDate(firstDayPrevMonth);
-            document.getElementById('end_date').value = formatDate(lastDayPrevMonth);
-            document.getElementById('days').value = daysInPrevMonth;
+
+            startEl.value = formatDate(firstDayPrevMonth);
+            endEl.value = formatDate(lastDayPrevMonth);
+            daysEl.value = daysInPrevMonth;
         }
 
         function formatDate(date) {
