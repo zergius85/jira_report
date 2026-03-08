@@ -438,5 +438,124 @@ class TestSearchAllIssues:
         mock_jira.search_issues.assert_called_once()
 
 
+class TestJQLBuilder:
+    """Тесты конструктора JQL-запросов"""
+
+    def test_project_single(self):
+        """Тест одного проекта"""
+        from core.jql_builder import JQLBuilder
+        
+        jql = JQLBuilder().project('WEB').build()
+        assert jql == 'project = WEB'
+
+    def test_projects_in(self):
+        """Тест нескольких проектов"""
+        from core.jql_builder import JQLBuilder
+        
+        jql = JQLBuilder().projects_in(['WEB', 'MOB']).build()
+        assert jql == 'project IN (WEB,MOB)'
+
+    def test_status_not_in(self):
+        """Тест исключения статусов"""
+        from core.jql_builder import JQLBuilder
+        
+        jql = JQLBuilder().status_not_in(['Closed', 'Done']).build()
+        assert "status NOT IN ('Closed', 'Done')" in jql
+
+    def test_duedate_between(self):
+        """Тест диапазона дат"""
+        from core.jql_builder import JQLBuilder
+        
+        jql = JQLBuilder().duedate_between('2024-01-01', '2024-12-31').build()
+        assert "duedate >= '2024-01-01' AND duedate <= '2024-12-31'" in jql
+
+    def test_assignee_in(self):
+        """Тест исполнителей"""
+        from core.jql_builder import JQLBuilder
+        
+        jql = JQLBuilder().assignee_in(['ivanov', 'petrov']).build()
+        assert 'assignee IN (ivanov,petrov)' in jql
+
+    def test_assignee_is_empty(self):
+        """Тест без исполнителя"""
+        from core.jql_builder import JQLBuilder
+        
+        jql = JQLBuilder().assignee_is_empty().build()
+        assert 'assignee is EMPTY' in jql
+
+    def test_updated_before(self):
+        """Тест неактивности"""
+        from core.jql_builder import JQLBuilder
+        
+        jql = JQLBuilder().updated_before(5).build()
+        assert 'updated < -5d' in jql
+
+    def test_order_by_asc(self):
+        """Тест сортировки по возрастанию"""
+        from core.jql_builder import JQLBuilder
+        
+        jql = JQLBuilder().order_by('duedate', asc=True).build()
+        assert 'ORDER BY duedate ASC' in jql
+
+    def test_order_by_desc(self):
+        """Тест сортировки по убыванию"""
+        from core.jql_builder import JQLBuilder
+        
+        jql = JQLBuilder().order_by('created', asc=False).build()
+        assert 'ORDER BY created DESC' in jql
+
+    def test_invalid_order_field(self):
+        """Тест недопустимого поля сортировки"""
+        from core.jql_builder import JQLBuilder
+        import pytest
+        
+        with pytest.raises(ValueError):
+            JQLBuilder().order_by('invalid_field').build()
+
+    def test_invalid_date_format(self):
+        """Тест неверного формата даты"""
+        from core.jql_builder import JQLBuilder
+        import pytest
+        
+        with pytest.raises(ValueError):
+            JQLBuilder().duedate_between('01-01-2024', '2024-12-31').build()
+
+    def test_invalid_identifier(self):
+        """Тест недопустимого идентификатора"""
+        from core.jql_builder import JQLBuilder
+        import pytest
+        
+        with pytest.raises(ValueError):
+            JQLBuilder().project("'; DROP TABLE--").build()
+
+    def test_chained_conditions(self):
+        """Тест цепочки условий"""
+        from core.jql_builder import JQLBuilder
+        
+        jql = (JQLBuilder()
+            .project('WEB')
+            .status_not_in(['Closed', 'Done'])
+            .duedate_between('2024-01-01', '2024-12-31')
+            .assignee_in(['ivanov'])
+            .order_by('duedate', asc=True)
+            .build())
+        
+        assert 'project = WEB' in jql
+        assert 'status NOT IN' in jql
+        assert 'duedate >= ' in jql
+        assert 'assignee IN' in jql
+        assert 'ORDER BY duedate ASC' in jql
+
+    def test_reset(self):
+        """Тест сброса"""
+        from core.jql_builder import JQLBuilder
+        
+        builder = JQLBuilder().project('WEB')
+        builder.reset()
+        jql = builder.build()
+        
+        assert jql == ''
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

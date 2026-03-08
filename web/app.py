@@ -461,6 +461,7 @@ def api_task_info_batch():
 
 @app.route('/api/report', methods=['POST'])
 @validate_json_request
+@conditional_cache(timeout=300)  # Кэш на 5 минут для production
 def api_report():
     try:
         data = request.get_json()
@@ -590,6 +591,88 @@ def api_download():
         )
 
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/download/csv', methods=['POST'])
+@validate_json_request
+def api_download_csv():
+    """
+    Скачать отчёт в формате CSV.
+    
+    Формирует ZIP-архив с CSV-файлами для каждого блока отчёта.
+    """
+    try:
+        from zipfile import ZipFile
+        
+        data = request.get_json()
+        # Поддержка множественного выбора
+        projects_raw = data.get('projects', []) or data.get('project', '').strip() or None
+        assignees_raw = data.get('assignees', []) or data.get('assignee', '').strip() or None
+        issue_types_raw = data.get('issue_types', []) or data.get('issue_type', '').strip() or None
+
+        # Нормализация фильтров
+        projects = normalize_filter(projects_raw, upper=True) if projects_raw else []
+        assignees = normalize_filter(assignees_raw) if assignees_raw else []
+        issue_types = normalize_filter(issue_types_raw) if issue_types_raw else []
+
+        start_date = data.get('start_date', '').strip() or None
+        end_date = data.get('end_date', '').strip() or None
+        days = int(data.get('days', 0) or 0)
+        blocks = data.get('blocks', None)
+        extra_verbose = data.get('extra_verbose', False)
+
+        report = generate_report(
+            project_keys=projects,
+            start_date=start_date,
+            end_date=end_date,
+            days=days,
+            assignee_filter=assignees,
+            issue_types=issue_types,
+            blocks=blocks,
+            verbose=False,
+            extra_verbose=extra_verbose
+        )
+
+        # Создаём ZIP-архив с CSV-файлами
+        zip_buffer = io.BytesIO()
+        with ZipFile(zip_buffer, 'w') as zip_file:
+            # Сводка по проектам
+            if 'summary' in report:
+                csv_buffer = io.StringIO()
+                report['summary'].to_csv(csv_buffer, index=False, sep=';')
+                zip_file.writestr('summary.csv', csv_buffer.getvalue().encode('utf-8'))
+            
+            # Нагрузка по исполнителям
+            if 'assignees' in report:
+                csv_buffer = io.StringIO()
+                report['assignees'].to_csv(csv_buffer, index=False, sep=';')
+                zip_file.writestr('assignees.csv', csv_buffer.getvalue().encode('utf-8'))
+            
+            # Детализация по задачам
+            if 'detail' in report:
+                csv_buffer = io.StringIO()
+                report['detail'].to_csv(csv_buffer, index=False, sep=';')
+                zip_file.writestr('detail.csv', csv_buffer.getvalue().encode('utf-8'))
+            
+            # Проблемные задачи
+            if 'issues' in report:
+                csv_buffer = io.StringIO()
+                report['issues'].to_csv(csv_buffer, index=False, sep=';')
+                zip_file.writestr('issues.csv', csv_buffer.getvalue().encode('utf-8'))
+
+        zip_buffer.seek(0)
+
+        filename = f"jira_report_{report['period'].replace(' — ', '_to_').replace(' ', '')}.zip"
+
+        return send_file(
+            zip_buffer,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка экспорта CSV: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
