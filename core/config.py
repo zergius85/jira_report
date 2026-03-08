@@ -16,6 +16,20 @@ load_dotenv(os.path.join(BASE_DIR, '.env.local'))
 load_dotenv(os.path.join(BASE_DIR, '.env'), override=False)
 
 # =============================================
+# ПРОВЕРКА ВЕРСИИ КОНФИГУРАЦИИ
+# =============================================
+REQUIRED_CONFIG_VERSION = '2.3'
+CONFIG_VERSION = os.getenv('CONFIG_VERSION', '1.0')
+
+if CONFIG_VERSION != REQUIRED_CONFIG_VERSION:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning(
+        f"⚠️  Версия конфигурации устарела: {CONFIG_VERSION} (требуется {REQUIRED_CONFIG_VERSION}). "
+        f"Скопируйте .env.example в .env и перенесите ваши настройки."
+    )
+
+# =============================================
 # РЕЖИМ РАБОТЫ (dev/prod)
 # =============================================
 FLASK_ENV = os.getenv('FLASK_ENV', 'development')

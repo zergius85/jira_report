@@ -320,8 +320,7 @@ def api_issue_types():
         result = [{'id': k, 'name': v} for k, v in sorted(issue_types.items(), key=lambda x: x[1])]
         return jsonify({'success': True, 'issue_types': result})
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Ошибка получения типов задач: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/task-info', methods=['POST'])
@@ -367,8 +366,7 @@ def api_task_info():
 
         return jsonify({'success': True, 'task_info': task_info})
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Ошибка получения информации о задаче {task_key}: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -542,8 +540,7 @@ def api_report():
         return jsonify(response)
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Ошибка генерации отчёта: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/download', methods=['POST'])

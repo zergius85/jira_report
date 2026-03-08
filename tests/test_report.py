@@ -392,5 +392,51 @@ class TestSanitizeJqlStringLiteral:
         assert sanitize_jql_string_literal('') == ''
 
 
+class TestSearchAllIssues:
+    """Тесты пагинации запросов к Jira API"""
+
+    def test_single_batch(self):
+        """Тест получения одной страницы результатов"""
+        from core.jira_report import search_all_issues
+        from unittest.mock import Mock
+
+        mock_jira = Mock()
+        mock_batch = [Mock(), Mock(), Mock()]
+        mock_jira.search_issues.return_value = mock_batch
+
+        result = search_all_issues(mock_jira, 'project = TEST', batch_size=100)
+
+        assert len(result) == 3
+        mock_jira.search_issues.assert_called_once()
+
+    def test_multiple_batches(self):
+        """Тест получения нескольких страниц результатов"""
+        from core.jira_report import search_all_issues
+        from unittest.mock import Mock
+
+        mock_jira = Mock()
+        batch1 = [Mock() for _ in range(100)]  # Полная страница
+        batch2 = [Mock() for _ in range(50)]   # Неполная страница
+        mock_jira.search_issues.side_effect = [batch1, batch2]
+
+        result = search_all_issues(mock_jira, 'project = TEST', batch_size=100)
+
+        assert len(result) == 150
+        assert mock_jira.search_issues.call_count == 2
+
+    def test_empty_result(self):
+        """Тест пустого результата"""
+        from core.jira_report import search_all_issues
+        from unittest.mock import Mock
+
+        mock_jira = Mock()
+        mock_jira.search_issues.return_value = []
+
+        result = search_all_issues(mock_jira, 'project = TEST')
+
+        assert len(result) == 0
+        mock_jira.search_issues.assert_called_once()
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

@@ -224,8 +224,63 @@ def sanitize_jql_string_literal(value: str) -> str:
     
     # Экранируем одиночные кавычки (заменяем ' на '')
     value = value.replace("'", "''")
-    
+
     return value
+
+
+def search_all_issues(
+    jira,
+    jql: str,
+    fields: str = '*all',
+    expand: str = None,
+    batch_size: int = 100
+) -> list:
+    """
+    Выполняет поиск задач с пагинацией для получения более 5000 результатов.
+    
+    Jira API ограничивает максимальное количество результатов до 5000 за запрос.
+    Эта функция разбивает запрос на батчи по batch_size задач.
+    
+    Args:
+        jira: Подключение к Jira
+        jql: JQL-запрос
+        fields: Поля для получения (по умолчанию '*all')
+        expand: Дополнительные данные (например, 'changelog')
+        batch_size: Размер батча (по умолчанию 100)
+        
+    Returns:
+        list: Список всех задач
+    """
+    all_issues = []
+    start_at = 0
+    
+    logger.info(f"Выполнение поиска с пагинацией: {jql[:100]}...")
+    
+    while True:
+        batch = jira.search_issues(
+            jql,
+            startAt=start_at,
+            maxResults=batch_size,
+            fields=fields,
+            expand=expand
+        )
+        
+        if not batch:
+            break
+            
+        all_issues.extend(batch)
+        logger.debug(f"Получено {len(batch)} задач (всего: {len(all_issues)})")
+        
+        # Если получили меньше, чем запросили — это последняя страница
+        if len(batch) < batch_size:
+            break
+            
+        start_at += batch_size
+    
+    logger.info(f"Поиск завершён. Всего получено задач: {len(all_issues)}")
+    return all_issues
+
+
 
 
 def get_closed_status_ids() -> List[str]:
@@ -626,16 +681,24 @@ def generate_report(
         # Получаем все задачи для проблемных (больший период)
         # Добавляем expand='changelog' для предзагрузки истории переходов (экономия запросов)
         # Добавляем поле 'updated' для Risk Zone
-        issues_all = jira.search_issues(jql_issues, maxResults=False,
-                                        fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, creator',
-                                        expand='changelog')
+        # Используем search_all_issues для поддержки >5000 задач
+        issues_all = search_all_issues(
+            jira,
+            jql_issues,
+            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, creator',
+            expand='changelog'
+        )
 
         # Получаем задачи для обычных отчётов (меньший период)
         # Добавляем expand='changelog' для предзагрузки истории переходов (экономия запросов)
         # Добавляем поле 'updated' для Risk Zone
-        issues_normal = jira.search_issues(jql_normal, maxResults=False,
-                                           fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated',
-                                           expand='changelog')
+        # Используем search_all_issues для поддержки >5000 задач
+        issues_normal = search_all_issues(
+            jira,
+            jql_normal,
+            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated',
+            expand='changelog'
+        )
         
         # Обработка для обычных отчётов
         proj_spent = 0.0
