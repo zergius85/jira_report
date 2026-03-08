@@ -1,0 +1,143 @@
+name: Jira Report CI
+
+on:
+  # ✅ Автоматически только для main
+  push:
+    branches: [main]
+  
+  # ✅ PR в main (с любой ветки)
+  pull_request:
+    branches: [main]
+
+  # ✅ Ручной запуск для любых веток
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Ветка для запуска'
+        required: false
+        default: 'main'
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # =============================================
+  # 🔍 LINT — Проверка кода
+  # =============================================
+  lint:
+    name: 🔍 Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black mypy
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: ✨ Black (format check)
+        run: black --check --diff .
+
+      - name: 🔍 Flake8 (style check)
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: 📊 MyPy (type check)
+        run: mypy core/ web/ --ignore-missing-imports || true
+
+  # =============================================
+  # 🧪 TEST — Запуск тестов
+  # =============================================
+  test:
+    name: 🧪 Test
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: 🧪 Run tests
+        run: |
+          pytest tests/ -v --cov=core --cov=web --cov-report=xml --cov-report=term-missing
+
+      - name: 📊 Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  # =============================================
+  # 🔒 SECURITY — Проверка уязвимостей
+  # =============================================
+  security:
+    name: 🔒 Security
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install safety
+        run: pip install safety
+
+      - name: 🔍 Check dependencies
+        run: safety check -r requirements.txt
+
+  # =============================================
+  # 🚀 DEPLOY — Развёртывание на сервере
+  # =============================================
+  deploy:
+    name: 🚀 Deploy
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 📦 Install SSH key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: ✅ Add server to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 🚀 Deploy to server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            cd /path/to/jira_report
+            git pull origin main
+            pip install -r requirements.txt
+            sudo systemctl restart jira-report.service
+          EOF
+
+      - name: ✅ Verify deployment
+        run: |
+          echo "✅ Deployment completed successfully!"

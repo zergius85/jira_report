@@ -221,14 +221,21 @@ jira_report/
 ├── RECOMMENDATIONS.md     # Рекомендации по развитию
 ├── IMPROVEMENTS.md        # Предложения по улучшению
 │
+├── .github/                # GitHub Actions
+│   └── workflows/
+│       └── ci.yml         # CI/CD pipeline
+│
 ├── core/                   # Ядро системы
 │   ├── __init__.py
 │   ├── config.py          # Конфигурация (настройки)
-│   └── jira_report.py     # Основная логика отчётов
+│   ├── jira_report.py     # Основная логика отчётов
+│   ├── jql_builder.py     # Конструктор JQL-запросов
+│   └── report_generator.py # Генератор отчётов (ООП)
 │
 ├── web/                    # Веб-интерфейс
 │   ├── __init__.py
-│   └── app.py             # Flask API и endpoints
+│   ├── app.py             # Flask API и endpoints
+│   └── validators.py      # Валидаторы API
 │
 ├── services/               # Служебные файлы
 │   ├── __init__.py
@@ -345,6 +352,69 @@ http://<server-ip>:5000
 # Запуск отчёта 1-го числа каждого месяца в 09:00
 0 9 1 * * /usr/bin/python3 /path/to/jira_report/jira_report.py -e >> /var/log/jira-report.log 2>&1
 ```
+
+---
+
+## 🚀 GitHub Actions (CI/CD)
+
+Проект использует GitHub Actions для автоматического тестирования и развёртывания.
+
+### Настройка GitHub Actions
+
+#### 1. Создайте секреты (Secrets)
+
+Перейдите в **Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret Name | Описание | Пример |
+|-------------|----------|--------|
+| `SERVER_HOST` | IP или домен сервера | `192.168.1.100` |
+| `SERVER_USER` | Пользователь SSH | `deploy` |
+| `SSH_PRIVATE_KEY` | Приватный SSH-ключ | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
+
+#### 2. Настройте защиту ветки main
+
+**Settings → Branches → Add branch protection rule**
+
+- **Branch name:** `main`
+- **Включите:**
+  - ☑ Require a pull request before merging
+  - ☑ Require status checks to pass before merging
+  - ☑ Выберите: `test`, `lint`, `security`
+  - ☑ Require branches to be up to date before merging
+
+#### 3. Запуск тестов вручную (для ветки dev)
+
+1. Перейдите в **Actions → Jira Report CI**
+2. Нажмите **Run workflow**
+3. Выберите ветку (например, `dev`)
+4. Нажмите **Run workflow**
+
+#### 4. Проверка результатов
+
+| Результат | Значение |
+|-----------|----------|
+| ✅ Зелёная галочка | Все тесты прошли |
+| ❌ Красный крест | Есть ошибки (смотрите логи) |
+| 📊 Coverage | Отчёт по покрытию кодом на Codecov |
+
+#### 5. Лимиты бесплатного тарифа
+
+| Тариф | Минут/месяц | Хранение |
+|-------|-------------|----------|
+| Free | 2,000 | 500 MB |
+| Pro | 3,000 | 2 GB |
+
+**Наши тесты:** ~3-5 минут на запуск
+
+**Рекомендация:** Запускайте для `dev` только вручную перед мержем
+
+### Workflow процессы
+
+| Событие | Действия |
+|---------|----------|
+| Push в `main` | Lint → Test → Security → Deploy |
+| PR в `main` | Lint → Test → Security |
+| Ручной запуск | Lint → Test → Security |
 
 ---
 
