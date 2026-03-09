@@ -6,7 +6,9 @@ JQL Builder — безопасное построение JQL-запросов.
 """
 from typing import Optional, List
 from datetime import datetime
-import re
+
+# Импортируем утилиты санитизации
+from core.utils import sanitize_jql_identifier, sanitize_jql_string_literal
 
 
 class JQLBuilder:
@@ -22,87 +24,42 @@ class JQLBuilder:
             .order_by('duedate', asc=True)
             .build())
     """
-    
-    # Разрешённые символы для идентификаторов
-    IDENTIFIER_PATTERN = re.compile(r'^[A-Za-z0-9_\-\.@]+$')
-    
+
     # Разрешённые поля для сортировки
     ALLOWED_ORDER_FIELDS = {
-        'created', 'updated', 'duedate', 'resolved', 'priority', 
+        'created', 'updated', 'duedate', 'resolved', 'priority',
         'status', 'assignee', 'reporter', 'key', 'summary'
     }
-    
+
     def __init__(self):
         self.conditions: List[str] = []
         self.order_clause: Optional[str] = None
-    
-    def _sanitize_identifier(self, value: str) -> str:
-        """
-        Проверяет и санитизирует идентификатор.
-        
-        Args:
-            value: Значение для проверки
-            
-        Returns:
-            str: Очищенное значение
-            
-        Raises:
-            ValueError: Если значение содержит недопустимые символы
-        """
-        if not value:
-            raise ValueError("Пустое значение идентификатора")
-        
-        if not self.IDENTIFIER_PATTERN.match(value):
-            raise ValueError(
-                f"Недопустимые символы в идентификаторе: {value}. "
-                "Разрешены только буквы, цифры, дефис, подчёркивание, точка и @"
-            )
-        
-        return value
-    
-    def _sanitize_string(self, value: str) -> str:
-        """
-        Экранирует строковое значение для JQL.
-        
-        Args:
-            value: Значение для экранирования
-            
-        Returns:
-            str: Экранированное значение
-        """
-        if not value:
-            return ''
-        
-        # Экранируем одиночные кавычки
-        value = value.replace("'", "''")
-        
-        return value
-    
+
     def project(self, key: str) -> 'JQLBuilder':
         """
         Добавляет условие по проекту.
-        
+
         Args:
             key: Ключ проекта (например, 'WEB')
-            
+
         Returns:
             JQLBuilder: self для цепочки вызовов
         """
-        sanitized_key = self._sanitize_identifier(key)
+        sanitized_key = sanitize_jql_identifier(key)
         self.conditions.append(f"project = {sanitized_key}")
         return self
-    
+
     def projects_in(self, keys: List[str]) -> 'JQLBuilder':
         """
         Добавляет условие по нескольким проектам.
-        
+
         Args:
             keys: Список ключей проектов
-            
+
         Returns:
             JQLBuilder: self для цепочки вызовов
         """
-        sanitized_keys = [self._sanitize_identifier(k) for k in keys]
+        sanitized_keys = [sanitize_jql_identifier(k) for k in keys]
         self.conditions.append(f"project IN ({','.join(sanitized_keys)})")
         return self
     
@@ -116,7 +73,7 @@ class JQLBuilder:
         Returns:
             JQLBuilder: self для цепочки вызовов
         """
-        sanitized = [self._sanitize_string(s) for s in statuses]
+        sanitized = [sanitize_jql_string_literal(s) for s in statuses]
         status_list = ', '.join(f"'{s}'" for s in sanitized)
         self.conditions.append(f"status NOT IN ({status_list})")
         return self
@@ -131,7 +88,7 @@ class JQLBuilder:
         Returns:
             JQLBuilder: self для цепочки вызовов
         """
-        sanitized = [self._sanitize_string(s) for s in statuses]
+        sanitized = [sanitize_jql_string_literal(s) for s in statuses]
         status_list = ', '.join(f"'{s}'" for s in sanitized)
         self.conditions.append(f"status IN ({status_list})")
         return self
@@ -210,7 +167,7 @@ class JQLBuilder:
         if not assignees:
             return self
         
-        sanitized = [self._sanitize_identifier(a) for a in assignees]
+        sanitized = [sanitize_jql_identifier(a) for a in assignees]
         self.conditions.append(f"assignee IN ({','.join(sanitized)})")
         return self
     
@@ -250,7 +207,7 @@ class JQLBuilder:
         Returns:
             JQLBuilder: self для цепочки вызовов
         """
-        sanitized = [self._sanitize_string(t) for t in types]
+        sanitized = [sanitize_jql_string_literal(t) for t in types]
         type_list = ', '.join(f"'{t}'" for t in sanitized)
         self.conditions.append(f"issuetype IN ({type_list})")
         return self
@@ -279,18 +236,21 @@ class JQLBuilder:
     def build(self) -> str:
         """
         Строит итоговый JQL-запрос.
-        
+
         Returns:
             str: Готовый JQL-запрос
         """
-        if not self.conditions:
+        if not self.conditions and not self.order_clause:
             return ''
-        
-        jql = ' AND '.join(self.conditions)
-        
+
+        jql = ' AND '.join(self.conditions) if self.conditions else ''
+
         if self.order_clause:
-            jql += f' {self.order_clause}'
-        
+            if jql:
+                jql += f' {self.order_clause}'
+            else:
+                jql = self.order_clause
+
         return jql
     
     def reset(self) -> 'JQLBuilder':

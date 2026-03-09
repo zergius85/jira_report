@@ -288,13 +288,32 @@ def _execute_scheduled_report(report_id: int) -> None:
         
         # Отправляем в Telegram
         if report.telegram_chats:
-            asyncio.run(
-                send_scheduled_report_notification(
-                    report_url=f"/report/{saved_report.id}" if saved_report else "",
-                    period=period,
-                    totals=totals,
-                )
-            )
+            try:
+                # Проверяем есть ли уже запущенный event loop
+                try:
+                    loop = asyncio.get_running_loop()
+                    # Loop уже запущен, создаём новый для блокирующего выполнения
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    new_loop.run_until_complete(
+                        send_scheduled_report_notification(
+                            report_url=f"/report/{saved_report.id}" if saved_report else "",
+                            period=period,
+                            totals=totals,
+                        )
+                    )
+                    new_loop.close()
+                except RuntimeError:
+                    # Нет активного loop, используем asyncio.run()
+                    asyncio.run(
+                        send_scheduled_report_notification(
+                            report_url=f"/report/{saved_report.id}" if saved_report else "",
+                            period=period,
+                            totals=totals,
+                        )
+                    )
+            except Exception as e:
+                logger.error(f"⚠️  Ошибка отправки уведомления в Telegram: {e}")
         
         # Обновляем время последнего запуска
         next_run = _calculate_next_run(report)

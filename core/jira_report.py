@@ -6,7 +6,7 @@ Jira Report System — Ядро отчётов
 Поддерживает консольный режим и работу через Web-интерфейс.
 """
 import re
-from typing import Optional, List, Dict, Any, Tuple, Union
+from typing import Optional, List, Dict, Any, Tuple, Union, Callable
 from jira import JIRA, JIRAError
 import pandas as pd
 import warnings
@@ -40,6 +40,9 @@ from core.config import (
     MAX_EXCEL_ROWS
 )
 
+# Импортируем утилиты
+from core.utils import sanitize_jql_identifier, sanitize_jql_string_literal
+
 # --- НАСТРОЙКА ЛОГИРОВАНИЯ ---
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL),
@@ -51,8 +54,8 @@ logger = logging.getLogger(__name__)
 # --- НАСТРОЙКА SSL ---
 if not SSL_VERIFY:
     logger.warning("⚠️  Проверка SSL отключена (SSL_VERIFY=false)")
-    os.environ['REQUESTS_CA_BUNDLE'] = ''
-    os.environ['CURL_CA_BUNDLE'] = ''
+    # SSL отключается только для подключения к Jira через options={'verify': False}
+    # Глобальные переменные окружения НЕ изменяются для безопасности
     warnings.simplefilter('ignore', InsecureRequestWarning)
 else:
     logger.info("✅ Проверка SSL включена")
@@ -171,89 +174,32 @@ def normalize_filter(
         return [v.upper() if upper else v for v in value]
 
 
-def sanitize_jql_identifier(value: str) -> str:
-    """
-    Санитизирует идентификатор для использования в JQL-запросе.
-
-    Разрешённые символы: буквы, цифры, дефис, подчёркивание, точка.
-
-    Args:
-        value: Значение для санитизации
-
-    Returns:
-        str: Очищенное значение
-
-    Raises:
-        ValueError: Если значение содержит недопустимые символы
-    """
-    if not value:
-        raise ValueError("Пустое значение идентификатора")
-
-    # Разрешённые символы для ключей проекта, пользователей, типов задач
-    if not re.match(r'^[A-Za-z0-9_\-\.@]+$', value):
-        raise ValueError(
-            f"Недопустимые символы в идентификаторе: {value}. "
-            "Разрешены только буквы, цифры, дефис, подчёркивание, точка и @"
-        )
-    
-    return value
-
-
-def sanitize_jql_string_literal(value: str) -> str:
-    """
-    Санитизирует строковое значение для использования в JQL (внутри кавычек).
-    
-    Экранирует одиночные кавычки и удаляет потенциально опасные конструкции.
-    
-    Args:
-        value: Значение для санитизации
-        
-    Returns:
-        str: Очищенное и экранированное значение
-    """
-    if not value:
-        return ''
-    
-    # Удаляем потенциально опасные SQL-подобные конструкции
-    dangerous_patterns = ['--', '/*', '*/', ';', 'EXEC', 'DROP', 'DELETE', 'UPDATE']
-    value_upper = value.upper()
-    for pattern in dangerous_patterns:
-        if pattern in value_upper:
-            logging.warning(f"Обнаружена потенциально опасная конструкция в JQL: {pattern}")
-            value = value.replace(pattern, '').replace(pattern.lower(), '')
-    
-    # Экранируем одиночные кавычки (заменяем ' на '')
-    value = value.replace("'", "''")
-
-    return value
-
-
 def search_all_issues(
-    jira,
+    jira: JIRA,
     jql: str,
     fields: str = '*all',
-    expand: str = None,
+    expand: Optional[str] = None,
     batch_size: int = 100
-) -> list:
+) -> List[Any]:
     """
     Выполняет поиск задач с пагинацией для получения более 5000 результатов.
-    
+
     Jira API ограничивает максимальное количество результатов до 5000 за запрос.
     Эта функция разбивает запрос на батчи по batch_size задач.
-    
+
     Args:
         jira: Подключение к Jira
         jql: JQL-запрос
         fields: Поля для получения (по умолчанию '*all')
         expand: Дополнительные данные (например, 'changelog')
         batch_size: Размер батча (по умолчанию 100)
-        
+
     Returns:
-        list: Список всех задач
+        List[Any]: Список всех задач
     """
-    all_issues = []
+    all_issues: List[Any] = []
     start_at = 0
-    
+
     logger.info(f"Выполнение поиска с пагинацией: {jql[:100]}...")
     
     while True:

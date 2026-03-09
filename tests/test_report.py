@@ -412,7 +412,7 @@ class TestValidateIssue:
             with patch('core.jira_report.JIRA_USER', 'jira_user'):
                 problems = validate_issue(mock_issue, jira=None)  # jira=None, т.к. changelog уже в issue
                 # Закрыто не пользователем демона — это проблема
-                assert any('Статус' in p for p in problems)
+                assert any('Некорректный статус' in p for p in problems)
 
     def test_correct_issue_no_problems(self):
         mock_issue = Mock()

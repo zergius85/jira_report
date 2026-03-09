@@ -4,7 +4,7 @@
 
 Flask-приложение для предоставления API и UI.
 """
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, g
 from flask_caching import Cache
 from core.jira_report import generate_report, generate_excel, get_jira_connection, normalize_filter
 from core.config import (
@@ -15,19 +15,36 @@ from core.config import (
     IS_PRODUCTION,
     JIRA_SERVER,
     MAX_REPORT_DAYS,
-    MAX_SEARCH_RESULTS
+    MAX_SEARCH_RESULTS,
+    MAX_EXCEL_ROWS
 )
 from datetime import datetime
+from collections import OrderedDict
+from typing import Tuple, Any, Dict, List, Optional, Union, Callable
 import io
 import os
 import logging
+import time
 from functools import wraps
 
 logger = logging.getLogger(__name__)
 
+# Импортируем middleware
+from web.middleware import (
+    api_rate_limiter,
+    handle_api_errors,
+    APIError,
+    JiraConnectionError,
+    ValidationError,
+    init_middleware
+)
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Путь к шаблонам теперь на уровень выше (templates в корне проекта)
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, '..', 'templates'))
+
+# Инициализируем middleware
+init_middleware(app)
 
 # Регистрируем Telegram blueprint
 try:
@@ -59,7 +76,7 @@ else:
     cache_init = False
 
 
-def conditional_cache(timeout=300):
+def conditional_cache(timeout: int = 300) -> Callable:
     """
     Декоратор для условного кэширования: кэширует только в production.
 
@@ -71,9 +88,9 @@ def conditional_cache(timeout=300):
         def api_projects():
             return _api_projects_logic()
     """
-    def decorator(f):
+    def decorator(f: Callable) -> Callable:
         @wraps(f)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs) -> Any:
             if cache_init and cache:
                 # Создаём кэшированную версию функции
                 cached_f = cache.cached(timeout=timeout)(f)
@@ -84,10 +101,10 @@ def conditional_cache(timeout=300):
     return decorator
 
 
-def validate_json_request(f):
+def validate_json_request(f: Callable) -> Callable:
     """
     Декоратор для валидации JSON в API endpoints.
-    
+
     Usage:
         @app.route('/api/report', methods=['POST'])
         @validate_json_request
@@ -117,35 +134,54 @@ def validate_json_request(f):
 # КЭШИРОВАНИЕ PROJECTS (для core/jira_report.py)
 # =============================================
 # Кэш для jira.project() - используется в generate_report()
-_project_cache = {}
-_project_cache_time = {}
+_project_cache: OrderedDict = OrderedDict()
+_project_cache_time: dict = {}
 _PROJECT_CACHE_TTL = 3600  # 1 час
+_MAX_PROJECT_CACHE_SIZE = 1000  # Максимум 1000 проектов в кэше
+
+
+def _evict_old_project_cache() -> None:
+    """Удаляет старые записи из кэша проектов (LRU)."""
+    while len(_project_cache) > _MAX_PROJECT_CACHE_SIZE:
+        # Удаляем самую старую запись (первую в OrderedDict)
+        oldest_key = next(iter(_project_cache))
+        del _project_cache[oldest_key]
+        _project_cache_time.pop(oldest_key, None)
 
 
 def get_project_cached(jira, proj_key):
     """
     Кэширует результат jira.project(proj_key) на 1 час.
-    
+
     Args:
         jira: Объект подключения к Jira
         proj_key: Ключ проекта
-    
+
     Returns:
         Проект Jira
     """
     import time
-    
+
     # Проверяем кэш
     if proj_key in _project_cache:
         cache_age = time.time() - _project_cache_time.get(proj_key, 0)
         if cache_age < _PROJECT_CACHE_TTL:
+            # Перемещаем в конец (LRU)
+            _project_cache.move_to_end(proj_key)
             return _project_cache[proj_key]
-    
+
     # Получаем из Jira
     try:
         proj = jira.project(proj_key)
         _project_cache[proj_key] = proj
         _project_cache_time[proj_key] = time.time()
+        
+        # Перемещаем в конец (LRU)
+        _project_cache.move_to_end(proj_key)
+        
+        # Чищим старые записи при превышении лимита
+        _evict_old_project_cache()
+        
         return proj
     except Exception:
         # Если проект не найден, не кэшируем
@@ -161,8 +197,12 @@ def api_projects():
     """Получить список проектов"""
     return _get_api_projects()
 
-def _get_api_projects():
-    """Получить список проектов"""
+def _get_api_projects() -> Tuple[Any, int]:
+    """Получить список проектов
+    
+    Returns:
+        Tuple[Any, int]: Flask response и статус код
+    """
     try:
         jira = get_jira_connection()
         projects = jira.projects()
@@ -185,8 +225,12 @@ def api_assignees():
     """Получить список всех активных исполнителей"""
     return _get_api_assignees()
 
-def _get_api_assignees():
-    """Получить список всех активных исполнителей"""
+def _get_api_assignees() -> Tuple[Any, int]:
+    """Получить список всех активных исполнителей
+    
+    Returns:
+        Tuple[Any, int]: Flask response и статус код
+    """
     try:
         jira = get_jira_connection()
         logger.info("🔍 Загрузка исполнителей из Jira...")
@@ -238,8 +282,13 @@ def _get_api_assignees():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-def _add_user_to_assignees(user, assignees_dict):
-    """Добавляет пользователя в словарь исполнителей"""
+def _add_user_to_assignees(user: Any, assignees_dict: Dict[str, str]) -> None:
+    """Добавляет пользователя в словарь исполнителей
+    
+    Args:
+        user: Пользователь (dict или объект Jira)
+        assignees_dict: Словарь для добавления
+    """
     if isinstance(user, dict):
         is_active = user.get('active', False) is True
         key = user.get('name') or user.get('accountId') or user.get('key')
@@ -253,8 +302,15 @@ def _add_user_to_assignees(user, assignees_dict):
         assignees_dict[key] = name
 
 
-def _get_assignees_from_issues(jira):
-    """Альтернативный метод: получаем исполнителей из последних задач"""
+def _get_assignees_from_issues(jira: Any) -> Tuple[Any, int]:
+    """Альтернативный метод: получаем исполнителей из последних задач
+    
+    Args:
+        jira: Подключение к Jira
+        
+    Returns:
+        Tuple[Any, int]: Flask response и статус код
+    """
     try:
         # Получаем последние задачи для извлечения исполнителей
         issues = jira.search_issues('assignee is not null ORDER BY updated DESC', maxResults=MAX_SEARCH_RESULTS,
