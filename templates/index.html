@@ -2360,13 +2360,13 @@
 
             // Описания проблем для tooltip
             const problemDescriptions = {
-                'Без исполнителя': 'Задача не назначена на конкретного исполнителя',
-                'Нет фактического времени': 'Не указано фактическое время выполнения (Time Spent)',
-                'Нет даты решения': 'Задача закрыта, но не указана дата решения',
-                'Некорректный статус': 'Задача в статусе "Закрыт", но закрыта некорректно',
-                'Просрочена': 'Дата решения истекла, но задача не закрыта',
-                'Создана позже даты решения': 'Задача создана позже планового срока исполнения',
-                'Не двигается': 'Задача не обновлялась более 5 дней'
+                'Без исполнителя': 'Задача не назначена на конкретного исполнителя (assignee = null)',
+                'Нет фактического времени': 'Не указано фактическое время выполнения (timespent = null или 0)',
+                'Нет даты решения': 'Задача закрыта, но не указана дата решения (resolutiondate = null)',
+                'Некорректный статус': 'Задача в статусе "Закрыт", но закрыта некорректно (не тем пользователем)',
+                'Просрочена': 'Дата решения истекла, но задача не закрыта (duedate < сегодня AND status NOT IN (Closed, Done))',
+                'Создана позже даты решения': 'Задача создана позже планового срока исполнения (created > duedate)',
+                'Не двигается': 'Задача не обновлялась более 5 дней (updated < сегодня - 5 дней AND status NOT IN (Closed, Done))'
             };
 
             thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('issues', '${col}')">${col}</th>`).join('') + '</tr>';
@@ -2392,6 +2392,20 @@
                         // Проверяем автора
                         const author = row['Автор'] || row.author || 'N/A';
                         return `<td>${author}</td>`;
+                    }
+                    if (col === 'URL') {
+                        // URL с двумя ссылками: скрепка и ID задачи
+                        const url = row['URL'] || row.url || '';
+                        const debugUrl = row['URL_debug'] || `/?debug=${row['Ключ'] || row.key || ''}`;
+                        const issueKey = row['Ключ'] || row.key || url.split('/browse/')[1] || '';
+                        
+                        if (url && url.startsWith('http')) {
+                            return `<td style="display: flex; gap: 8px; align-items: center;">
+                                <a href="${url}" target="_blank" title="Открыть в Jira: ${issueKey}" style="text-decoration:none;">📎</a>
+                                <a href="${debugUrl}" onclick="switchToDebugTab('${issueKey}'); return false;" title="Отладка: ${issueKey}" style="text-decoration:none; font-size: 12px; color: #3498db;">🔍 ${issueKey}</a>
+                            </td>`;
+                        }
+                        return `<td>${url || '-'}</td>`;
                     }
                     return `<td>${formatCell(row[col], col, row)}</td>`;
                 }).join('') + '</tr>';
@@ -2772,6 +2786,23 @@
         }
 
         // ========== Debug Task Info ==========
+        // Функция для переключения на вкладку Отладка и заполнения ключа задачи
+        function switchToDebugTab(taskKey) {
+            // Переключаем на вкладку Отладка
+            switchTab('debug');
+            
+            // Заполняем поле ключа задачи
+            const taskKeyInput = document.getElementById('debug_task_key');
+            if (taskKeyInput) {
+                taskKeyInput.value = taskKey;
+            }
+            
+            // Автоматически запускаем поиск задачи
+            setTimeout(() => {
+                debugTaskInfo();
+            }, 100);
+        }
+        
         async function debugTaskInfo() {
             const taskKey = document.getElementById('debug_task_key').value.trim();
             const resultDiv = document.getElementById('debug_result');

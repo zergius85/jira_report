@@ -763,7 +763,7 @@ def generate_report(
                 # Для проблемных задач берём СОЗДАТЕЛЯ задачи (creator)
                 author = 'N/A'
                 author_id = ''
-                
+
                 # Пробуем разные способы получения автора
                 try:
                     # Способ 1: creator (стандартное поле)
@@ -771,16 +771,21 @@ def generate_report(
                         creator = issue.fields.creator
                         author = getattr(creator, 'displayName', None) or getattr(creator, 'name', None) or str(creator)
                         author_id = getattr(creator, 'id', '')
+                        logger.debug(f"   ✅ Автор (creator) для {issue.key}: {author}")
                     # Способ 2: reporter (альтернативное имя)
                     elif hasattr(issue.fields, 'reporter') and issue.fields.reporter:
                         reporter = issue.fields.reporter
                         author = getattr(reporter, 'displayName', None) or getattr(reporter, 'name', None) or str(reporter)
                         author_id = getattr(reporter, 'id', '')
+                        logger.debug(f"   ✅ Автор (reporter) для {issue.key}: {author}")
                     # Способ 3: author (ещё одно возможное поле)
                     elif hasattr(issue.fields, 'author') and issue.fields.author:
                         author_obj = issue.fields.author
                         author = getattr(author_obj, 'displayName', None) or getattr(author_obj, 'name', None) or str(author_obj)
                         author_id = getattr(author_obj, 'id', '')
+                        logger.debug(f"   ✅ Автор (author) для {issue.key}: {author}")
+                    else:
+                        logger.debug(f"   ⚠️  Не найден автор для {issue.key}. Поля: creator={hasattr(issue.fields, 'creator')}, reporter={hasattr(issue.fields, 'reporter')}, author={hasattr(issue.fields, 'author')}")
                 except Exception as e:
                     logger.warning(f"⚠️  Не удалось получить автора для {issue.key}: {e}")
                 
@@ -790,6 +795,7 @@ def generate_report(
 
                 issue_data = {
                     'URL': issue_url,
+                    'URL_debug': f"/?debug={issue.key}",  # Ссылка для отладки
                     'Проект': proj_name,
                     'Задача': issue.fields.summary,
                     'Исполнитель': assignee,
