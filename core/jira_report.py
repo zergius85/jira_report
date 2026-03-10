@@ -795,16 +795,13 @@ def generate_report(
 
         # Формируем отображаемые значения с ID если нужно
         project_display = proj_name
-        status_display = status_full
+        status_display = f"{status_name} ({status_category}) [{status_id}]"  # Всегда показываем ID статуса
         issue_type_display = issue_type
         assignee_display = assignee
 
         if extra_verbose:
             project_id = fields.get('project', {}).get('id', '')
             project_display = f"{proj_name} [{project_id}]" if project_id else proj_name
-
-            status_id = status.get('id', '')
-            status_display = f"{status_full} [{status_id}]" if status_id else status_full
 
             type_id = issuetype.get('id', '')
             issue_type_display = f"{issue_type} [{type_id}]" if type_id else issue_type
@@ -1055,8 +1052,12 @@ def generate_report(
                 # REST API возвращает dict, а не объект
                 fields = issue_data.get('fields', {})
                 issue_key = issue_data.get('key', '')
-                
+
                 risk_factors = []
+
+                # Получаем статус для проверки
+                status = fields.get('status', {})
+                status_id = status.get('id', '')
 
                 # 1. Задачи без исполнителя
                 assignee = fields.get('assignee')
@@ -1064,34 +1065,33 @@ def generate_report(
                     risk_factors.append('Без исполнителя')
 
                 # 2. Задачи с истёкшим сроком (Due Date)
+                # Проверка: duedate < сегодня И status.id НЕ в закрытых статусах
                 duedate = fields.get('duedate')
                 if duedate:
                     due_date = datetime.strptime(duedate[:10], '%Y-%m-%d')
-                    status_name = fields.get('status', {}).get('name', '')
-                    if due_date < today and status_name.lower() not in ['закрыт', 'closed', 'done']:
+                    if due_date < today and status_id not in CLOSED_STATUS_IDS:
                         days_overdue = (today - due_date).days
                         risk_factors.append(f'Просрочена на {days_overdue} дн.')
 
                 # 3. Задачи, которые не двигались > порога неактивности
+                # Проверка: не обновлялась N дней И status.id НЕ в закрытых статусах
                 updated = fields.get('updated')
                 if updated:
                     updated_dt = datetime.strptime(updated[:19], '%Y-%m-%dT%H:%M:%S')
                     days_inactive = (today - updated_dt).days
-                    status_name = fields.get('status', {}).get('name', '')
-                    if days_inactive > RISK_ZONE_INACTIVITY_THRESHOLD and status_name.lower() not in ['закрыт', 'closed', 'done']:
+                    if days_inactive > RISK_ZONE_INACTIVITY_THRESHOLD and status_id not in CLOSED_STATUS_IDS:
                         risk_factors.append(f'Не двигается {days_inactive} дн.')
 
                 # Если есть факторы риска - добавляем в отчёт
                 if risk_factors:
                     assignee_name = assignee.get('displayName', 'Без исполнителя') if assignee else 'Без исполнителя'
-                    status = fields.get('status', {})
                     priority = fields.get('priority', {})
                     risk_issues.append({
                         'URL': f"{JIRA_SERVER}/browse/{issue_key}",
                         'Ключ': issue_key,
                         'Задача': fields.get('summary', ''),
                         'Исполнитель': assignee_name,
-                        'Статус': status.get('name', ''),
+                        'Статус': status_name,
                         'Факторы риска': '; '.join(risk_factors),
                         'Приоритет': priority.get('name', 'Normal')
                     })
