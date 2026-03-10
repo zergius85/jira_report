@@ -1051,38 +1051,49 @@ def generate_report(
         # Проверяем все задачи из всех проектов
         if all_issues_normal:
             logger.info(f"   Найдено {len(all_issues_normal)} задач для проверки")
-            for issue in all_issues_normal:
+            for issue_data in all_issues_normal:
+                # REST API возвращает dict, а не объект
+                fields = issue_data.get('fields', {})
+                issue_key = issue_data.get('key', '')
+                
                 risk_factors = []
 
                 # 1. Задачи без исполнителя
-                if not issue.fields.assignee:
+                assignee = fields.get('assignee')
+                if not assignee:
                     risk_factors.append('Без исполнителя')
 
                 # 2. Задачи с истёкшим сроком (Due Date)
-                if issue.fields.duedate:
-                    due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
-                    if due_date < today and issue.fields.status.name.lower() not in ['закрыт', 'closed', 'done']:
+                duedate = fields.get('duedate')
+                if duedate:
+                    due_date = datetime.strptime(duedate[:10], '%Y-%m-%d')
+                    status_name = fields.get('status', {}).get('name', '')
+                    if due_date < today and status_name.lower() not in ['закрыт', 'closed', 'done']:
                         days_overdue = (today - due_date).days
                         risk_factors.append(f'Просрочена на {days_overdue} дн.')
 
                 # 3. Задачи, которые не двигались > порога неактивности
-                if hasattr(issue.fields, 'updated') and issue.fields.updated:
-                    updated = datetime.strptime(issue.fields.updated[:19], '%Y-%m-%dT%H:%M:%S')
-                    days_inactive = (today - updated).days
-                    if days_inactive > RISK_ZONE_INACTIVITY_THRESHOLD and issue.fields.status.name.lower() not in ['закрыт', 'closed', 'done']:
+                updated = fields.get('updated')
+                if updated:
+                    updated_dt = datetime.strptime(updated[:19], '%Y-%m-%dT%H:%M:%S')
+                    days_inactive = (today - updated_dt).days
+                    status_name = fields.get('status', {}).get('name', '')
+                    if days_inactive > RISK_ZONE_INACTIVITY_THRESHOLD and status_name.lower() not in ['закрыт', 'closed', 'done']:
                         risk_factors.append(f'Не двигается {days_inactive} дн.')
 
                 # Если есть факторы риска - добавляем в отчёт
                 if risk_factors:
-                    assignee = issue.fields.assignee.displayName if issue.fields.assignee else 'Без исполнителя'
+                    assignee_name = assignee.get('displayName', 'Без исполнителя') if assignee else 'Без исполнителя'
+                    status = fields.get('status', {})
+                    priority = fields.get('priority', {})
                     risk_issues.append({
-                        'URL': f"{JIRA_SERVER}/browse/{issue.key}",
-                        'Ключ': issue.key,
-                        'Задача': issue.fields.summary,
-                        'Исполнитель': assignee,
-                        'Статус': issue.fields.status.name,
+                        'URL': f"{JIRA_SERVER}/browse/{issue_key}",
+                        'Ключ': issue_key,
+                        'Задача': fields.get('summary', ''),
+                        'Исполнитель': assignee_name,
+                        'Статус': status.get('name', ''),
                         'Факторы риска': '; '.join(risk_factors),
-                        'Приоритет': issue.fields.priority.name if issue.fields.priority else 'Normal'
+                        'Приоритет': priority.get('name', 'Normal')
                     })
 
             logger.info(f"   Найдено {len(risk_issues)} рисковых задач")
