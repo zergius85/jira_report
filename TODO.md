@@ -1,19 +1,21 @@
-# TODO  
-  
-## Bugs  
-  
-### 1. Tables rendering with extra_verbose (IDs in brackets)  
-**Problem:** When \"Show IDs in [brackets]\" option is enabled, tables display incorrectly - most columns are empty.  
-  
-**Cause:** Rendering functions use hardcoded column names, but with `extra_verbose=True` columns have different names (e.g., `Date [duedate]` instead of `Date`).  
-  
-**Solution:** Refactor rendering functions for dynamic column detection.  
-  
----  
-  
-## Optimization  
-  
-### 2. Duplicate Jira API requests  
-**Problem:** 2 requests per client during report generation.  
-  
-**Solution:** Make 2 requests for all clients with needed filters, then process per client. 
+# TODO
+
+## Баги
+
+### 1. Отображение таблиц с ID (extra_verbose)
+**Проблема:** При включении опции «Показывать ID в [скобках]» таблицы отображаются некорректно — большинство колонок пустые.
+
+**Причина:** Функции отрисовки используют жёстко заданные имена колонок, но при `extra_verbose=True` имена колонок другие (например, `Дата [duedate]` вместо `Дата`).
+
+**Решение:** Рефакторинг функций отрисовки для динамического определения колонок.
+
+---
+
+## Оптимизация
+
+### 2. Дублирование запросов к Jira API
+**Проблема:** По 2 запроса на каждый проект при генерации отчёта.
+
+**Решение:** Сделать 2 глобальных запроса по всем проектам с нужными фильтрами, затем обрабатывать данные в памяти по каждому проекту.
+
+---
