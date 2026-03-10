@@ -7,6 +7,7 @@ Flask-приложение для предоставления API и UI.
 from flask import Flask, render_template, request, jsonify, send_file, g
 from flask_caching import Cache
 from core.jira_report import generate_report, generate_excel, get_jira_connection, normalize_filter, convert_seconds_to_hours
+from core.problems_dict import PROBLEM_DESCRIPTIONS
 from core.config import (
     REPORT_BLOCKS,
     EXCLUDED_PROJECTS,
@@ -189,7 +190,7 @@ def get_project_cached(jira, proj_key):
 
 @app.route('/')
 def index():
-    return render_template('index.html', blocks=REPORT_BLOCKS, JIRA_SERVER=JIRA_SERVER)
+    return render_template('index.html', blocks=REPORT_BLOCKS, JIRA_SERVER=JIRA_SERVER, problem_descriptions=PROBLEM_DESCRIPTIONS)
 
 @app.route('/api/projects')
 @conditional_cache(timeout=300)

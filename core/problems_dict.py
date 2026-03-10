@@ -25,6 +25,17 @@ from core.config import EXCLUDED_ASSIGNEE_CLOSE, JIRA_USER
 # ТИПЫ ПРОБЛЕМ
 # =============================================
 
+# Подробные описания проблем для tooltip
+PROBLEM_DESCRIPTIONS = {
+    'Без исполнителя': 'Задача не назначена на конкретного исполнителя (assignee = null)',
+    'Нет фактического времени': 'Не указано фактическое время выполнения (timespent = null или 0)',
+    'Нет даты решения': 'Задача закрыта, но не указана дата решения (resolutiondate = null)',
+    'Некорректный статус': 'Задача в статусе "Закрыт", но закрыта некорректно (не тем пользователем)',
+    'Просрочена': 'Дата решения истекла, но задача не закрыта (duedate < сегодня AND status NOT IN (Closed, Done))',
+    'Создана позже даты решения': 'Задача создана позже планового срока исполнения (created > duedate)',
+    'Не двигается': 'Задача не обновлялась более 5 дней (updated < сегодня - 5 дней AND status NOT IN (Closed, Done))',
+}
+
 PROBLEM_TYPES: Dict[str, Dict[str, Any]] = {
     # =============================================
     # Проблемы с исполнителем
@@ -365,18 +376,33 @@ def get_problem_categories() -> Dict[str, str]:
     }
 
 
+def get_problem_description(problem_name: str) -> str:
+    """
+    Получить подробное описание проблемы для tooltip.
+
+    Args:
+        problem_name: Короткое название проблемы (например, 'Без исполнителя')
+
+    Returns:
+        str: Подробное описание или исходное название если не найдено
+    """
+    return PROBLEM_DESCRIPTIONS.get(problem_name, problem_name)
+
+
 # =============================================
 # ЭКСПОРТ
 # =============================================
 
 __all__ = [
     'PROBLEM_TYPES',
+    'PROBLEM_DESCRIPTIONS',
     'get_problem_type_by_id',
     'get_problem_type_by_name',
     'get_problems_by_category',
     'get_problems_by_severity',
     'get_filter_names',
     'get_problem_categories',
+    'get_problem_description',
     'check_no_assignee',
     'check_no_time_spent',
     'check_no_resolution_date',

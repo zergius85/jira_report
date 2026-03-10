@@ -1383,6 +1383,7 @@
     <script>
         const BLOCKS = {{ blocks | tojson }};
         const JIRA_SERVER = "{{ JIRA_SERVER }}";
+        const PROBLEM_DESCRIPTIONS = {{ problem_descriptions | tojson }};
         let sortState = { column: null, direction: 'asc' };
         let debugData = { request: null, response: null };
         let lastReportData = null;
@@ -2358,17 +2359,6 @@
             // Фиксированные колонки
             const columns = ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы'];
 
-            // Описания проблем для tooltip
-            const problemDescriptions = {
-                'Без исполнителя': 'Задача не назначена на конкретного исполнителя (assignee = null)',
-                'Нет фактического времени': 'Не указано фактическое время выполнения (timespent = null или 0)',
-                'Нет даты решения': 'Задача закрыта, но не указана дата решения (resolutiondate = null)',
-                'Некорректный статус': 'Задача в статусе "Закрыт", но закрыта некорректно (не тем пользователем)',
-                'Просрочена': 'Дата решения истекла, но задача не закрыта (duedate < сегодня AND status NOT IN (Closed, Done))',
-                'Создана позже даты решения': 'Задача создана позже планового срока исполнения (created > duedate)',
-                'Не двигается': 'Задача не обновлялась более 5 дней (updated < сегодня - 5 дней AND status NOT IN (Closed, Done))'
-            };
-
             thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('issues', '${col}')">${col}</th>`).join('') + '</tr>';
 
             tbody.innerHTML = data.map(row => {
@@ -2384,7 +2374,8 @@
                         }
                         return `<td style="display: flex; flex-direction: column; gap: 4px;">${problemList.map(p => {
                             const problemText = p.trim();
-                            const description = problemDescriptions[problemText] || problemText;
+                            // Используем описания из PROBLEM_DESCRIPTIONS (переданы из Python)
+                            const description = PROBLEM_DESCRIPTIONS[problemText] || problemText;
                             return `<span class="problem-badge" title="${description}">${problemText}</span>`;
                         }).join('')}</td>`;
                     }
