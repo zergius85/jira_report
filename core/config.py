@@ -102,6 +102,30 @@ MAX_SEARCH_RESULTS = 1000
 MAX_EXCEL_ROWS = 10000
 
 # =============================================
+# RATE LIMITER (API)
+# =============================================
+# Максимум запросов от одного клиента в окно времени
+API_RATE_LIMIT_MAX_REQUESTS = int(os.getenv('API_RATE_LIMIT_MAX_REQUESTS', '50'))
+# Окно времени для rate limiting (секунды)
+API_RATE_LIMIT_WINDOW_SECONDS = int(os.getenv('API_RATE_LIMIT_WINDOW_SECONDS', '60'))
+# Максимум клиентов в памяти (LRU-кэш)
+API_RATE_LIMIT_MAX_CLIENTS = int(os.getenv('API_RATE_LIMIT_MAX_CLIENTS', '10000'))
+
+# =============================================
+# ПЛАНИРОВЩИК (SCHEDULER)
+# =============================================
+# Часовой пояс планировщика
+SCHEDULER_TIMEZONE = os.getenv('SCHEDULER_TIMEZONE', 'Europe/Moscow')
+# Время отправки отчётов по умолчанию (час)
+SCHEDULER_DEFAULT_HOUR = int(os.getenv('SCHEDULER_DEFAULT_HOUR', '9'))
+# Misfire grace time (секунды) — время, в течение которого задача может быть выполнена после пропуска
+SCHEDULER_MISFIRE_GRACE_TIME = int(os.getenv('SCHEDULER_MISFIRE_GRACE_TIME', '3600'))
+# Максимум задач в пуле
+SCHEDULER_MAX_INSTANCES = int(os.getenv('SCHEDULER_MAX_INSTANCES', '3'))
+# Интервал запуска джобы (секунды)
+SCHEDULER_JOBSTORE_RELOAD_INTERVAL = int(os.getenv('SCHEDULER_JOBSTORE_RELOAD_INTERVAL', '60'))
+
+# =============================================
 # ЛОГИРОВАНИЕ
 # =============================================
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO' if IS_PRODUCTION else 'DEBUG')

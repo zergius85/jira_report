@@ -11,6 +11,11 @@ from typing import Dict, Tuple, Optional, Callable, Any
 from collections import OrderedDict
 import logging
 import time
+from core.config import (
+    API_RATE_LIMIT_MAX_REQUESTS,
+    API_RATE_LIMIT_WINDOW_SECONDS,
+    API_RATE_LIMIT_MAX_CLIENTS
+)
 
 logger = logging.getLogger(__name__)
 
@@ -160,9 +165,9 @@ class RateLimiter:
 
 # Глобальный rate limiter для API
 api_rate_limiter = RateLimiter(
-    max_requests=50,  # 50 запросов в минуту
-    window_seconds=60,
-    max_clients=10000  # Максимум 10000 клиентов в памяти
+    max_requests=API_RATE_LIMIT_MAX_REQUESTS,
+    window_seconds=API_RATE_LIMIT_WINDOW_SECONDS,
+    max_clients=API_RATE_LIMIT_MAX_CLIENTS
 )
 
 

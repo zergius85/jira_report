@@ -16,7 +16,8 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from core.config import (
     SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM,
-    TELEGRAM_BOT_TOKEN, IS_PRODUCTION
+    TELEGRAM_BOT_TOKEN, IS_PRODUCTION,
+    SCHEDULER_TIMEZONE, SCHEDULER_MAX_INSTANCES, SCHEDULER_MISFIRE_GRACE_TIME
 )
 from core.models import get_session, ScheduledReport
 from core.report_service import (
@@ -36,19 +37,19 @@ _scheduler: Optional[BackgroundScheduler] = None
 def init_scheduler() -> bool:
     """
     Инициализирует планировщик задач.
-    
+
     Returns:
         bool: True если успешно
     """
     global _scheduler
-    
+
     try:
         _scheduler = BackgroundScheduler(
-            timezone='Europe/Moscow',  # Настройте под ваш часовой пояс
+            timezone=SCHEDULER_TIMEZONE,
             job_defaults={
                 'coalesce': True,
-                'max_instances': 1,
-                'misfire_grace_time': 3600,  # 1 час
+                'max_instances': SCHEDULER_MAX_INSTANCES,
+                'misfire_grace_time': SCHEDULER_MISFIRE_GRACE_TIME,
             }
         )
         
