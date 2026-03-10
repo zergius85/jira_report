@@ -654,11 +654,10 @@ def api_download():
         # PDF экспорт
         if export_format == 'pdf':
             try:
-                from core.pdf_export import generate_pdf_report
-                pdf_bytes = generate_pdf_report(report)
+                from core.pdf_export import generate_pdf_report, WEASYPRINT_AVAILABLE
                 
-                if not pdf_bytes:
-                    logger.warning("PDF экспорт не удался, возвращаем Excel")
+                if not WEASYPRINT_AVAILABLE:
+                    logger.warning("WeasyPrint не установлен, возвращаем Excel")
                     # Fallback на Excel
                     output = io.BytesIO()
                     generate_excel(report, output)
@@ -671,6 +670,24 @@ def api_download():
                         download_name=filename
                     )
                 
+                logger.info(f"📄 Генерация PDF для отчёта за {report['period']}...")
+                pdf_bytes = generate_pdf_report(report)
+
+                if not pdf_bytes:
+                    logger.warning("PDF экспорт не удался (пустой результат), возвращаем Excel")
+                    # Fallback на Excel
+                    output = io.BytesIO()
+                    generate_excel(report, output)
+                    output.seek(0)
+                    filename = f"jira_report_{report['period'].replace(' — ', '_to_').replace(' ', '')}.xlsx"
+                    return send_file(
+                        output,
+                        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        as_attachment=True,
+                        download_name=filename
+                    )
+
+                logger.info(f"✅ PDF сгенерирован, размер: {len(pdf_bytes)} байт")
                 filename = f"jira_report_{report['period'].replace(' — ', '_to_').replace(' ', '')}.pdf"
                 return send_file(
                     io.BytesIO(pdf_bytes),
@@ -678,11 +695,13 @@ def api_download():
                     as_attachment=True,
                     download_name=filename
                 )
-            except ImportError:
-                logger.error("WeasyPrint не установлен")
+            except ImportError as e:
+                logger.error(f"WeasyPrint не установлен: {e}")
                 return jsonify({'error': 'PDF экспорт недоступен'}), 503
             except Exception as e:
+                import traceback
                 logger.error(f"Ошибка PDF экспорта: {e}")
+                logger.error(traceback.format_exc())
                 return jsonify({'error': str(e)}), 500
 
         # Excel экспорт (по умолчанию)

@@ -29,6 +29,7 @@ from core.config import (
     INTERNAL_PROJECTS,
     CLOSED_STATUS_IDS,
     EXCLUDED_ASSIGNEE_CLOSE,
+    EXCLUDED_PROJECTS_NO_TIMESPENT,
     SSL_VERIFY,
     REPORT_BLOCKS,
     LOG_LEVEL,
@@ -320,16 +321,17 @@ from core.problems_dict import (
     PROBLEM_TYPES,
 )
 
-def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: Optional[List[str]] = None) -> List[str]:
+def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: Optional[List[str]] = None, project_key: Optional[str] = None) -> List[str]:
     """
     Проверяет задачу на корректность заполнения.
-    
+
     Использует справочник проблем (core.problems_dict) для проверки.
 
     Args:
         issue: Объект задачи Jira
         jira: Объект подключения к Jira (нужен для проверки changelog)
         closed_status_ids: Список ID закрытых статусов (опционально)
+        project_key: Ключ проекта (опционально, для исключений)
 
     Returns:
         List[str]: Список проблем
@@ -343,15 +345,17 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
     if check_no_assignee(issue):
         problems.append(PROBLEM_TYPES['NO_ASSIGNEE']['short_name'])
 
-    # Проверка: нет фактического времени
+    # Проверка: нет фактического времени (исключение для проектов из EXCLUDED_PROJECTS_NO_TIMESPENT)
     if check_no_time_spent(issue):
-        problems.append(PROBLEM_TYPES['NO_TIME_SPENT']['short_name'])
+        # Проверяем, не в исключённом ли проекте задача
+        if not project_key or project_key.upper() not in [p.upper() for p in EXCLUDED_PROJECTS_NO_TIMESPENT]:
+            problems.append(PROBLEM_TYPES['NO_TIME_SPENT']['short_name'])
 
     # Проверка: нет даты решения
     if check_no_resolution_date(issue):
         problems.append(PROBLEM_TYPES['NO_RESOLUTION_DATE']['short_name'])
 
-    # Проверка: просрочка планирования (создана позже дедлайна)
+    # Проверка: просрочка планирования (создана позже даты решения)
     if issue.fields.created and issue.fields.duedate:
         threshold = PROBLEM_TYPES['LATE_CREATION'].get('threshold_days', 7)
         if check_late_creation(issue, threshold):
@@ -359,11 +363,11 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
                 created_date = datetime.strptime(issue.fields.created[:10], '%Y-%m-%d')
                 due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
                 days_diff = (created_date - due_date).days
-                problems.append(f"Создана на {days_diff} дн. позже дедлайна")
+                problems.append(f"Создана на {days_diff} дн. позже даты решения")
             except Exception:
                 pass  # Если не удалось сравнить даты — не считаем проблемой
 
-    # Проверка: просрочена (дедлайн истёк)
+    # Проверка: просрочена (дата решения истёк)
     if check_overdue(issue):
         problems.append(PROBLEM_TYPES['OVERDUE']['short_name'])
 
@@ -447,33 +451,33 @@ def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
 
     Returns:
         List[str]: Список названий колонок
-        
+
     Raises:
         ValueError: Если блок не найден
     """
     if block == 'summary':
         if extra_verbose:
-            return ['Клиент (Проект)', 'ID', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
+            return ['Клиент (Проект) [project]', 'ID [id]', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч) [timeoriginalestimate]', 'Факт (ч) [timespent]', 'Отклонение']
         return ['Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
     elif block == 'assignees':
         if extra_verbose:
-            return ['Исполнитель', 'ID', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
+            return ['Исполнитель [assignee]', 'ID [accountId]', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч) [timeoriginalestimate]', 'Факт (ч) [timespent]', 'Отклонение']
         return ['Исполнитель', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
     elif block == 'detail':
         if extra_verbose:
-            return ['URL', 'ID', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
+            return ['URL', 'ID [id]', 'Дата решения [resolutiondate]', 'Дата исполнения [duedate]', 'Дата создания [created]', 'Проект [project]', 'Статус [status]', 'Задача [summary]', 'Исполнитель [assignee]', 'Факт (ч) [timespent]', 'Тип [issuetype]']
         return ['URL', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
     elif block == 'issues':
         if extra_verbose:
-            return ['URL', 'ID', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
+            return ['URL', 'ID [id]', 'Дата исполнения [duedate]', 'Дата создания [created]', 'Проект [project]', 'Задача [summary]', 'Исполнитель [assignee]', 'Автор [creator]', 'Проблемы']
         return ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
     elif block == 'internal':
         if extra_verbose:
-            return ['URL', 'ID', 'Проект ID', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
+            return ['URL', 'ID [id]', 'Проект ID [project.id]', 'Проект [project]', 'Ключ [key]', 'Задача [summary]', 'Исполнитель [assignee]', 'Статус [status]', 'Факт (ч) [timespent]', 'Дата создания [created]', 'Дата исполнения [duedate]', 'Тип [issuetype]']
         return ['URL', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
     elif block == 'risk_zone':
         if extra_verbose:
-            return ['URL', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факторы риска', 'Приоритет']
+            return ['URL', 'Ключ [key]', 'Задача [summary]', 'Исполнитель [assignee]', 'Статус [status]', 'Факторы риска', 'Приоритет [priority]']
         return ['URL', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факторы риска', 'Приоритет']
     else:
         logger.warning(f"⚠️  Неизвестный блок '{block}', используются колонки по умолчанию")
@@ -583,6 +587,7 @@ def generate_report(
     all_issues_data = []
     summary_data = []
     issues_with_problems = []
+    all_issues_normal = []  # Список всех задач для Risk Zone
 
     # Формируем фильтр по типам задач для JQL
     issue_type_filter = ''
@@ -664,7 +669,7 @@ def generate_report(
         issues_all = search_all_issues(
             jira,
             jql_issues,
-            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, creator',
+            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, creator, priority',
             expand='changelog'
         )
 
@@ -675,10 +680,13 @@ def generate_report(
         issues_normal = search_all_issues(
             jira,
             jql_normal,
-            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated',
+            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, priority',
             expand='changelog'
         )
-        
+
+        # Добавляем в список для Risk Zone
+        all_issues_normal.extend(issues_normal)
+
         # Обработка для обычных отчётов
         proj_spent = 0.0
         proj_estimated = 0.0
@@ -702,7 +710,7 @@ def generate_report(
             issue_url = f"{JIRA_SERVER}/browse/{issue.key}"
             issue_id = issue.id if extra_verbose else None
 
-            problems = validate_issue(issue, jira, closed_status_ids)
+            problems = validate_issue(issue, jira, closed_status_ids, proj_key)
 
             # Фильтр по исполнителю теперь в JQL
             
@@ -959,13 +967,13 @@ def generate_report(
     if include_risk_zone:
         risk_issues = []
         today = datetime.now()
-        
-        logger.info(f"🔍 Проверка Risk Zone... issues_normal: {'issues_normal' in locals()}")
 
-        # Проверяем, что issues_normal определён и не пуст
-        if 'issues_normal' in locals() and issues_normal:
-            logger.info(f"   Найдено {len(issues_normal)} задач для проверки")
-            for issue in issues_normal:
+        logger.info(f"🔍 Проверка Risk Zone... all_issues_normal: {len(all_issues_normal)} задач")
+
+        # Проверяем все задачи из всех проектов
+        if all_issues_normal:
+            logger.info(f"   Найдено {len(all_issues_normal)} задач для проверки")
+            for issue in all_issues_normal:
                 risk_factors = []
 
                 # 1. Задачи без исполнителя
@@ -998,10 +1006,10 @@ def generate_report(
                         'Факторы риска': '; '.join(risk_factors),
                         'Приоритет': issue.fields.priority.name if issue.fields.priority else 'Normal'
                     })
-            
+
             logger.info(f"   Найдено {len(risk_issues)} рисковых задач")
         else:
-            logger.warning("   ⚠️  issues_normal не определён или пуст")
+            logger.warning("   ⚠️  all_issues_normal пуст")
 
         if risk_issues:
             result['risk_zone'] = pd.DataFrame(risk_issues)

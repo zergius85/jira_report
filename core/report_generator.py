@@ -203,13 +203,22 @@ class ReportBlockGenerator:
 
     def _get_author(self, issue) -> str:
         """Получает автора/создателя задачи."""
+        # Пробуем creator
         if hasattr(issue.fields, 'creator') and issue.fields.creator:
             return (
                 issue.fields.creator.displayName
                 if hasattr(issue.fields.creator, 'displayName')
                 else str(issue.fields.creator)
             )
-        elif hasattr(issue.fields, 'author') and issue.fields.author:
+        # Пробуем reporter
+        if hasattr(issue.fields, 'reporter') and issue.fields.reporter:
+            return (
+                issue.fields.reporter.displayName
+                if hasattr(issue.fields.reporter, 'displayName')
+                else str(issue.fields.reporter)
+            )
+        # Пробуем author
+        if hasattr(issue.fields, 'author') and issue.fields.author:
             return (
                 issue.fields.author.displayName
                 if hasattr(issue.fields.author, 'displayName')
@@ -457,20 +466,20 @@ class ReportGenerator:
         issues_normal = search_all_issues(
             self.jira,
             jql_normal,
-            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated',
+            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, priority',
             expand='changelog'
         )
 
         issues_all = search_all_issues(
             self.jira,
             jql_issues,
-            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, creator',
+            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, creator, priority',
             expand='changelog'
         )
 
         # Обрабатываем задачи
-        self._process_normal_issues(issues_normal, proj_name)
-        self._process_issues_data(issues_all, issues_normal, proj_name)
+        self._process_normal_issues(issues_normal, proj_name, proj_key)
+        self._process_issues_data(issues_all, issues_normal, proj_name, proj_key)
 
     def _build_jql_normal(self, proj_key: str) -> str:
         """Строит JQL для обычных отчётов."""
@@ -551,7 +560,7 @@ class ReportGenerator:
                 return ' AND assignee IN (' + ','.join(sanitized_assignees) + ')'
         return ''
 
-    def _process_normal_issues(self, issues_normal: List, proj_name: str):
+    def _process_normal_issues(self, issues_normal: List, proj_name: str, proj_key: str):
         """Обрабатывает обычные задачи проекта."""
         proj_spent = 0.0
         proj_estimated = 0.0
@@ -562,7 +571,7 @@ class ReportGenerator:
             issue_data = self.issue_extractor.extract(
                 issue,
                 proj_name,
-                validate_issue(issue, self.jira, self.closed_status_ids)
+                validate_issue(issue, self.jira, self.closed_status_ids, proj_key)
             )
 
             self.all_issues_data.append(issue_data)
@@ -589,11 +598,12 @@ class ReportGenerator:
         self,
         issues_all: List,
         issues_normal: List,
-        proj_name: str
+        proj_name: str,
+        proj_key: str
     ):
         """Обрабатывает проблемные задачи."""
         for issue in issues_all:
-            problems = validate_issue(issue, self.jira, self.closed_status_ids)
+            problems = validate_issue(issue, self.jira, self.closed_status_ids, proj_key)
             if problems:
                 assignee = (
                     issue.fields.assignee.displayName

@@ -62,6 +62,13 @@ def generate_pdf_report(
     try:
         html_content = _render_pdf_html(report_data, include_charts, client_mode)
 
+        # Проверка html_content
+        if not html_content or len(html_content.strip()) == 0:
+            logger.error("Пустой HTML контент для PDF")
+            return None
+
+        logger.info(f"✅ HTML сгенерирован, размер: {len(html_content)} символов")
+
         # Генерируем PDF
         # FontConfiguration может быть None если не найден в импорте
         if FontConfiguration is not None:

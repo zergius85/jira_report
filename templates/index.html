@@ -713,7 +713,7 @@
             background: #f39c12;
             color: white;
         }
-        #app_mode_badge.prod {
+        #app_mode_badge.test {
             background: #27ae60;
             color: white;
         }
@@ -857,14 +857,96 @@
             }
         }
     </style>
+    <style>
+        /* Вкладка Отладка */
+        .task-info-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .task-info-card h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .task-basic-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .task-info-field {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #3498db;
+        }
+        .task-info-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .task-info-value {
+            font-size: 14px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        #debug_fields_table td {
+            word-break: break-all;
+        }
+        #debug_fields_table td:first-child {
+            font-family: monospace;
+            background: #f8f9fa;
+            color: #666;
+        }
+        .changelog-entry {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .changelog-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .changelog-author {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .changelog-date {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        .changelog-item {
+            font-size: 13px;
+            padding: 5px 0;
+        }
+        .changelog-field {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+        .changelog-from {
+            color: #95a5a6;
+        }
+        .changelog-to {
+            color: #27ae60;
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>
             📊 Jira Report Generator
             <span id="app_version_badge" style="font-size: 0.4em; padding: 3px 8px; border-radius: 8px; background: #3498db; color: white; margin-left: 15px; font-weight: 600;">v2.5.0</span>
+            <span id="app_mode_badge" style="font-size: 0.4em; padding: 3px 10px; border-radius: 12px; margin-left: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"></span>
             <span id="report_period_display" style="font-size: 0.5em; color: #666; font-weight: normal; margin-left: 10px;"></span>
-            <span id="app_mode_badge" style="font-size: 0.4em; padding: 3px 10px; border-radius: 12px; margin-left: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"></span>
         </h1>
 
         <!-- Форма -->
@@ -1026,6 +1108,7 @@
                 <button class="tab-btn" id="tab-btn-issues" onclick="switchTab('issues')">⚠️ Проблемы</button>
                 <button class="tab-btn" id="tab-btn-internal" onclick="switchTab('internal')">❓ Непонятное</button>
                 <button class="tab-btn" id="tab-btn-risk" onclick="switchTab('risk')">🔴 Risk Zone</button>
+                <button class="tab-btn" id="tab-btn-debug" onclick="switchTab('debug')">🐛 Отладка</button>
             </div>
 
             <!-- Дашборд -->
@@ -1202,6 +1285,46 @@
                     <table id="risk_table"><thead></thead><tbody></tbody></table>
                 </div>
             </div>
+
+            <!-- Вкладка Отладка -->
+            <div id="tab-debug" class="tab-content">
+                <h2 class="section-title">🐛 Отладка задачи</h2>
+                <div class="form-group">
+                    <label for="debug_task_key">Ключ задачи (например, WEB-123):</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="debug_task_key" placeholder="WEB-123" style="flex: 1;">
+                        <button class="btn btn-primary" onclick="debugTaskInfo()">Найти задачу</button>
+                    </div>
+                </div>
+                <div id="debug_result" class="hidden">
+                    <div class="task-info-card">
+                        <h3 id="debug_task_title"></h3>
+                        <div class="task-basic-info" id="debug_basic_info"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="debug_show_changelog" onchange="toggleDebugChangelog()">
+                            Показать changelog (историю переходов)
+                        </label>
+                    </div>
+                    <div class="table-container">
+                        <table id="debug_fields_table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">Поле Jira</th>
+                                    <th style="width: 70%;">Значение</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div id="debug_changelog" class="hidden" style="margin-top: 20px;">
+                        <h3>📜 Changelog</h3>
+                        <div id="debug_changelog_content"></div>
+                    </div>
+                </div>
+                <div id="debug_error" class="error-message hidden" style="margin-top: 20px;"></div>
+            </div>
         </div>
     </div>
 
@@ -1279,7 +1402,9 @@
             for (const [key, label] of Object.entries(BLOCKS)) {
                 const item = document.createElement('label');
                 item.className = 'checkbox-item';
-                item.innerHTML = `<input type="checkbox" value="${key}" checked><span>${label}</span>`;
+                // Блоки 'internal' и 'risk_zone' не отмечены по умолчанию
+                const isChecked = (key !== 'internal' && key !== 'risk_zone') ? 'checked' : '';
+                item.innerHTML = `<input type="checkbox" value="${key}" ${isChecked}><span>${label}</span>`;
                 container.appendChild(item);
             }
 
@@ -1330,16 +1455,16 @@
             
             let mode = 'dev';
             let modeText = 'DEV';
-            
-            // Production если порт 5000 или хост не localhost
+
+            // TEST если порт 5000 или хост не localhost
             if (port === '5000' || (hostname !== 'localhost' && hostname !== '127.0.0.1')) {
-                mode = 'prod';
-                modeText = 'PROD';
+                mode = 'test';
+                modeText = 'TEST';
             }
-            
+
             modeEl.textContent = modeText;
             modeEl.className = mode;
-            modeEl.title = mode === 'prod' ? 'Production режим' : 'Development режим';
+            modeEl.title = mode === 'test' ? 'Test окружение' : 'Development режим';
             
             console.log(`🔧 Режим приложения: ${modeText}`);
         }
@@ -1375,16 +1500,23 @@
                     presetName = 'Прошлая неделя';
                     // Прошлая неделя (Пн-Вс)
                     // getDay(): 0=Вс, 1=Пн, 2=Вт, ..., 6=Сб
-                    // Сегодня 8 марта (Вс = 0), значит прошлая неделя: 24 фев (Пн) — 2 марта (Вс)
-                    const currentDay = today.getDay(); // 0 для воскресенья
-                    const daysToLastMonday = currentDay === 0 ? 14 : currentDay + 7; // Если Вс, то 14 дней назад до Пн
-                    const lastMonday = new Date(today);
-                    lastMonday.setDate(today.getDate() - daysToLastMonday);
+                    // Нужно найти понедельник и воскресенье прошлой недели
+                    const currentDayLastWeek = today.getDay();
+                    // Сколько дней назад был понедельник прошлой недели
+                    // Если сегодня Вс (0), то понедельник был 6 дней назад (сегодняшняя неделя)
+                    // Если сегодня Пн (1), то понедельник прошлой недели был 7 дней назад
+                    // Если сегодня Вт (2), то понедельник прошлой недели был 8 дней назад
+                    const daysSinceMonday = currentDayLastWeek === 0 ? 6 : currentDayLastWeek - 1;
+                    const thisMonday = new Date(today);
+                    thisMonday.setDate(today.getDate() - daysSinceMonday);
+                    // Прошлая неделя: от (thisMonday - 7 дней) до (thisMonday - 1 день)
+                    const lastMonday = new Date(thisMonday);
+                    lastMonday.setDate(thisMonday.getDate() - 7);
                     const lastSunday = new Date(lastMonday);
                     lastSunday.setDate(lastMonday.getDate() + 6);
                     startDate = lastMonday;
                     endDate = lastSunday;
-                    console.log(`   Прошлая неделя: ${formatDate(startDate)} — ${formatDate(endDate)} (getDay=${currentDay})`);
+                    console.log(`   Прошлая неделя: ${formatDate(startDate)} — ${formatDate(endDate)} (getDay=${currentDayLastWeek})`);
                     break;
                     
                 case 'this_week':
@@ -1968,9 +2100,9 @@
         }
 
         function getParams() {
-            const projects = getSelectedValues('project');
-            const assignees = getSelectedValues('assignee');
-            const issueTypes = getSelectedValues('issue_type');
+            const projects = getSelectedValues('project').filter(v => v !== '');
+            const assignees = getSelectedValues('assignee').filter(v => v !== '');
+            const issueTypes = getSelectedValues('issue_type').filter(v => v !== '');
             const startDate = document.getElementById('start_date').value;
             const endDate = document.getElementById('end_date').value;
             const days = parseInt(document.getElementById('days').value) || 0;
@@ -2151,9 +2283,9 @@
             // Определяем порядок колонок для каждой таблицы
             let columns = [];
             if (name === 'summary') {
-                columns = ['Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
+                columns = ['Клиент (Проект)', 'Задач закрыто', 'Корректных', '%', 'С ошибками', '%', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
             } else if (name === 'assignees') {
-                columns = ['Исполнитель', 'Задач', 'Корректных', 'С ошибками', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
+                columns = ['Исполнитель', 'Задач', 'Корректных', '%', 'С ошибками', '%', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
             } else if (name === 'issues') {
                 // Для проблемных задач - особая логика с развёрнутыми проблемами
                 renderIssuesTable(data);
@@ -2169,10 +2301,31 @@
             tbody.innerHTML = data.map((row, index) => {
                 const isNegative = row['Отклонение'] !== undefined && row['Отклонение'] < 0;
                 const isLargeNegative = row['Отклонение'] !== undefined && row['Отклонение'] < -10;
-                
+
                 return '<tr>' + columns.map(col => {
                     let cellValue = formatCell(row[col], col, row);
-                    
+
+                    // Обработка колонки с процентами
+                    if (col === '%') {
+                        const total = row['Задач закрыто'] || row['Задач'] || 0;
+                        const correct = row['Корректных'] || 0;
+                        const issues = row['С ошибками'] || 0;
+                        // Определяем, какой процент показывать (корректных или с ошибками)
+                        // Находим индекс текущей колонки '%' в columns
+                        const colIndex = columns.indexOf(col);
+                        const prevCol = columns[colIndex - 1];
+                        let percent = 0;
+                        if (total > 0) {
+                            if (prevCol === 'Корректных') {
+                                percent = Math.round((correct / total) * 100);
+                            } else if (prevCol === 'С ошибками') {
+                                percent = Math.round((issues / total) * 100);
+                            }
+                        }
+                        const color = percent >= 80 ? '#27ae60' : (percent >= 50 ? '#f39c12' : '#e74c3c');
+                        cellValue = `<span style="color: ${color}; font-weight: 500;">${percent}%</span>`;
+                    }
+
                     // Подсветка отклонений
                     if (col === 'Отклонение' && row[col] !== undefined) {
                         const val = parseFloat(row[col]);
@@ -2183,12 +2336,12 @@
                             cellValue = `<span style="color: #27ae60;">${cellValue}</span>`;
                         }
                     }
-                    
+
                     // Подсветка "С ошибками"
                     if (col === 'С ошибками' && row[col] > 0) {
                         cellValue = `<span style="color: #e74c3c; font-weight: 600;">${cellValue}</span>`;
                     }
-                    
+
                     return `<td>${cellValue}</td>`;
                 }).join('') + '</tr>';
             }).join('');
@@ -2198,27 +2351,42 @@
         function renderIssuesTable(data) {
             const table = document.getElementById('issues_table');
             if (!table) return;
-            
+
             const thead = table.querySelector('thead');
             const tbody = table.querySelector('tbody');
-            
+
             // Фиксированные колонки
             const columns = ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы'];
-            
+
+            // Описания проблем для tooltip
+            const problemDescriptions = {
+                'Без исполнителя': 'Задача не назначена на конкретного исполнителя',
+                'Нет фактического времени': 'Не указано фактическое время выполнения (Time Spent)',
+                'Нет даты решения': 'Задача закрыта, но не указана дата решения',
+                'Некорректный статус': 'Задача в статусе "Закрыт", но закрыта некорректно',
+                'Просрочена': 'Дата решения истекла, но задача не закрыта',
+                'Создана позже даты решения': 'Задача создана позже планового срока исполнения',
+                'Не двигается': 'Задача не обновлялась более 5 дней'
+            };
+
             thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('issues', '${col}')">${col}</th>`).join('') + '</tr>';
-            
+
             tbody.innerHTML = data.map(row => {
                 const problems = row['Проблемы'] || row.problems || '';
                 // Разбиваем проблемы на список
                 const problemList = Array.isArray(problems) ? problems : (problems || '').split(/[,;]/).filter(p => p.trim());
-                
+
                 return '<tr>' + columns.map(col => {
                     if (col === 'Проблемы') {
                         // Форматируем проблемы как список бейджей, каждый с новой строки
                         if (problemList.length === 0) {
                             return '<td>-</td>';
                         }
-                        return `<td style="display: flex; flex-direction: column; gap: 4px;">${problemList.map(p => `<span class="problem-badge" title="${p.trim()}">${p.trim()}</span>`).join('')}</td>`;
+                        return `<td style="display: flex; flex-direction: column; gap: 4px;">${problemList.map(p => {
+                            const problemText = p.trim();
+                            const description = problemDescriptions[problemText] || problemText;
+                            return `<span class="problem-badge" title="${description}">${problemText}</span>`;
+                        }).join('')}</td>`;
                     }
                     if (col === 'Автор') {
                         // Проверяем автора
@@ -2601,6 +2769,126 @@
                 .then(r => r.json())
                 .then(d => alert(JSON.stringify(d, null, 2)))
                 .catch(e => alert('Ошибка: ' + e.message));
+        }
+
+        // ========== Debug Task Info ==========
+        async function debugTaskInfo() {
+            const taskKey = document.getElementById('debug_task_key').value.trim();
+            const resultDiv = document.getElementById('debug_result');
+            const errorDiv = document.getElementById('debug_error');
+            
+            if (!taskKey) {
+                errorDiv.textContent = 'Введите ключ задачи';
+                errorDiv.classList.remove('hidden');
+                resultDiv.classList.add('hidden');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/task-info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task_key: taskKey })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    errorDiv.textContent = data.error || 'Ошибка получения данных';
+                    errorDiv.classList.remove('hidden');
+                    resultDiv.classList.add('hidden');
+                    return;
+                }
+
+                const taskInfo = data.task_info;
+                
+                // Заголовок
+                document.getElementById('debug_task_title').textContent = 
+                    `${taskInfo.key}: ${taskInfo.fields.summary || 'Без названия'}`;
+
+                // Базовая информация
+                const basicInfo = document.getElementById('debug_basic_info');
+                basicInfo.innerHTML = `
+                    <div class="task-info-field">
+                        <div class="task-info-label">Статус</div>
+                        <div class="task-info-value">${taskInfo.fields.status || '-'}</div>
+                    </div>
+                    <div class="task-info-field">
+                        <div class="task-info-label">Исполнитель</div>
+                        <div class="task-info-value">${taskInfo.fields.assignee || 'Без исполнителя'}</div>
+                    </div>
+                    <div class="task-info-field">
+                        <div class="task-info-label">Тип</div>
+                        <div class="task-info-value">${taskInfo.fields.issuetype || '-'}</div>
+                    </div>
+                    <div class="task-info-field">
+                        <div class="task-info-label">Приоритет</div>
+                        <div class="task-info-value">${taskInfo.fields.priority || '-'}</div>
+                    </div>
+                `;
+
+                // Таблица полей
+                const tbody = document.querySelector('#debug_fields_table tbody');
+                tbody.innerHTML = '';
+                
+                for (const [fieldName, fieldValue] of Object.entries(taskInfo.fields)) {
+                    if (!fieldName.startsWith('_') && fieldValue !== null && fieldValue !== undefined) {
+                        const row = tbody.insertRow();
+                        const cellName = row.insertCell(0);
+                        const cellValue = row.insertCell(1);
+                        cellName.textContent = fieldName;
+                        cellValue.textContent = String(fieldValue);
+                    }
+                }
+
+                // Changelog
+                const changelogDiv = document.getElementById('debug_changelog');
+                const changelogContent = document.getElementById('debug_changelog_content');
+                
+                if (taskInfo.changelog && taskInfo.changelog.length > 0) {
+                    document.getElementById('debug_show_changelog').parentElement.style.display = 'block';
+                    changelogContent.innerHTML = '';
+                    
+                    for (const history of taskInfo.changelog) {
+                        const entry = document.createElement('div');
+                        entry.className = 'changelog-entry';
+                        
+                        const items = history.items.map(item => 
+                            `<div class="changelog-item">
+                                <span class="changelog-field">${item.field}:</span>
+                                <span class="changelog-from">${item.from || '∅'}</span> → 
+                                <span class="changelog-to">${item.to || '∅'}</span>
+                            </div>`
+                        ).join('');
+
+                        entry.innerHTML = `
+                            <div class="changelog-header">
+                                <span class="changelog-author">${history.author}</span>
+                                <span class="changelog-date">${new Date(history.created).toLocaleString('ru-RU')}</span>
+                            </div>
+                            ${items}
+                        `;
+                        changelogContent.appendChild(entry);
+                    }
+                } else {
+                    document.getElementById('debug_show_changelog').parentElement.style.display = 'none';
+                    changelogDiv.classList.add('hidden');
+                }
+
+                errorDiv.classList.add('hidden');
+                resultDiv.classList.remove('hidden');
+
+            } catch (e) {
+                errorDiv.textContent = 'Ошибка: ' + e.message;
+                errorDiv.classList.remove('hidden');
+                resultDiv.classList.add('hidden');
+            }
+        }
+
+        function toggleDebugChangelog() {
+            const checkbox = document.getElementById('debug_show_changelog');
+            const changelogDiv = document.getElementById('debug_changelog');
+            changelogDiv.classList.toggle('hidden', !checkbox.checked);
         }
     </script>
 </body>

@@ -88,12 +88,12 @@ PROBLEM_TYPES: Dict[str, Dict[str, Any]] = {
     },
     
     # =============================================
-    # Проблемы с дедлайном
+    # Проблемы с датой решения
     # =============================================
     'OVERDUE': {
         'id': 'overdue',
         'short_name': 'Просрочена',
-        'description': 'Дедлайн истёк, но задача не закрыта',
+        'description': 'Дата решения истекла, но задача не закрыта',
         'category': 'deadline',
         'severity': 'high',
         'check_function': 'check_overdue',
@@ -102,10 +102,10 @@ PROBLEM_TYPES: Dict[str, Dict[str, Any]] = {
         'color': '#fb8c00',  # Оранжевый
         'jql_condition': 'duedate < now() AND status not in (Closed, Done)',
     },
-    
+
     'LATE_CREATION': {
         'id': 'late_creation',
-        'short_name': 'Создана позже дедлайна',
+        'short_name': 'Создана позже даты решения',
         'description': 'Задача создана позже планового срока исполнения',
         'category': 'deadline',
         'severity': 'medium',
@@ -206,7 +206,7 @@ def check_incorrect_status(issue: Any, closed_status_ids: List[str]) -> bool:
 
 
 def check_overdue(issue: Any) -> bool:
-    """Проверка: просрочена (дедлайн истёк)."""
+    """Проверка: просрочена (дата решения истекла)."""
     if not hasattr(issue.fields, 'duedate') or not issue.fields.duedate:
         return False
     
@@ -226,14 +226,14 @@ def check_overdue(issue: Any) -> bool:
 
 def check_late_creation(issue: Any, threshold_days: int = 7) -> bool:
     """
-    Проверка: создана позже дедлайна.
-    
+    Проверка: создана позже даты решения.
+
     Args:
         issue: Задача Jira
         threshold_days: Минимальное количество дней просрочки
-    
+
     Returns:
-        bool: True если создана позже дедлайна на threshold_days+ дней
+        bool: True если создана позже даты решения на threshold_days+ дней
     """
     if (not hasattr(issue.fields, 'created') or not issue.fields.created or
         not hasattr(issue.fields, 'duedate') or not issue.fields.duedate):
@@ -352,7 +352,7 @@ def get_filter_names() -> List[str]:
 def get_problem_categories() -> Dict[str, str]:
     """
     Получить категории проблем с описаниями.
-    
+
     Returns:
         Dict: Категория → описание
     """
@@ -360,7 +360,7 @@ def get_problem_categories() -> Dict[str, str]:
         'assignee': 'Проблемы с исполнителем',
         'time': 'Проблемы со временем',
         'status': 'Проблемы со статусом',
-        'deadline': 'Проблемы с дедлайном',
+        'deadline': 'Проблемы с датой решения',
         'activity': 'Проблемы с активностью',
     }
 

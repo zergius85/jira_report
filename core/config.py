@@ -74,6 +74,12 @@ EXCLUDED_ASSIGNEE_CLOSE = [
     if x.strip()
 ]
 
+# Проекты, для которых отсутствие timespent не считается ошибкой
+EXCLUDED_PROJECTS_NO_TIMESPENT = [
+    x.strip() for x in os.getenv('EXCLUDED_PROJECTS_NO_TIMESPENT', 'LOCAL').split(',')
+    if x.strip()
+]
+
 # SSL проверка
 SSL_VERIFY = os.getenv('SSL_VERIFY', 'true').lower() == 'true'
 
