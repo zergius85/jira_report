@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 import io
 
+import pandas as pd
 from core.config import REPORTS_DIR
 
 logger = logging.getLogger(__name__)
@@ -322,24 +323,30 @@ def _render_pdf_html(
 
 
 def _render_table(
-    data: List[Dict[str, Any]],
+    data,
     columns: List[str],
     max_rows: int = 200,
 ) -> str:
     """
     Рендерит таблицу из данных.
-    
+
     Args:
-        data: Список словарей с данными
+        data: Список словарей с данными или DataFrame
         columns: Список колонок для отображения
         max_rows: Максимум строк
-    
+
     Returns:
         str: HTML таблицы
     """
+    # Конвертируем DataFrame в список словарей
+    if isinstance(data, pd.DataFrame):
+        if data.empty:
+            return '<p>Нет данных</p>'
+        data = data[columns].to_dict(orient='records') if all(c in data.columns for c in columns) else data.to_dict(orient='records')
+    
     if not data:
         return '<p>Нет данных</p>'
-    
+
     # Ограничиваем количество строк
     truncated = len(data) > max_rows
     data = data[:max_rows]
