@@ -1525,9 +1525,9 @@
                     // getDay(): 0=Вс, 1=Пн, 2=Вт, ..., 6=Сб
                     const currentDayOfWeek = today.getDay();
                     const mondayOffset = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1; // Если Вс, то 6 дней назад
-                    const thisMonday = new Date(today);
-                    thisMonday.setDate(today.getDate() - mondayOffset);
-                    startDate = thisMonday;
+                    const weekMonday = new Date(today);
+                    weekMonday.setDate(today.getDate() - mondayOffset);
+                    startDate = weekMonday;
                     endDate = new Date(today);
                     console.log(`   Эта неделя: ${formatDate(startDate)} — ${formatDate(endDate)}`);
                     break;
