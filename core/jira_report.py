@@ -656,13 +656,18 @@ def generate_report(
                           f"{assignee_filter_jql} "
                           f"ORDER BY created DESC")
 
-    logger.info(f"🚀 Оптимизация: выполнение 2 глобальных запросов вместо {len(projects_keys) * 2}")
+    # ========== ПОЛНАЯ ОПТИМИЗАЦИЯ: обработка за 1 проход без цикла по проектам ==========
     
+    # Добавляем creator в оба запроса (нужен для проблемных задач)
+    common_fields = 'summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, creator, priority, project'
+
+    logger.info(f"🚀 Оптимизация: выполнение 2 глобальных запросов вместо {len(projects_keys) * 2}")
+
     # Получаем все задачи для проблемных (больший период)
     issues_all_global = search_all_issues(
         jira,
         jql_issues_global,
-        fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, creator, priority, project',
+        fields=common_fields,
         expand='changelog'
     )
 
@@ -670,191 +675,145 @@ def generate_report(
     issues_normal_global = search_all_issues(
         jira,
         jql_normal_global,
-        fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, priority, project',
+        fields=common_fields,
         expand='changelog'
     )
-
-    # Группируем задачи по проектам для последующей обработки
-    issues_by_project_normal = {}
-    for issue in issues_normal_global:
-        proj_key = issue.fields.project.key
-        if proj_key not in issues_by_project_normal:
-            issues_by_project_normal[proj_key] = []
-        issues_by_project_normal[proj_key].append(issue)
-
-    issues_by_project_issues = {}
-    for issue in issues_all_global:
-        proj_key = issue.fields.project.key
-        if proj_key not in issues_by_project_issues:
-            issues_by_project_issues[proj_key] = []
-        issues_by_project_issues[proj_key].append(issue)
 
     # Добавляем все задачи normal в список для Risk Zone
     all_issues_normal.extend(issues_normal_global)
 
-    # ========== Обработка по проектам (теперь в памяти) ==========
-    for proj_key in projects_keys:
-        # Санизируем ключ проекта
-        try:
-            proj_key = sanitize_jql_identifier(proj_key)
-        except ValueError as e:
-            logging.warning(f"Пропущен недопустимый ключ проекта: {e}")
-            continue
+    # ========== Обработка ВСЕХ задач за ОДИН проход ==========
+    # Словарь для агрегации по проектам: proj_key -> {spent, estimated, correct, issues}
+    project_stats = {}
 
+    for issue in issues_normal_global:
+        proj_key = issue.fields.project.key
         proj_name = projects_map.get(proj_key, proj_key)
 
-        # Получаем задачи для этого проекта из предзагруженных данных
-        issues_normal = issues_by_project_normal.get(proj_key, [])
-        issues_all = issues_by_project_issues.get(proj_key, [])
+        spent = convert_seconds_to_hours(issue.fields.timespent)
+        estimated = convert_seconds_to_hours(issue.fields.timeoriginalestimate)
 
-        # Обработка для обычных отчётов
-        proj_spent = 0.0
-        proj_estimated = 0.0
-        proj_correct = 0
-        proj_issues = 0
+        issue_type = issue.fields.issuetype.name if issue.fields.issuetype else 'Задача'
+        assignee = issue.fields.assignee.displayName if issue.fields.assignee else 'Без исполнителя'
+        duedate = issue.fields.duedate[:10] if issue.fields.duedate else '-'
+        resolved = issue.fields.resolutiondate[:10] if issue.fields.resolutiondate else '-'
+        created = issue.fields.created[:10] if issue.fields.created else '-'
 
-        for issue in issues_normal:
-            spent = convert_seconds_to_hours(issue.fields.timespent)
-            estimated = convert_seconds_to_hours(issue.fields.timeoriginalestimate)
-            
-            issue_type = issue.fields.issuetype.name if issue.fields.issuetype else 'Задача'
-            assignee = issue.fields.assignee.displayName if issue.fields.assignee else 'Без исполнителя'
-            duedate = issue.fields.duedate[:10] if issue.fields.duedate else '-'
-            resolved = issue.fields.resolutiondate[:10] if issue.fields.resolutiondate else '-'
-            created = issue.fields.created[:10] if issue.fields.created else '-'
-            
-            status_name = issue.fields.status.name if issue.fields.status else '-'
-            status_category = issue.fields.status.statusCategory.key if issue.fields.status and issue.fields.status.statusCategory else '-'
-            status_full = f"{status_name} ({status_category})"
-            
-            issue_url = f"{JIRA_SERVER}/browse/{issue.key}"
-            issue_id = issue.id if extra_verbose else None
+        status_name = issue.fields.status.name if issue.fields.status else '-'
+        status_category = issue.fields.status.statusCategory.key if issue.fields.status and issue.fields.status.statusCategory else '-'
+        status_full = f"{status_name} ({status_category})"
 
-            problems = validate_issue(issue, jira, closed_status_ids, proj_key)
+        issue_url = f"{JIRA_SERVER}/browse/{issue.key}"
+        issue_id = issue.id if extra_verbose else None
 
-            # Фильтр по исполнителю теперь в JQL
-            
-            # Формируем отображаемые значения с ID если нужно
-            if extra_verbose:
-                project_id = getattr(issue.fields.project, 'id', None) if hasattr(issue.fields, 'project') and issue.fields.project else None
-                project_display = f"{proj_name} [{project_id}]" if project_id else proj_name
-                
-                status_id = getattr(issue.fields.status, 'id', None) if issue.fields.status else None
-                status_display = f"{status_full} [{status_id}]" if status_id else status_full
-                
-                type_id = getattr(issue.fields.issuetype, 'id', None) if issue.fields.issuetype else None
-                issue_type_display = f"{issue_type} [{type_id}]" if type_id else issue_type
-                
-                assignee_id = getattr(issue.fields.assignee, 'id', None) if issue.fields.assignee else None
-                assignee_display = f"{assignee} [{assignee_id}]" if assignee_id else assignee
+        problems = validate_issue(issue, jira, closed_status_ids, proj_key)
+
+        # Формируем отображаемые значения с ID если нужно
+        if extra_verbose:
+            project_id = getattr(issue.fields.project, 'id', None) if hasattr(issue.fields, 'project') and issue.fields.project else None
+            project_display = f"{proj_name} [{project_id}]" if project_id else proj_name
+
+            status_id = getattr(issue.fields.status, 'id', None) if issue.fields.status else None
+            status_display = f"{status_full} [{status_id}]" if status_id else status_full
+
+            type_id = getattr(issue.fields.issuetype, 'id', None) if issue.fields.issuetype else None
+            issue_type_display = f"{issue_type} [{type_id}]" if type_id else issue_type
+
+            assignee_id = getattr(issue.fields.assignee, 'id', None) if issue.fields.assignee else None
+            assignee_display = f"{assignee} [{assignee_id}]" if assignee_id else assignee
+        else:
+            project_display = proj_name
+            status_display = status_full
+            issue_type_display = issue_type
+            assignee_display = assignee
+
+        issue_data = {
+            'URL': issue_url,
+            'ID': issue_id,
+            'Проект': project_display,
+            'Ключ': issue.key,
+            'Тип': issue_type_display,
+            'Задача': issue.fields.summary,
+            'Исполнитель': assignee_display,
+            'Статус': status_display,
+            'Дата создания': created,
+            'Дата исполнения': duedate,
+            'Дата решения': resolved,
+            'Факт (ч)': spent,
+            'Оценка (ч)': estimated,
+            'Проблемы': ', '.join(problems) if problems else ''
+        }
+
+        all_issues_data.append(issue_data)
+
+        # Агрегация статистики по проекту
+        if proj_key not in project_stats:
+            project_stats[proj_key] = {'name': proj_name, 'spent': 0.0, 'estimated': 0.0, 'correct': 0, 'issues': 0}
+
+        if not problems:
+            project_stats[proj_key]['spent'] += spent
+            project_stats[proj_key]['estimated'] += estimated
+            project_stats[proj_key]['correct'] += 1
+        else:
+            project_stats[proj_key]['issues'] += 1
+
+        # Проблемные задачи
+        if problems:
+            # Берём создателя задачи (creator)
+            author = 'N/A'
+            author_id = ''
+
+            # creator всегда доступен через fields.creator
+            if hasattr(issue.fields, 'creator') and issue.fields.creator:
+                creator_obj = issue.fields.creator
+                author = getattr(creator_obj, 'displayName', None) or getattr(creator_obj, 'name', None) or str(creator_obj)
+                author_id = getattr(creator_obj, 'id', '')
             else:
-                project_display = proj_name
-                status_display = status_full
-                issue_type_display = issue_type
-                assignee_display = assignee
-            
-            issue_data = {
+                logger.warning(f"⚠️  Creator не доступен для {issue.key}")
+
+            author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
+
+            issue_data_probs = {
                 'URL': issue_url,
-                'ID': issue_id,
-                'Проект': project_display,
-                'Ключ': issue.key,
-                'Тип': issue_type_display,
+                'URL_debug': f"/?debug={issue.key}",
+                'Проект': proj_name,
                 'Задача': issue.fields.summary,
-                'Исполнитель': assignee_display,
-                'Статус': status_display,
+                'Исполнитель': assignee,
+                'Автор': author_display,
                 'Дата создания': created,
                 'Дата исполнения': duedate,
-                'Дата решения': resolved,
-                'Факт (ч)': spent,
-                'Оценка (ч)': estimated,
-                'Проблемы': ', '.join(problems) if problems else ''
+                'Проблемы': ', '.join(problems)
             }
-            
-            all_issues_data.append(issue_data)
-            
-            if not problems:
-                proj_spent += spent
-                proj_estimated += estimated
-                proj_correct += 1
-            else:
-                proj_issues += 1
-            
-            if problems:
-                # Для проблемных задач берём СОЗДАТЕЛЯ задачи (creator)
-                author = 'N/A'
-                author_id = ''
+            if extra_verbose:
+                issue_data_probs = {'ID': issue.id, **issue_data_probs}
+            issues_with_problems.append(issue_data_probs)
 
-                # Пробуем разные способы получения автора
-                try:
-                    # Способ 1: creator (стандартное поле)
-                    if hasattr(issue.fields, 'creator') and issue.fields.creator:
-                        creator = issue.fields.creator
-                        author = getattr(creator, 'displayName', None) or getattr(creator, 'name', None) or str(creator)
-                        author_id = getattr(creator, 'id', '')
-                        logger.debug(f"   ✅ Автор (creator) для {issue.key}: {author}")
-                    # Способ 2: reporter (альтернативное имя)
-                    elif hasattr(issue.fields, 'reporter') and issue.fields.reporter:
-                        reporter = issue.fields.reporter
-                        author = getattr(reporter, 'displayName', None) or getattr(reporter, 'name', None) or str(reporter)
-                        author_id = getattr(reporter, 'id', '')
-                        logger.debug(f"   ✅ Автор (reporter) для {issue.key}: {author}")
-                    # Способ 3: author (ещё одно возможное поле)
-                    elif hasattr(issue.fields, 'author') and issue.fields.author:
-                        author_obj = issue.fields.author
-                        author = getattr(author_obj, 'displayName', None) or getattr(author_obj, 'name', None) or str(author_obj)
-                        author_id = getattr(author_obj, 'id', '')
-                        logger.debug(f"   ✅ Автор (author) для {issue.key}: {author}")
-                    else:
-                        logger.debug(f"   ⚠️  Не найден автор для {issue.key}. Поля: creator={hasattr(issue.fields, 'creator')}, reporter={hasattr(issue.fields, 'reporter')}, author={hasattr(issue.fields, 'author')}")
-                except Exception as e:
-                    logger.warning(f"⚠️  Не удалось получить автора для {issue.key}: {e}")
-                
-                # Формируем имя автора с ID если нужно
-                author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
-                logger.debug(f"   Автор для {issue.key}: {author_display}")
-
-                issue_data = {
-                    'URL': issue_url,
-                    'URL_debug': f"/?debug={issue.key}",  # Ссылка для отладки
-                    'Проект': proj_name,
-                    'Задача': issue.fields.summary,
-                    'Исполнитель': assignee,
-                    'Автор': author_display,
-                    'Дата создания': created,
-                    'Дата исполнения': duedate,
-                    'Проблемы': ', '.join(problems)
-                }
-                # Добавляем ID задачи для extra_verbose
-                if extra_verbose:
-                    issue_data_with_id = {'ID': issue.id}
-                    issue_data_with_id.update(issue_data)
-                    issue_data = issue_data_with_id
-                issues_with_problems.append(issue_data)
-        
-        if proj_correct > 0 or proj_issues > 0:
-            # Добавляем ID проекта для extra_verbose
+    # Формируем summary из агрегированной статистики
+    for proj_key, stats in project_stats.items():
+        if stats['correct'] > 0 or stats['issues'] > 0:
             if extra_verbose:
                 # Берём ID проекта из первой задачи
-                proj_id = getattr(issues_normal[0].fields, 'project', None).id if issues_normal and hasattr(issues_normal[0].fields, 'project') else ''
+                proj_issues = [i for i in issues_normal_global if i.fields.project.key == proj_key]
+                proj_id = getattr(proj_issues[0].fields.project, 'id', '') if proj_issues else ''
                 summary_row = {
-                    'Клиент (Проект)': proj_name,
+                    'Клиент (Проект)': stats['name'],
                     'ID': proj_id,
-                    'Задач закрыто': proj_correct + proj_issues,
-                    'Корректных': proj_correct,
-                    'С ошибками': proj_issues,
-                    'Оценка (ч)': round(proj_estimated, 2),
-                    'Факт (ч)': round(proj_spent, 2),
-                    'Отклонение': round(proj_estimated - proj_spent, 2)
+                    'Задач закрыто': stats['correct'] + stats['issues'],
+                    'Корректных': stats['correct'],
+                    'С ошибками': stats['issues'],
+                    'Оценка (ч)': round(stats['estimated'], 2),
+                    'Факт (ч)': round(stats['spent'], 2),
+                    'Отклонение': round(stats['estimated'] - stats['spent'], 2)
                 }
             else:
                 summary_row = {
-                    'Клиент (Проект)': proj_name,
-                    'Задач закрыто': proj_correct + proj_issues,
-                    'Корректных': proj_correct,
-                    'С ошибками': proj_issues,
-                    'Оценка (ч)': round(proj_estimated, 2),
-                    'Факт (ч)': round(proj_spent, 2),
-                    'Отклонение': round(proj_estimated - proj_spent, 2)
+                    'Клиент (Проект)': stats['name'],
+                    'Задач закрыто': stats['correct'] + stats['issues'],
+                    'Корректных': stats['correct'],
+                    'С ошибками': stats['issues'],
+                    'Оценка (ч)': round(stats['estimated'], 2),
+                    'Факт (ч)': round(stats['spent'], 2),
+                    'Отклонение': round(stats['estimated'] - stats['spent'], 2)
                 }
             summary_data.append(summary_row)
     
