@@ -2341,18 +2341,42 @@
             const thead = table.querySelector('thead');
             const tbody = table.querySelector('tbody');
 
-            // Фиксированные колонки
-            const columns = ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы'];
+            // Определяем колонки из первой строки данных
+            const columnMapping = {
+                'URL': 'URL',
+                'ID [id]': 'ID',
+                'Дата исполнения [duedate]': 'Дата исполнения',
+                'Дата создания [created]': 'Дата создания',
+                'Проект [project]': 'Проект',
+                'Задача [summary]': 'Задача',
+                'Исполнитель [assignee]': 'Исполнитель',
+                'Автор [creator]': 'Автор',
+                'Проблемы': 'Проблемы',
+                'Дата исполнения': 'Дата исполнения',
+                'Дата создания': 'Дата создания',
+                'Проект': 'Проект',
+                'Задача': 'Задача',
+                'Исполнитель': 'Исполнитель',
+                'Автор': 'Автор'
+            };
 
-            thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('issues', '${col}')">${col}</th>`).join('') + '</tr>';
+            // Получаем колонки из первой строки
+            const rawColumns = data.length > 0 ? Object.keys(data[0]) : [];
+            const columns = rawColumns.filter(col => columnMapping[col]);
+
+            // Формируем заголовки с базовыми именами
+            const headerColumns = columns.map(col => columnMapping[col]);
+
+            thead.innerHTML = '<tr>' + headerColumns.map((col, i) => `<th onclick="sortTable('issues', '${col}')">${col}</th>`).join('') + '</tr>';
 
             tbody.innerHTML = data.map(row => {
                 const problems = row['Проблемы'] || row.problems || '';
                 // Разбиваем проблемы на список
                 const problemList = Array.isArray(problems) ? problems : (problems || '').split(/[,;]/).filter(p => p.trim());
 
-                return '<tr>' + columns.map(col => {
-                    if (col === 'Проблемы') {
+                return '<tr>' + columns.map((col, i) => {
+                    const baseCol = columnMapping[col];
+                    if (baseCol === 'Проблемы') {
                         // Форматируем проблемы как список бейджей, каждый с новой строки
                         if (problemList.length === 0) {
                             return '<td>-</td>';
@@ -2364,17 +2388,17 @@
                             return `<span class="problem-badge" title="${description}">${problemText}</span>`;
                         }).join('')}</td>`;
                     }
-                    if (col === 'Автор') {
+                    if (baseCol === 'Автор') {
                         // Проверяем автора
-                        const author = row['Автор'] || row.author || 'N/A';
+                        const author = row[col] || row['Автор'] || row.author || 'N/A';
                         return `<td>${author}</td>`;
                     }
-                    if (col === 'URL') {
+                    if (baseCol === 'URL') {
                         // URL с двумя ссылками: скрепка и ID задачи
-                        const url = row['URL'] || row.url || '';
+                        const url = row[col] || row['URL'] || row.url || '';
                         const debugUrl = row['URL_debug'] || `/?debug=${row['Ключ'] || row.key || ''}`;
                         const issueKey = row['Ключ'] || row.key || url.split('/browse/')[1] || '';
-                        
+
                         if (url && url.startsWith('http')) {
                             return `<td style="display: flex; gap: 8px; align-items: center;">
                                 <a href="${url}" target="_blank" title="Открыть в Jira: ${issueKey}" style="text-decoration:none;">📎</a>
