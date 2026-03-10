@@ -292,11 +292,11 @@ def _add_user_to_assignees(user: Any, assignees_dict: Dict[str, str]) -> None:
     """
     if isinstance(user, dict):
         is_active = bool(user.get('active', False))
-        key = user.get('name') or user.get('accountId') or user.get('key')
+        key = user.get('name') or user.get('id') or user.get('key')
         name = user.get('displayName', key) or user.get('name', key)
     else:
         is_active = bool(getattr(user, 'active', False))
-        key = getattr(user, 'name', None) or getattr(user, 'accountId', None) or getattr(user, 'key', None)
+        key = getattr(user, 'name', None) or getattr(user, 'id', None) or getattr(user, 'key', None)
         name = getattr(user, 'displayName', None) or getattr(user, 'name', key)
 
     if is_active and key:
@@ -425,8 +425,8 @@ def api_task_info():
             if issue.fields.assignee:
                 task_info['assignee'] = {
                     'displayName': issue.fields.assignee.displayName,
-                    'id': issue.fields.assignee.accountId or issue.fields.assignee.id,
-                    'name': issue.fields.assignee.name
+                    'id': getattr(issue.fields.assignee, 'id', None),
+                    'name': getattr(issue.fields.assignee, 'name', None)
                 }
             
             # Тип задачи с ID

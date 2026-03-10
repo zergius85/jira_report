@@ -1080,6 +1080,10 @@
                 <div class="stat-value" id="stat_projects">0</div>
                 <div class="stat-label">Проектов</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat_tasks">0</div>
+                <div class="stat-label">Всего задач</div>
+            </div>
             <div class="stat-card success">
                 <div class="stat-value" id="stat_correct">0</div>
                 <div class="stat-label">Корректных</div>
@@ -1087,14 +1091,6 @@
             <div class="stat-card warning">
                 <div class="stat-value" id="stat_issues">0</div>
                 <div class="stat-label">Проблемных</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="stat_spent">0</div>
-                <div class="stat-label">Факт (ч)</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="stat_estimated">0</div>
-                <div class="stat-label">Оценка (ч)</div>
             </div>
         </div>
 
@@ -2175,10 +2171,9 @@
 
                 // Статистика
                 document.getElementById('stat_projects').textContent = data.totals.projects;
+                document.getElementById('stat_tasks').textContent = data.totals.tasks;
                 document.getElementById('stat_correct').textContent = data.totals.correct;
                 document.getElementById('stat_issues').textContent = data.totals.issues;
-                document.getElementById('stat_spent').textContent = data.totals.spent;
-                document.getElementById('stat_estimated').textContent = data.totals.estimated;
 
                 // Обновляем KPI на дашборде
                 updateKPI(data, previousData);
@@ -2284,9 +2279,9 @@
             // Определяем порядок колонок для каждой таблицы
             let columns = [];
             if (name === 'summary') {
-                columns = ['Клиент (Проект)', 'Задач закрыто', 'Корректных', '%', 'С ошибками', '%', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
+                columns = ['Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
             } else if (name === 'assignees') {
-                columns = ['Исполнитель', 'Задач', 'Корректных', '%', 'С ошибками', '%', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
+                columns = ['Исполнитель', 'Задач', 'Корректных', 'С ошибками', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
             } else if (name === 'issues') {
                 // Для проблемных задач - особая логика с развёрнутыми проблемами
                 renderIssuesTable(data);
@@ -2297,7 +2292,7 @@
             }
 
             thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('${name}', '${col}')">${col}</th>`).join('') + '</tr>';
-            
+
             // Рендер строк с цветовым форматированием
             tbody.innerHTML = data.map((row, index) => {
                 const isNegative = row['Отклонение'] !== undefined && row['Отклонение'] < 0;
@@ -2306,25 +2301,15 @@
                 return '<tr>' + columns.map(col => {
                     let cellValue = formatCell(row[col], col, row);
 
-                    // Обработка колонки с процентами
-                    if (col === '%') {
+                    // Обработка колонок с процентами (Корректных и С ошибками)
+                    if (col === 'Корректных' || col === 'С ошибками') {
                         const total = row['Задач закрыто'] || row['Задач'] || 0;
                         const correct = row['Корректных'] || 0;
                         const issues = row['С ошибками'] || 0;
-                        // Определяем, какой процент показывать (корректных или с ошибками)
-                        // Находим индекс текущей колонки '%' в columns
-                        const colIndex = columns.indexOf(col);
-                        const prevCol = columns[colIndex - 1];
-                        let percent = 0;
-                        if (total > 0) {
-                            if (prevCol === 'Корректных') {
-                                percent = Math.round((correct / total) * 100);
-                            } else if (prevCol === 'С ошибками') {
-                                percent = Math.round((issues / total) * 100);
-                            }
-                        }
+                        const value = col === 'Корректных' ? correct : issues;
+                        let percent = total > 0 ? Math.round((value / total) * 100) : 0;
                         const color = percent >= 80 ? '#27ae60' : (percent >= 50 ? '#f39c12' : '#e74c3c');
-                        cellValue = `<span style="color: ${color}; font-weight: 500;">${percent}%</span>`;
+                        cellValue = `${value} <span style="color: ${color}; font-weight: 500;">(${percent}%)</span>`;
                     }
 
                     // Подсветка отклонений
