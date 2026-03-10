@@ -799,16 +799,12 @@ class ReportGenerator:
         return pd.DataFrame()
 
     def _add_risk_zone(self, df_detail: pd.DataFrame):
-        """Добавляет блок Risk Zone."""
-        # Получаем задачи из локальной переменной через стек
-        import inspect
-        frame = inspect.currentframe()
-        try:
-            # Risk Zone обрабатывается в _process_normal_issues
-            # Здесь мы просто создаём отчёт на основе уже обработанных данных
-            pass
-        finally:
-            del frame
+        """Добавляет блок Risk Zone.
+        
+        Risk Zone данные обрабатываются в _process_normal_issues,
+        этот метод существует для совместимости структуры.
+        """
+        pass
 
     def _filter_columns(self, df: pd.DataFrame, block_name: str) -> pd.DataFrame:
         """Фильтрует колонки для блока."""

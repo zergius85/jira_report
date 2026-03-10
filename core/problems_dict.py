@@ -18,6 +18,7 @@
 
 from typing import Dict, List, Any, Optional, Callable
 from datetime import datetime, timedelta
+from core.config import EXCLUDED_ASSIGNEE_CLOSE, JIRA_USER
 
 
 # =============================================
@@ -174,14 +175,12 @@ def check_incorrect_status(issue: Any, closed_status_ids: List[str]) -> bool:
     status_id = issue.fields.status.id
     if status_id not in closed_status_ids:
         return False
-    
+
     # Проверяем, не является ли исполнитель исключением
-    from core.config import EXCLUDED_ASSIGNEE_CLOSE, JIRA_USER
-    
     assignee_name = ''
     if issue.fields.assignee:
         assignee_name = issue.fields.assignee.name if hasattr(issue.fields.assignee, 'name') else issue.fields.assignee.displayName
-    
+
     for exc in EXCLUDED_ASSIGNEE_CLOSE:
         if exc.lower() in assignee_name.lower():
             return False

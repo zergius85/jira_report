@@ -6,7 +6,7 @@ Flask-приложение для предоставления API и UI.
 """
 from flask import Flask, render_template, request, jsonify, send_file, g
 from flask_caching import Cache
-from core.jira_report import generate_report, generate_excel, get_jira_connection, normalize_filter
+from core.jira_report import generate_report, generate_excel, get_jira_connection, normalize_filter, convert_seconds_to_hours
 from core.config import (
     REPORT_BLOCKS,
     EXCLUDED_PROJECTS,
@@ -284,20 +284,20 @@ def _get_api_assignees() -> Tuple[Any, int]:
 
 def _add_user_to_assignees(user: Any, assignees_dict: Dict[str, str]) -> None:
     """Добавляет пользователя в словарь исполнителей
-    
+
     Args:
         user: Пользователь (dict или объект Jira)
         assignees_dict: Словарь для добавления
     """
     if isinstance(user, dict):
-        is_active = user.get('active', False) is True
+        is_active = bool(user.get('active', False))
         key = user.get('name') or user.get('accountId') or user.get('key')
         name = user.get('displayName', key) or user.get('name', key)
     else:
-        is_active = getattr(user, 'active', False) is True
+        is_active = bool(getattr(user, 'active', False))
         key = getattr(user, 'name', None) or getattr(user, 'accountId', None) or getattr(user, 'key', None)
         name = getattr(user, 'displayName', None) or getattr(user, 'name', key)
-    
+
     if is_active and key:
         assignees_dict[key] = name
 
@@ -1327,13 +1327,6 @@ def api_client_pdf():
     except Exception as e:
         logger.error(f"Ошибка генерации client PDF: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
-
-
-# Helper для client PDF
-def convert_seconds_to_hours(seconds):
-    if seconds is None:
-        return 0.0
-    return round(seconds / 3600, 2)
 
 
 if __name__ == '__main__':
