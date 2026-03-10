@@ -715,10 +715,23 @@ def generate_report(
             # Фильтр по исполнителю теперь в JQL
             
             # Формируем отображаемые значения с ID если нужно
-            project_display = f"{proj_name} [{getattr(issue.fields, 'project', None).id}]" if extra_verbose and hasattr(issue.fields, 'project') and getattr(issue.fields, 'project', None) and hasattr(getattr(issue.fields, 'project', None), 'id') else proj_name
-            status_display = f"{status_full} [{issue.fields.status.id}]" if extra_verbose and issue.fields.status and hasattr(issue.fields.status, 'id') else status_full
-            issue_type_display = f"{issue_type} [{issue.fields.issuetype.id}]" if extra_verbose and issue.fields.issuetype and hasattr(issue.fields.issuetype, 'id') else issue_type
-            assignee_display = f"{assignee} [{issue.fields.assignee.id}]" if extra_verbose and issue.fields.assignee and hasattr(issue.fields.assignee, 'id') else assignee
+            if extra_verbose:
+                project_id = getattr(issue.fields.project, 'id', None) if hasattr(issue.fields, 'project') and issue.fields.project else None
+                project_display = f"{proj_name} [{project_id}]" if project_id else proj_name
+                
+                status_id = getattr(issue.fields.status, 'id', None) if issue.fields.status else None
+                status_display = f"{status_full} [{status_id}]" if status_id else status_full
+                
+                type_id = getattr(issue.fields.issuetype, 'id', None) if issue.fields.issuetype else None
+                issue_type_display = f"{issue_type} [{type_id}]" if type_id else issue_type
+                
+                assignee_id = getattr(issue.fields.assignee, 'id', None) if issue.fields.assignee else None
+                assignee_display = f"{assignee} [{assignee_id}]" if assignee_id else assignee
+            else:
+                project_display = proj_name
+                status_display = status_full
+                issue_type_display = issue_type
+                assignee_display = assignee
             
             issue_data = {
                 'URL': issue_url,

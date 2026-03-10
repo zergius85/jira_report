@@ -269,18 +269,18 @@ def _render_pdf_html(
         </div>
     ''')
     html_parts.append('</div>')
-    
+
     # Сводка по проектам
-    if 'summary' in report_data and report_data['summary']:
+    if 'summary' in report_data and not report_data['summary'].empty:
         html_parts.append('<div class="page-break"></div>')
         html_parts.append('<h2>📋 Сводка по проектам</h2>')
         html_parts.append(_render_table(report_data['summary'], [
-            'Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками', 
+            'Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками',
             'Оценка (ч)', 'Факт (ч)', 'Отклонение'
         ]))
-    
+
     # Детализация (в клиентском режиме только этот блок)
-    if 'detail' in report_data and report_data['detail']:
+    if 'detail' in report_data and not report_data['detail'].empty:
         if client_mode:
             html_parts.append('<div class="page-break"></div>')
         html_parts.append('<h2>📝 Детализация по задачам</h2>')
@@ -288,18 +288,18 @@ def _render_pdf_html(
             'URL', 'Дата решения', 'Дата исполнения', 'Дата создания',
             'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип'
         ], max_rows=100))
-    
+
     # Проблемные задачи (только не в клиентском режиме)
-    if not client_mode and 'issues' in report_data and report_data['issues']:
+    if not client_mode and 'issues' in report_data and not report_data['issues'].empty:
         html_parts.append('<div class="page-break"></div>')
         html_parts.append('<h2>⚠️ Проблемные задачи</h2>')
         html_parts.append(_render_table(report_data['issues'], [
             'URL', 'Дата исполнения', 'Дата создания', 'Проект',
             'Задача', 'Исполнитель', 'Автор', 'Проблемы'
         ]))
-    
+
     # Risk Zone
-    if not client_mode and 'risk_zone' in report_data and report_data['risk_zone']:
+    if not client_mode and 'risk_zone' in report_data and not report_data['risk_zone'].empty:
         html_parts.append('<div class="page-break"></div>')
         html_parts.append('<div class="risk-zone">')
         html_parts.append('<h3>🔴 Risk Zone — Зависшие задачи</h3>')
@@ -310,7 +310,7 @@ def _render_pdf_html(
         html_parts.append('</div>')
     
     # Исполнители
-    if 'assignees' in report_data and report_data['assignees']:
+    if 'assignees' in report_data and not report_data['assignees'].empty:
         html_parts.append('<div class="page-break"></div>')
         html_parts.append('<h2>👤 Нагрузка по исполнителям</h2>')
         html_parts.append(_render_table(report_data['assignees'], [
