@@ -615,6 +615,84 @@ def generate_report(
         if sanitized_assignees:
             assignee_filter_jql = ' AND assignee IN (' + ','.join(sanitized_assignees) + ')'
 
+    # ========== ОПТИМИЗАЦИЯ: 2 глобальных запроса вместо 2×N проектов ==========
+    # Санизируем даты (только формат YYYY-MM-DD)
+    start_date_safe = sanitize_jql_string_literal(start_date_str)
+    end_date_safe = sanitize_jql_string_literal(end_date_str)
+    issues_end_safe = sanitize_jql_string_literal(issues_end_str)
+
+    # Формируем список проектов для JQL
+    projects_jql = ','.join([sanitize_jql_identifier(p) for p in projects_keys])
+    project_filter = f"project IN ({projects_jql})" if projects_keys else ""
+
+    # Глобальный JQL для обычных отчётов (фильтр по duedate)
+    if days > 0:
+        jql_normal_global = (f"{project_filter} "
+                          f"AND duedate >= '{start_date_safe}' "
+                          f"AND duedate <= '{end_date_safe}' "
+                          f"AND duedate is not null"
+                          f"{issue_type_filter}"
+                          f"{assignee_filter_jql} "
+                          f"ORDER BY duedate ASC")
+    else:
+        jql_normal_global = (f"{project_filter} "
+                          f"AND duedate is not null"
+                          f"{issue_type_filter}"
+                          f"{assignee_filter_jql} "
+                          f"ORDER BY duedate DESC")
+
+    # Глобальный JQL для проблемных задач (фильтр по created + 2 месяца)
+    if days > 0:
+        jql_issues_global = (f"{project_filter} "
+                          f"AND created >= '{start_date_safe}' "
+                          f"AND created <= '{issues_end_safe}'"
+                          f"{issue_type_filter}"
+                          f"{assignee_filter_jql} "
+                          f"ORDER BY created ASC")
+    else:
+        jql_issues_global = (f"{project_filter} "
+                          f"AND created is not null"
+                          f"{issue_type_filter}"
+                          f"{assignee_filter_jql} "
+                          f"ORDER BY created DESC")
+
+    logger.info(f"🚀 Оптимизация: выполнение 2 глобальных запросов вместо {len(projects_keys) * 2}")
+    
+    # Получаем все задачи для проблемных (больший период)
+    issues_all_global = search_all_issues(
+        jira,
+        jql_issues_global,
+        fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, creator, priority, project',
+        expand='changelog'
+    )
+
+    # Получаем задачи для обычных отчётов (меньший период)
+    issues_normal_global = search_all_issues(
+        jira,
+        jql_normal_global,
+        fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, priority, project',
+        expand='changelog'
+    )
+
+    # Группируем задачи по проектам для последующей обработки
+    issues_by_project_normal = {}
+    for issue in issues_normal_global:
+        proj_key = issue.fields.project.key
+        if proj_key not in issues_by_project_normal:
+            issues_by_project_normal[proj_key] = []
+        issues_by_project_normal[proj_key].append(issue)
+
+    issues_by_project_issues = {}
+    for issue in issues_all_global:
+        proj_key = issue.fields.project.key
+        if proj_key not in issues_by_project_issues:
+            issues_by_project_issues[proj_key] = []
+        issues_by_project_issues[proj_key].append(issue)
+
+    # Добавляем все задачи normal в список для Risk Zone
+    all_issues_normal.extend(issues_normal_global)
+
+    # ========== Обработка по проектам (теперь в памяти) ==========
     for proj_key in projects_keys:
         # Санизируем ключ проекта
         try:
@@ -622,77 +700,19 @@ def generate_report(
         except ValueError as e:
             logging.warning(f"Пропущен недопустимый ключ проекта: {e}")
             continue
-        
+
         proj_name = projects_map.get(proj_key, proj_key)
 
-        # Санизируем даты (только формат YYYY-MM-DD)
-        start_date_safe = sanitize_jql_string_literal(start_date_str)
-        end_date_safe = sanitize_jql_string_literal(end_date_str)
-        issues_end_safe = sanitize_jql_string_literal(issues_end_str)
-
-        # Обычные отчёты - фильтр по duedate (плановая дата исполнения)
-        if days > 0:
-            jql_normal = (f"project = {proj_key} "
-                          f"AND duedate >= '{start_date_safe}' "
-                          f"AND duedate <= '{end_date_safe}' "
-                          f"AND duedate is not null"
-                          f"{issue_type_filter}"
-                          f"{assignee_filter_jql} "
-                          f"ORDER BY duedate ASC")
-        else:
-            # Без ограничений по датам
-            jql_normal = (f"project = {proj_key} "
-                          f"AND duedate is not null"
-                          f"{issue_type_filter}"
-                          f"{assignee_filter_jql} "
-                          f"ORDER BY duedate DESC")
-
-        # Проблемные задачи - фильтр по created + 2 месяца
-        if days > 0:
-            jql_issues = (f"project = {proj_key} "
-                          f"AND created >= '{start_date_safe}' "
-                          f"AND created <= '{issues_end_safe}'"
-                          f"{issue_type_filter}"
-                          f"{assignee_filter_jql} "
-                          f"ORDER BY created ASC")
-        else:
-            jql_issues = (f"project = {proj_key} "
-                          f"AND created is not null"
-                          f"{issue_type_filter}"
-                          f"{assignee_filter_jql} "
-                          f"ORDER BY created DESC")
-
-        # Получаем все задачи для проблемных (больший период)
-        # Добавляем expand='changelog' для предзагрузки истории переходов (экономия запросов)
-        # Добавляем поле 'updated' для Risk Zone
-        # Используем search_all_issues для поддержки >5000 задач
-        issues_all = search_all_issues(
-            jira,
-            jql_issues,
-            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, creator, priority',
-            expand='changelog'
-        )
-
-        # Получаем задачи для обычных отчётов (меньший период)
-        # Добавляем expand='changelog' для предзагрузки истории переходов (экономия запросов)
-        # Добавляем поле 'updated' для Risk Zone
-        # Используем search_all_issues для поддержки >5000 задач
-        issues_normal = search_all_issues(
-            jira,
-            jql_normal,
-            fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, priority',
-            expand='changelog'
-        )
-
-        # Добавляем в список для Risk Zone
-        all_issues_normal.extend(issues_normal)
+        # Получаем задачи для этого проекта из предзагруженных данных
+        issues_normal = issues_by_project_normal.get(proj_key, [])
+        issues_all = issues_by_project_issues.get(proj_key, [])
 
         # Обработка для обычных отчётов
         proj_spent = 0.0
         proj_estimated = 0.0
         proj_correct = 0
         proj_issues = 0
-        
+
         for issue in issues_normal:
             spent = convert_seconds_to_hours(issue.fields.timespent)
             estimated = convert_seconds_to_hours(issue.fields.timeoriginalestimate)
