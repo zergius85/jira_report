@@ -125,6 +125,60 @@ def get_jira_connection() -> JIRA:
         logger.error(f"❌ Неизвестная ошибка подключения: {e}")
         raise ConnectionError(f"Ошибка подключения: {e}")
 
+
+def check_jira_availability() -> Tuple[bool, str]:
+    """
+    Быстрая проверка доступности Jira без использования jira-client.
+    Делает HTTP GET запрос на /rest/api/2/serverInfo.
+
+    Returns:
+        Tuple[bool, str]: (доступна, сообщение об ошибке)
+    """
+    import requests
+    from requests.auth import HTTPBasicAuth
+    from urllib3.exceptions import InsecureRequestWarning
+
+    try:
+        # Отключаем предупреждения о SSL
+        if not SSL_VERIFY:
+            requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+        response = requests.get(
+            f'{JIRA_SERVER}/rest/api/2/serverInfo',
+            auth=HTTPBasicAuth(JIRA_USER, JIRA_PASS),
+            verify=SSL_VERIFY,
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            logger.info(f"✅ Jira доступна: {JIRA_SERVER}")
+            return True, ''
+        elif response.status_code == 502:
+            msg = f"Jira недоступна (502 Bad Gateway): {JIRA_SERVER}"
+            logger.error(f"❌ {msg}")
+            return False, msg
+        elif response.status_code == 503:
+            msg = f"Jira недоступна (503 Service Unavailable): {JIRA_SERVER}"
+            logger.error(f"❌ {msg}")
+            return False, msg
+        else:
+            msg = f"Jira вернула код {response.status_code}: {JIRA_SERVER}"
+            logger.error(f"❌ {msg}")
+            return False, msg
+
+    except requests.exceptions.ConnectionError as e:
+        msg = f"Нет подключения к Jira: {JIRA_SERVER} ({e})"
+        logger.error(f"❌ {msg}")
+        return False, msg
+    except requests.exceptions.Timeout:
+        msg = f"Превышено время ожидания от Jira: {JIRA_SERVER}"
+        logger.error(f"❌ {msg}")
+        return False, msg
+    except Exception as e:
+        msg = f"Ошибка проверки Jira: {JIRA_SERVER} ({e})"
+        logger.error(f"❌ {msg}")
+        return False, msg
+
 def get_default_start_date() -> datetime:
     """
     Возвращает дату начала по умолчанию (1 число прошлого месяца).
@@ -577,6 +631,12 @@ def generate_report(
     Returns:
         Dict[str, Any]: Словарь с данными отчёта
     """
+    # ===== ПРОВЕРКА ДОСТУПНОСТИ JIRA ПЕРЕД ГЕНЕРАЦИЕЙ =====
+    jira_available, error_msg = check_jira_availability()
+    if not jira_available:
+        raise ConnectionError(f"Jira недоступна: {error_msg}")
+    # =======================================================
+
     # Авто-определение ID статуса "Закрыт" (локальная переменная, не мутим глобальную)
     closed_status_ids = CLOSED_STATUS_IDS
     if not closed_status_ids or closed_status_ids[0] == '':

@@ -645,6 +645,15 @@ def api_report():
 
         return jsonify(response)
 
+    except ConnectionError as e:
+        # Ошибка подключения к Jira (предварительная проверка)
+        logger.error(f"❌ Jira недоступна: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Jira недоступна. Проверьте подключение к серверу.',
+            'details': str(e)
+        }), 503
+
     except Exception as e:
         logger.error(f"Ошибка генерации отчёта: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
