@@ -456,6 +456,7 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
             assignee_name = ''
             if issue.fields.assignee:
                 assignee_name = issue.fields.assignee.name if hasattr(issue.fields.assignee, 'name') else issue.fields.assignee.displayName
+                assignee_name = assignee_name or ''  # Защита от None
 
             for exc in EXCLUDED_ASSIGNEE_CLOSE:
                 if exc.lower() in assignee_name.lower():
@@ -479,6 +480,7 @@ def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: O
                                         author_name = ''
                                         if hasattr(history, 'author') and history.author:
                                             author_name = history.author.name if hasattr(history.author, 'name') else history.author.displayName
+                                            author_name = author_name or ''  # Защита от None
 
                                         # Если переход сделал пользователь демона — это корректно
                                         if JIRA_USER and JIRA_USER.lower() in author_name.lower():
