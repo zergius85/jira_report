@@ -19,6 +19,8 @@ import logging
 import io
 from dateutil.relativedelta import relativedelta
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import requests
+from requests.auth import HTTPBasicAuth
 
 # Импортируем настройки из core.config
 from core.config import (
@@ -228,6 +230,66 @@ def search_all_issues(
     return all_issues
 
 
+def fetch_issues_via_rest(
+    jira: JIRA,
+    jql: str,
+    batch_size: int = 100
+) -> List[Dict[str, Any]]:
+    """
+    Получает задачи через REST API с полем creator.
+    
+    Jira Python client не возвращает creator корректно, поэтому используем
+    прямой REST API запрос с expand=names,schema.
+    
+    Args:
+        jira: Подключение к Jira
+        jql: JQL-запрос
+        batch_size: Размер батча
+        
+    Returns:
+        List[Dict]: Список задач с полями
+    """
+    all_issues = []
+    start_at = 0
+    
+    logger.info(f"REST API запрос: {jql[:100]}...")
+    
+    # Используем сессию для аутентификации
+    session = requests.Session()
+    session.auth = HTTPBasicAuth(JIRA_USER, JIRA_PASS)
+    if not SSL_VERIFY:
+        urllib3 = requests.packages.urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    
+    while True:
+        url = f"{JIRA_SERVER}/rest/api/2/search"
+        params = {
+            'jql': jql,
+            'startAt': start_at,
+            'maxResults': batch_size,
+            'fields': 'summary,assignee,timespent,timeoriginalestimate,resolutiondate,issuetype,duedate,status,created,updated,creator,priority,project',
+            'expand': 'names'  # Для получения имён полей
+        }
+        
+        response = session.get(url, params=params, verify=SSL_VERIFY)
+        response.raise_for_status()
+        
+        data = response.json()
+        issues = data.get('issues', [])
+        
+        if not issues:
+            break
+        
+        all_issues.extend(issues)
+        logger.debug(f"Получено {len(issues)} задач (всего: {len(all_issues)})")
+        
+        if len(issues) < batch_size:
+            break
+            
+        start_at += batch_size
+    
+    logger.info(f"REST API запрос завершён. Всего получено задач: {len(all_issues)}")
+    return all_issues
 
 
 def get_closed_status_ids() -> List[str]:
@@ -656,28 +718,13 @@ def generate_report(
                           f"{assignee_filter_jql} "
                           f"ORDER BY created DESC")
 
-    # ========== ПОЛНАЯ ОПТИМИЗАЦИЯ: обработка за 1 проход без цикла по проектам ==========
-    
-    # Добавляем creator в оба запроса (нужен для проблемных задач)
-    common_fields = 'summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, creator, priority, project'
+    # ========== ПОЛНАЯ ОПТИМИЗАЦИЯ: 2 REST API запроса + 1 проход ==========
 
-    logger.info(f"🚀 Оптимизация: выполнение 2 глобальных запросов вместо {len(projects_keys) * 2}")
+    logger.info(f"🚀 Оптимизация: выполнение 2 REST API запросов вместо {len(projects_keys) * 2}")
 
-    # Получаем все задачи для проблемных (больший период)
-    issues_all_global = search_all_issues(
-        jira,
-        jql_issues_global,
-        fields=common_fields,
-        expand='changelog'
-    )
-
-    # Получаем задачи для обычных отчётов (меньший период)
-    issues_normal_global = search_all_issues(
-        jira,
-        jql_normal_global,
-        fields=common_fields,
-        expand='changelog'
-    )
+    # Получаем все задачи через REST API (с creator!)
+    issues_all_global = fetch_issues_via_rest(jira, jql_issues_global)
+    issues_normal_global = fetch_issues_via_rest(jira, jql_normal_global)
 
     # Добавляем все задачи normal в список для Risk Zone
     all_issues_normal.extend(issues_normal_global)
@@ -686,59 +733,97 @@ def generate_report(
     # Словарь для агрегации по проектам: proj_key -> {spent, estimated, correct, issues}
     project_stats = {}
 
-    for issue in issues_normal_global:
-        proj_key = issue.fields.project.key
+    for issue_data in issues_normal_global:
+        # REST API возвращает dict, а не объект
+        fields = issue_data.get('fields', {})
+        proj_key = fields.get('project', {}).get('key', '')
         proj_name = projects_map.get(proj_key, proj_key)
 
-        spent = convert_seconds_to_hours(issue.fields.timespent)
-        estimated = convert_seconds_to_hours(issue.fields.timeoriginalestimate)
+        # Получаем значения полей из REST API ответа
+        timespent = fields.get('timespent')
+        timeoriginalestimate = fields.get('timeoriginalestimate')
+        spent = convert_seconds_to_hours(timespent)
+        estimated = convert_seconds_to_hours(timeoriginalestimate)
 
-        issue_type = issue.fields.issuetype.name if issue.fields.issuetype else 'Задача'
-        assignee = issue.fields.assignee.displayName if issue.fields.assignee else 'Без исполнителя'
-        duedate = issue.fields.duedate[:10] if issue.fields.duedate else '-'
-        resolved = issue.fields.resolutiondate[:10] if issue.fields.resolutiondate else '-'
-        created = issue.fields.created[:10] if issue.fields.created else '-'
+        issuetype = fields.get('issuetype', {})
+        issue_type = issuetype.get('name', 'Задача') if issuetype else 'Задача'
 
-        status_name = issue.fields.status.name if issue.fields.status else '-'
-        status_category = issue.fields.status.statusCategory.key if issue.fields.status and issue.fields.status.statusCategory else '-'
+        assignee = fields.get('assignee', {}).get('displayName', 'Без исполнителя') if fields.get('assignee') else 'Без исполнителя'
+
+        duedate = fields.get('duedate', '-') or '-'
+        if duedate and duedate != '-':
+            duedate = duedate[:10]
+
+        resolutiondate = fields.get('resolutiondate', '-') or '-'
+        if resolutiondate and resolutiondate != '-':
+            resolutiondate = resolutiondate[:10]
+
+        created = fields.get('created', '-') or '-'
+        if created and created != '-':
+            created = created[:10]
+
+        status = fields.get('status', {})
+        status_name = status.get('name', '-') if status else '-'
+        status_category = status.get('statusCategory', {}).get('key', '-') if status else '-'
         status_full = f"{status_name} ({status_category})"
 
-        issue_url = f"{JIRA_SERVER}/browse/{issue.key}"
-        issue_id = issue.id if extra_verbose else None
+        issue_key = issue_data.get('key', '')
+        issue_url = f"{JIRA_SERVER}/browse/{issue_key}"
+        issue_id = issue_data.get('id') if extra_verbose else None
 
-        problems = validate_issue(issue, jira, closed_status_ids, proj_key)
+        # Создаём псевдо-объект issue для validate_issue
+        class MockIssue:
+            def __init__(self, data):
+                self.fields = type('obj', (object,), {
+                    'assignee': type('obj', (object,), {'displayName': data.get('fields', {}).get('assignee', {}).get('displayName') if data.get('fields', {}).get('assignee') else None})(),
+                    'timespent': data.get('fields', {}).get('timespent'),
+                    'timeoriginalestimate': data.get('fields', {}).get('timeoriginalestimate'),
+                    'resolutiondate': data.get('fields', {}).get('resolutiondate'),
+                    'status': type('obj', (object,), {
+                        'id': data.get('fields', {}).get('status', {}).get('id'),
+                        'name': data.get('fields', {}).get('status', {}).get('name'),
+                        'statusCategory': type('obj', (object,), {'key': data.get('fields', {}).get('status', {}).get('statusCategory', {}).get('key')})()
+                    })(),
+                    'created': data.get('fields', {}).get('created'),
+                    'duedate': data.get('fields', {}).get('duedate'),
+                    'issuetype': type('obj', (object,), {'name': data.get('fields', {}).get('issuetype', {}).get('name')})()
+                })()
+                self.key = data.get('key', '')
+
+        mock_issue = MockIssue(issue_data)
+        problems = validate_issue(mock_issue, jira, closed_status_ids, proj_key)
 
         # Формируем отображаемые значения с ID если нужно
+        project_display = proj_name
+        status_display = status_full
+        issue_type_display = issue_type
+        assignee_display = assignee
+
         if extra_verbose:
-            project_id = getattr(issue.fields.project, 'id', None) if hasattr(issue.fields, 'project') and issue.fields.project else None
+            project_id = fields.get('project', {}).get('id', '')
             project_display = f"{proj_name} [{project_id}]" if project_id else proj_name
 
-            status_id = getattr(issue.fields.status, 'id', None) if issue.fields.status else None
+            status_id = status.get('id', '')
             status_display = f"{status_full} [{status_id}]" if status_id else status_full
 
-            type_id = getattr(issue.fields.issuetype, 'id', None) if issue.fields.issuetype else None
+            type_id = issuetype.get('id', '')
             issue_type_display = f"{issue_type} [{type_id}]" if type_id else issue_type
 
-            assignee_id = getattr(issue.fields.assignee, 'id', None) if issue.fields.assignee else None
+            assignee_id = fields.get('assignee', {}).get('accountId', '')
             assignee_display = f"{assignee} [{assignee_id}]" if assignee_id else assignee
-        else:
-            project_display = proj_name
-            status_display = status_full
-            issue_type_display = issue_type
-            assignee_display = assignee
 
         issue_data = {
             'URL': issue_url,
             'ID': issue_id,
             'Проект': project_display,
-            'Ключ': issue.key,
+            'Ключ': issue_key,
             'Тип': issue_type_display,
-            'Задача': issue.fields.summary,
+            'Задача': fields.get('summary', ''),
             'Исполнитель': assignee_display,
             'Статус': status_display,
             'Дата создания': created,
             'Дата исполнения': duedate,
-            'Дата решения': resolved,
+            'Дата решения': resolutiondate,
             'Факт (ч)': spent,
             'Оценка (ч)': estimated,
             'Проблемы': ', '.join(problems) if problems else ''
@@ -757,27 +842,22 @@ def generate_report(
         else:
             project_stats[proj_key]['issues'] += 1
 
-        # Проблемные задачи
+        # Проблемные задачи — берём creator из REST API
         if problems:
-            # Берём создателя задачи (creator)
-            author = 'N/A'
-            author_id = ''
+            creator = fields.get('creator', {})
+            author = creator.get('displayName', 'N/A') if creator else 'N/A'
+            author_id = creator.get('accountId', '') if creator else ''
 
-            # creator всегда доступен через fields.creator
-            if hasattr(issue.fields, 'creator') and issue.fields.creator:
-                creator_obj = issue.fields.creator
-                author = getattr(creator_obj, 'displayName', None) or getattr(creator_obj, 'name', None) or str(creator_obj)
-                author_id = getattr(creator_obj, 'id', '')
-            else:
-                logger.warning(f"⚠️  Creator не доступен для {issue.key}")
+            if not creator:
+                logger.warning(f"⚠️  Creator не доступен для {issue_key}")
 
             author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
 
             issue_data_probs = {
                 'URL': issue_url,
-                'URL_debug': f"/?debug={issue.key}",
+                'URL_debug': f"/?debug={issue_key}",
                 'Проект': proj_name,
-                'Задача': issue.fields.summary,
+                'Задача': fields.get('summary', ''),
                 'Исполнитель': assignee,
                 'Автор': author_display,
                 'Дата создания': created,
@@ -785,7 +865,7 @@ def generate_report(
                 'Проблемы': ', '.join(problems)
             }
             if extra_verbose:
-                issue_data_probs = {'ID': issue.id, **issue_data_probs}
+                issue_data_probs = {'ID': issue_data.get('id'), **issue_data_probs}
             issues_with_problems.append(issue_data_probs)
 
     # Формируем summary из агрегированной статистики
@@ -793,8 +873,8 @@ def generate_report(
         if stats['correct'] > 0 or stats['issues'] > 0:
             if extra_verbose:
                 # Берём ID проекта из первой задачи
-                proj_issues = [i for i in issues_normal_global if i.fields.project.key == proj_key]
-                proj_id = getattr(proj_issues[0].fields.project, 'id', '') if proj_issues else ''
+                proj_issues_list = [i for i in issues_normal_global if i.get('fields', {}).get('project', {}).get('key') == proj_key]
+                proj_id = proj_issues_list[0].get('fields', {}).get('project', {}).get('id', '') if proj_issues_list else ''
                 summary_row = {
                     'Клиент (Проект)': stats['name'],
                     'ID': proj_id,
