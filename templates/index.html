@@ -2375,7 +2375,7 @@
                         return `<td style="display: flex; flex-direction: column; gap: 4px;">${problemList.map(p => {
                             const problemText = p.trim();
                             // Используем описания из PROBLEM_DESCRIPTIONS (переданы из Python)
-                            const description = PROBLEM_DESCRIPTIONS[problemText] || problemText;
+                            const description = (PROBLEM_DESCRIPTIONS[problemText] || problemText).replace(/"/g, '&quot;');
                             return `<span class="problem-badge" title="${description}">${problemText}</span>`;
                         }).join('')}</td>`;
                     }
@@ -2828,24 +2828,42 @@
                 document.getElementById('debug_task_title').textContent = 
                     `${taskInfo.key}: ${taskInfo.fields.summary || 'Без названия'}`;
 
-                // Базовая информация
+                // Базовая информация с ID
                 const basicInfo = document.getElementById('debug_basic_info');
+                
+                // Формируем значения с ID
+                const statusText = taskInfo.status 
+                    ? `${taskInfo.status.name} [${taskInfo.status.id}]`
+                    : (taskInfo.fields.status || '-');
+                
+                const assigneeText = taskInfo.assignee
+                    ? `${taskInfo.assignee.displayName} [${taskInfo.assignee.id}]`
+                    : (taskInfo.fields.assignee || 'Без исполнителя');
+                
+                const typeText = taskInfo.issuetype
+                    ? `${taskInfo.issuetype.name} [${taskInfo.issuetype.id}]`
+                    : (taskInfo.fields.issuetype || '-');
+                
+                const priorityText = taskInfo.priority
+                    ? `${taskInfo.priority.name} [${taskInfo.priority.id}]`
+                    : (taskInfo.fields.priority || '-');
+                
                 basicInfo.innerHTML = `
                     <div class="task-info-field">
                         <div class="task-info-label">Статус</div>
-                        <div class="task-info-value">${taskInfo.fields.status || '-'}</div>
+                        <div class="task-info-value">${statusText}</div>
                     </div>
                     <div class="task-info-field">
                         <div class="task-info-label">Исполнитель</div>
-                        <div class="task-info-value">${taskInfo.fields.assignee || 'Без исполнителя'}</div>
+                        <div class="task-info-value">${assigneeText}</div>
                     </div>
                     <div class="task-info-field">
                         <div class="task-info-label">Тип</div>
-                        <div class="task-info-value">${taskInfo.fields.issuetype || '-'}</div>
+                        <div class="task-info-value">${typeText}</div>
                     </div>
                     <div class="task-info-field">
                         <div class="task-info-label">Приоритет</div>
-                        <div class="task-info-value">${taskInfo.fields.priority || '-'}</div>
+                        <div class="task-info-value">${priorityText}</div>
                     </div>
                 `;
 

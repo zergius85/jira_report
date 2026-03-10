@@ -412,7 +412,38 @@ def api_task_info():
 
         task_info = {'key': issue.key, 'id': issue.id, 'fields': {}}
 
+        # Получаем основные поля с ID
         if hasattr(issue, 'fields') and issue.fields:
+            # Статус с ID
+            if issue.fields.status:
+                task_info['status'] = {
+                    'name': issue.fields.status.name,
+                    'id': issue.fields.status.id
+                }
+            
+            # Исполнитель с ID
+            if issue.fields.assignee:
+                task_info['assignee'] = {
+                    'displayName': issue.fields.assignee.displayName,
+                    'id': issue.fields.assignee.accountId or issue.fields.assignee.id,
+                    'name': issue.fields.assignee.name
+                }
+            
+            # Тип задачи с ID
+            if issue.fields.issuetype:
+                task_info['issuetype'] = {
+                    'name': issue.fields.issuetype.name,
+                    'id': issue.fields.issuetype.id
+                }
+            
+            # Приоритет с ID
+            if issue.fields.priority:
+                task_info['priority'] = {
+                    'name': issue.fields.priority.name,
+                    'id': issue.fields.priority.id
+                }
+            
+            # Остальные поля как строки
             for field_name in dir(issue.fields):
                 if not field_name.startswith('_'):
                     try:
