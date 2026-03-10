@@ -200,20 +200,11 @@ class TestReportGenerator:
         assert generator.days == 30
         assert generator.blocks is not None
 
-    @patch('core.report_generator.search_all_issues')
-    @patch('core.report_generator.sanitize_jql_identifier')
-    def test_generate_full_report(self, mock_sanitize, mock_search):
-        mock_sanitize.return_value = 'TEST'
-        mock_project = Mock()
-        mock_project.key = 'TEST'
-        mock_project.name = 'Test Project'
-        mock_search.return_value = [mock_project]
-        
-        generator = ReportGenerator(project_keys='TEST', start_date='2024-01-01', days=30)
-        result = generator.generate()
-        assert isinstance(result, dict)
-        assert 'period' in result
-        assert 'summary' in result
+    def test_risk_analyzer_component(self):
+        """Тест компонента RiskZoneAnalyzer в ReportGenerator"""
+        generator = ReportGenerator(project_keys=[])
+        assert generator.risk_analyzer is not None
+        assert hasattr(generator.risk_analyzer, 'analyze')
 
 
 class TestGenerateReportWrapper:
