@@ -763,6 +763,7 @@ def generate_report(
             created = created[:10]
 
         status = fields.get('status', {})
+        status_id = status.get('id', '')
         status_name = status.get('name', '-') if status else '-'
         status_category = status.get('statusCategory', {}).get('key', '-') if status else '-'
         status_full = f"{status_name} ({status_category})"
