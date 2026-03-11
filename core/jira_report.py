@@ -1088,11 +1088,13 @@ def generate_report(
                     'fact_sum': 'Факт (ч)',
                     'estimate_sum': 'Оценка (ч)'
                 })
+                
+                # СНАЧАЛА вычисления с числами
                 df_assignees['Отклонение'] = df_assignees['Оценка (ч)'] - df_assignees['Факт (ч)']
                 df_assignees = df_assignees.round(2)
                 df_assignees = df_assignees.sort_values(by='Факт (ч)', ascending=False)
 
-                # Форматируем числа с [field_name] при extra_verbose
+                # ПОТОМ форматирование в строки при extra_verbose
                 if extra_verbose:
                     df_assignees['Факт (ч)'] = df_assignees['Факт (ч)'].apply(lambda x: f"{x} [timespent]")
                     df_assignees['Оценка (ч)'] = df_assignees['Оценка (ч)'].apply(lambda x: f"{x} [timeoriginalestimate]")
