@@ -1065,13 +1065,11 @@ def generate_report(
                 df_assignees = df_assignees.round(2)
                 df_assignees = df_assignees.sort_values(by='Факт (ч)', ascending=False)
 
-                # Добавляем колонку ID для extra_verbose (извлекаем из "Исполнитель [ID]")
+                # Форматируем числа с [field_name] при extra_verbose
                 if extra_verbose:
-                    def extract_id(name):
-                        if '[' in name and ']' in name:
-                            return name.split('[')[-1].split(']')[0]
-                        return ''
-                    df_assignees.insert(1, 'ID', df_assignees['Исполнитель'].apply(extract_id))
+                    df_assignees['Факт (ч)'] = df_assignees['Факт (ч)'].apply(lambda x: f"{x} [timespent]")
+                    df_assignees['Оценка (ч)'] = df_assignees['Оценка (ч)'].apply(lambda x: f"{x} [timeoriginalestimate]")
+                    df_assignees['Отклонение'] = df_assignees['Отклонение'].apply(lambda x: f"{x}" if isinstance(x, (int, float)) else str(x))
             else:
                 df_assignees = pd.DataFrame()
         else:
