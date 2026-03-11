@@ -1019,9 +1019,8 @@ def generate_report(
                 # Проект с ID
                 if proj_id:
                     proj_name_display = f"{stats['name']} [{proj_id}]"
-                # Числа с [field_name]
-                estimated_display = f"{estimated_display} [timeoriginalestimate]"
-                spent_display = f"{spent_display} [timespent]"
+                # Числа оставляем для агрегации, НЕ форматируем в строки здесь!
+                # Форматирование будет в конце функции после всех вычислений
             
             summary_row = {
                 'Клиент (Проект)': proj_name_display,
