@@ -862,7 +862,7 @@ def generate_report(
         mock_issue = IssueDTO.from_dict(issue_data)
         problems = validate_issue(mock_issue, jira, closed_status_ids, proj_key)
 
-        # Формируем отображаемые значения с ID если нужно
+        # Формируем отображаемые значения
         project_display = proj_name
         status_display = f"{status_name} ({status_category})"
         issue_type_display = issue_type
@@ -873,34 +873,20 @@ def generate_report(
         duedate_display = duedate
         resolutiondate_display = resolutiondate
 
+        # Форматирование с ID при extra_verbose
         if extra_verbose:
-            # Проект с ID
-            project_id = fields.get('project', {}).get('id', '')
-            project_display = f"{proj_name} [{project_id}]" if project_id else proj_name
+            from core.formatters import VerboseFormatter
+            formatter = VerboseFormatter(extra_verbose=True)
             
-            # Статус с ID
-            if status_id:
-                status_display = f"{status_full} [{status_id}]"
-            
-            # Тип с ID
-            type_id = issuetype.get('id', '')
-            issue_type_display = f"{issue_type} [{type_id}]" if type_id else issue_type
-            
-            # Исполнитель с ID
-            assignee_id = fields.get('assignee', {}).get('accountId', '')
-            assignee_display = f"{assignee} [{assignee_id}]" if assignee_id else assignee
-            
-            # Даты с [field_name]
-            if created and created != '-':
-                created_display = f"{created} [created]"
-            if duedate and duedate != '-':
-                duedate_display = f"{duedate} [duedate]"
-            if resolutiondate and resolutiondate != '-':
-                resolutiondate_display = f"{resolutiondate} [resolutiondate]"
-            
-            # Числа с [field_name]
-            spent_display = f"{spent} [timespent]"
-            estimated_display = f"{estimated} [timeoriginalestimate]"
+            project_display = formatter.format_with_id(proj_name, fields.get('project', {}).get('id', ''))
+            status_display = formatter.format_with_id(status_full, status_id)
+            issue_type_display = formatter.format_with_id(issue_type, issuetype.get('id', ''))
+            assignee_display = formatter.format_with_id(assignee, fields.get('assignee', {}).get('accountId', ''))
+            created_display = formatter.format_date(created, 'created', is_empty=(created in [None, '-', '']))
+            duedate_display = formatter.format_date(duedate, 'duedate', is_empty=(duedate in [None, '-', '']))
+            resolutiondate_display = formatter.format_date(resolutiondate, 'resolutiondate', is_empty=(resolutiondate in [None, '-', '']))
+            spent_display = formatter.format_number(spent, 'timespent')
+            estimated_display = formatter.format_number(estimated, 'timeoriginalestimate')
 
         issue_data = {
             'URL': issue_url,
