@@ -563,6 +563,9 @@ def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
     """
     Возвращает порядок колонок для каждого блока.
 
+    При включенном extra_verbose добавляется колонка 'ID' после 'URL'.
+    Заголовки остальных колонок остаются неизменными.
+
     Args:
         block: Название блока отчёта
         extra_verbose: Показывать ли ID объектов
@@ -574,29 +577,35 @@ def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
         ValueError: Если блок не найден
     """
     if block == 'summary':
+        base_cols = ['Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
         if extra_verbose:
-            return ['Клиент (Проект) [project]', 'ID [id]', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч) [timeoriginalestimate]', 'Факт (ч) [timespent]', 'Отклонение']
-        return ['Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
+            return ['Клиент (Проект)', 'ID', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
+        return base_cols
     elif block == 'assignees':
+        base_cols = ['Исполнитель', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
         if extra_verbose:
-            return ['Исполнитель [assignee]', 'ID [accountId]', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч) [timeoriginalestimate]', 'Факт (ч) [timespent]', 'Отклонение']
-        return ['Исполнитель', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
+            return ['Исполнитель', 'ID', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
+        return base_cols
     elif block == 'detail':
+        base_cols = ['URL', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
         if extra_verbose:
-            return ['URL', 'ID [id]', 'Дата решения [resolutiondate]', 'Дата исполнения [duedate]', 'Дата создания [created]', 'Проект [project]', 'Статус [status]', 'Задача [summary]', 'Исполнитель [assignee]', 'Факт (ч) [timespent]', 'Тип [issuetype]']
-        return ['URL', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
+            return ['URL', 'ID', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
+        return base_cols
     elif block == 'issues':
+        base_cols = ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
         if extra_verbose:
-            return ['URL', 'ID [id]', 'Дата исполнения [duedate]', 'Дата создания [created]', 'Проект [project]', 'Задача [summary]', 'Исполнитель [assignee]', 'Автор [creator]', 'Проблемы']
-        return ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
+            return ['URL', 'ID', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
+        return base_cols
     elif block == 'internal':
+        base_cols = ['URL', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
         if extra_verbose:
-            return ['URL', 'ID [id]', 'Проект ID [project.id]', 'Проект [project]', 'Ключ [key]', 'Задача [summary]', 'Исполнитель [assignee]', 'Статус [status]', 'Факт (ч) [timespent]', 'Дата создания [created]', 'Дата исполнения [duedate]', 'Тип [issuetype]']
-        return ['URL', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
+            return ['URL', 'ID', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
+        return base_cols
     elif block == 'risk_zone':
+        base_cols = ['URL', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факторы риска', 'Приоритет']
         if extra_verbose:
-            return ['URL', 'Ключ [key]', 'Задача [summary]', 'Исполнитель [assignee]', 'Статус [status]', 'Факторы риска', 'Приоритет [priority]']
-        return ['URL', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факторы риска', 'Приоритет']
+            return ['URL', 'ID', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факторы риска', 'Приоритет']
+        return base_cols
     else:
         logger.warning(f"⚠️  Неизвестный блок '{block}', используются колонки по умолчанию")
         return ['Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Дата создания', 'Дата исполнения', 'Факт (ч)', 'Оценка (ч)']
@@ -1074,6 +1083,8 @@ def generate_report(
         result['issues'] = df_issues
     if 'internal' in result['blocks']:
         result['internal'] = df_internal
+    if 'risk_zone' in result['blocks']:
+        result['risk_zone'] = pd.DataFrame(risk_issues) if risk_issues else pd.DataFrame()
 
     # Фильтрация колонок для каждого блока
     if 'summary' in result['blocks'] and not result['summary'].empty:
@@ -1100,6 +1111,11 @@ def generate_report(
         cols = get_column_order('internal', extra_verbose)
         available_cols = [c for c in cols if c in result['internal'].columns]
         result['internal'] = result['internal'][available_cols]
+
+    if 'risk_zone' in result['blocks'] and not result['risk_zone'].empty:
+        cols = get_column_order('risk_zone', extra_verbose)
+        available_cols = [c for c in cols if c in result['risk_zone'].columns]
+        result['risk_zone'] = result['risk_zone'][available_cols]
 
     # ========== БЛОК "RISK ZONE" - ЗАВИСШИЕ ЗАДАЧИ ==========
     if include_risk_zone:
@@ -1149,7 +1165,9 @@ def generate_report(
                 if risk_factors:
                     assignee_name = assignee.get('displayName', 'Без исполнителя') if assignee else 'Без исполнителя'
                     priority = fields.get('priority', {})
-                    risk_issues.append({
+                    
+                    # Формируем данные с ID при extra_verbose
+                    row = {
                         'URL': f"{JIRA_SERVER}/browse/{issue_key}",
                         'Ключ': issue_key,
                         'Задача': fields.get('summary', ''),
@@ -1157,12 +1175,22 @@ def generate_report(
                         'Статус': status_name,
                         'Факторы риска': '; '.join(risk_factors),
                         'Приоритет': priority.get('name', 'Normal')
-                    })
+                    }
+                    
+                    if extra_verbose:
+                        # Добавляем ID задачи
+                        row.insert(1, 'ID', issue_key)
+                        # Добавляем ID к исполнителю если есть
+                        if assignee and 'id' in assignee:
+                            row['Исполнитель'] = f"{assignee_name} [{assignee['id']}]"
+                    
+                    risk_issues.append(row)
 
             logger.info(f"   Найдено {len(risk_issues)} рисковых задач")
         else:
             logger.warning("   ⚠️  all_issues_normal пуст")
 
+        # Обновляем result['risk_zone'] с отсортированными данными
         if risk_issues:
             result['risk_zone'] = pd.DataFrame(risk_issues)
             result['risk_zone'] = result['risk_zone'].sort_values('Приоритет', ascending=False)

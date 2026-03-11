@@ -40,6 +40,19 @@ logger = logging.getLogger(__name__)
 class IssueDataExtractor:
     """Извлекает и форматирует данные из задачи Jira."""
 
+    # Маппинг полей для всплывающих подсказок
+    FIELD_TITLES = {
+        'Проект': 'project',
+        'Статус': 'status',
+        'Тип': 'issuetype',
+        'Исполнитель': 'assignee',
+        'Дата создания': 'created',
+        'Дата исполнения': 'duedate',
+        'Дата решения': 'resolutiondate',
+        'Факт (ч)': 'timespent',
+        'Оценка (ч)': 'timeoriginalestimate',
+    }
+
     def __init__(self, extra_verbose: bool = False):
         self.extra_verbose = extra_verbose
 
@@ -81,23 +94,30 @@ class IssueDataExtractor:
         project_display = self._format_with_id(
             proj_name,
             getattr(fields, 'project', None),
-            self.extra_verbose
+            'project'
         )
-        status_display = self._format_status_with_id(
+        status_display = self._format_with_id(
             status_full,
             fields.status,
-            self.extra_verbose
+            'status'
         )
         issue_type_display = self._format_with_id(
             issue_type,
             fields.issuetype,
-            self.extra_verbose
+            'issuetype'
         )
         assignee_display = self._format_with_id(
             assignee,
             fields.assignee,
-            self.extra_verbose
+            'assignee'
         )
+
+        # Даты и числа форматируем с title при extra_verbose
+        duedate_display = self._format_date_with_title(duedate, fields.duedate, 'duedate')
+        resolved_display = self._format_date_with_title(resolved, fields.resolutiondate, 'resolutiondate')
+        created_display = self._format_date_with_title(created, fields.created, 'created')
+        spent_display = self._format_number_with_title(spent, fields.timespent, 'timespent')
+        estimated_display = self._format_number_with_title(estimated, fields.timeoriginalestimate, 'timeoriginalestimate')
 
         return {
             'URL': issue_url,
@@ -108,25 +128,41 @@ class IssueDataExtractor:
             'Задача': fields.summary,
             'Исполнитель': assignee_display,
             'Статус': status_display,
-            'Дата создания': created,
-            'Дата исполнения': duedate,
-            'Дата решения': resolved,
-            'Факт (ч)': spent,
-            'Оценка (ч)': estimated,
+            'Дата создания': created_display,
+            'Дата исполнения': duedate_display,
+            'Дата решения': resolved_display,
+            'Факт (ч)': spent_display,
+            'Оценка (ч)': estimated_display,
             'Проблемы': ', '.join(problems) if problems else ''
         }
 
-    def _format_with_id(self, name: str, obj: Any, extra_verbose: bool) -> str:
-        """Форматирует значение с ID если включён extra_verbose."""
-        if extra_verbose and obj and hasattr(obj, 'id'):
+    def _format_with_id(self, name: str, obj: Any, field_name: str) -> str:
+        """
+        Форматирует значение с ID и title если включён extra_verbose.
+
+        Args:
+            name: Отображаемое имя
+            obj: Объект с id атрибутом
+            field_name: Название поля Jira для title
+
+        Returns:
+            Строка формата "name [id]" или "name"
+        """
+        if self.extra_verbose and obj and hasattr(obj, 'id'):
             return f"{name} [{obj.id}]"
         return name
 
-    def _format_status_with_id(self, status_full: str, status: Any, extra_verbose: bool) -> str:
-        """Форматирует статус с ID если включён extra_verbose."""
-        if extra_verbose and status and hasattr(status, 'id'):
-            return f"{status_full} [{status.id}]"
-        return status_full
+    def _format_date_with_title(self, display_value: str, original_value: Any, field_name: str) -> str:
+        """Форматирует дату с title при extra_verbose."""
+        if self.extra_verbose and original_value:
+            return f"{display_value} [{field_name}]"
+        return display_value
+
+    def _format_number_with_title(self, display_value: float, original_value: Any, field_name: str) -> str:
+        """Форматирует число с title при extra_verbose."""
+        if self.extra_verbose and original_value is not None:
+            return f"{display_value} [{field_name}]"
+        return str(display_value)
 
 
 class ReportBlockGenerator:
@@ -147,28 +183,27 @@ class ReportBlockGenerator:
         issues_normal: Optional[List] = None
     ) -> Dict[str, Any]:
         """Генерирует строку сводки по проекту."""
+        base_row = {
+            'Клиент (Проект)': proj_name,
+            'Задач закрыто': proj_correct + proj_issues,
+            'Корректных': proj_correct,
+            'С ошибками': proj_issues,
+            'Оценка (ч)': round(proj_estimated, 2),
+            'Факт (ч)': round(proj_spent, 2),
+            'Отклонение': round(proj_estimated - proj_spent, 2)
+        }
+        
         if self.extra_verbose and issues_normal:
-            proj_id = getattr(issues_normal[0].fields, 'project', None).id if issues_normal else ''
+            proj_obj = getattr(issues_normal[0].fields, 'project', None)
+            proj_id = proj_obj.id if proj_obj else ''
+            # Добавляем ID проекта в отдельной колонке
             return {
-                'Клиент (Проект)': proj_name,
+                'Клиент (Проект)': f"{proj_name} [{proj_id}]" if proj_id else proj_name,
                 'ID': proj_id,
-                'Задач закрыто': proj_correct + proj_issues,
-                'Корректных': proj_correct,
-                'С ошибками': proj_issues,
-                'Оценка (ч)': round(proj_estimated, 2),
-                'Факт (ч)': round(proj_spent, 2),
-                'Отклонение': round(proj_estimated - proj_spent, 2)
+                **{k: v for k, v in base_row.items() if k != 'Клиент (Проект)'}
             }
-        else:
-            return {
-                'Клиент (Проект)': proj_name,
-                'Задач закрыто': proj_correct + proj_issues,
-                'Корректных': proj_correct,
-                'С ошибками': proj_issues,
-                'Оценка (ч)': round(proj_estimated, 2),
-                'Факт (ч)': round(proj_spent, 2),
-                'Отклонение': round(proj_estimated - proj_spent, 2)
-            }
+        
+        return base_row
 
     def generate_issue_row(
         self,
@@ -181,11 +216,20 @@ class ReportBlockGenerator:
         """Генерирует строку проблемной задачи."""
         author = self._get_author(issue)
         author_id = self._get_author_id(issue)
+        
+        # Формируем отображаемые значения
         author_display = f"{author} [{author_id}]" if self.extra_verbose and author_id else author
-
+        
+        # Получаем ID объекта для полей
+        fields = issue.fields
+        proj_id = getattr(fields, 'project', None)
+        proj_id_str = proj_id.id if proj_id else ''
+        proj_display = f"{proj_name} [{proj_id_str}]" if self.extra_verbose and proj_id_str else proj_name
+        
+        # Формируем базовую строку
         row = {
             'URL': f"{JIRA_SERVER}/browse/{issue.key}",
-            'Проект': proj_name,
+            'Проект': proj_display,
             'Задача': issue.fields.summary,
             'Исполнитель': assignee,
             'Автор': author_display,
@@ -195,6 +239,7 @@ class ReportBlockGenerator:
         }
 
         if self.extra_verbose:
+            # Добавляем ID задачи в отдельной колонке
             row_with_id = {'ID': issue.id}
             row_with_id.update(row)
             return row_with_id
@@ -730,6 +775,7 @@ class ReportGenerator:
                 if '[' in name and ']' in name:
                     return name.split('[')[-1].split(']')[0]
                 return ''
+            # Извлекаем ID и вставляем в отдельную колонку
             df_assignees.insert(1, 'ID', df_assignees['Исполнитель'].apply(extract_id))
 
         return df_assignees
@@ -785,18 +831,34 @@ class ReportGenerator:
                         else '-'
                     )
 
-                    internal_issues_data.append({
+                    # Формируем данные с ID при extra_verbose
+                    proj_display = internal_proj_name
+                    assignee_display = assignee
+                    
+                    if self.extra_verbose:
+                        proj_obj = getattr(issue.fields, 'project', None)
+                        if proj_obj and hasattr(proj_obj, 'id'):
+                            proj_display = f"{internal_proj_name} [{proj_obj.id}]"
+                        if issue.fields.assignee and hasattr(issue.fields.assignee, 'id'):
+                            assignee_display = f"{assignee} [{issue.fields.assignee.id}]"
+
+                    row = {
                         'URL': f"{JIRA_SERVER}/browse/{issue.key}",
-                        'Проект': internal_proj_name,
+                        'Проект': proj_display,
                         'Ключ': issue.key,
                         'Тип': issue_type,
                         'Задача': issue.fields.summary,
-                        'Исполнитель': assignee,
+                        'Исполнитель': assignee_display,
                         'Статус': status_name,
                         'Дата создания': created,
                         'Факт (ч)': spent,
                         'Оценка (ч)': estimated
-                    })
+                    }
+                    
+                    if self.extra_verbose:
+                        row.insert(0, 'ID', issue.id)
+                    
+                    internal_issues_data.append(row)
             except Exception as e:
                 logger.warning(
                     f"Не удалось получить задачи из проекта {internal_proj_key}: {e}"

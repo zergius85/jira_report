@@ -48,8 +48,8 @@ class TestIssueDataExtractor:
         assert result['Ключ'] == 'TEST-123'
         assert result['Тип'] == 'Task'
         assert result['Исполнитель'] == 'Ivanov'
-        assert result['Факт (ч)'] == 1.0
-        assert result['Оценка (ч)'] == 2.0
+        assert result['Факт (ч)'] == '1.0'  # Теперь возвращается строка
+        assert result['Оценка (ч)'] == '2.0'  # Теперь возвращается строка
         assert result['Проблемы'] == 'No assignee'
 
     def test_extract_no_assignee(self):
@@ -71,7 +71,7 @@ class TestIssueDataExtractor:
         
         result = self.extractor.extract(mock_issue, 'TEST', [])
         assert result['Исполнитель'] == 'Без исполнителя'
-        assert result['Факт (ч)'] == 0.0
+        assert result['Факт (ч)'] == '0.0'  # Теперь возвращается строка
 
     def test_extract_with_extra_verbose(self):
         mock_issue = Mock()

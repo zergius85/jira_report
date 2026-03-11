@@ -2279,9 +2279,17 @@
             // Определяем порядок колонок для каждой таблицы
             let columns = [];
             if (name === 'summary') {
-                columns = ['Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
+                columns = ['Клиент (Проект)', 'ID', 'Задач закрыто', 'Корректных', 'С ошибками', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
+                // Если нет ID в данных, убираем
+                if (data[0] && !('ID' in data[0])) {
+                    columns = columns.filter(c => c !== 'ID');
+                }
             } else if (name === 'assignees') {
-                columns = ['Исполнитель', 'Задач', 'Корректных', 'С ошибками', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
+                columns = ['Исполнитель', 'ID', 'Задач', 'Корректных', 'С ошибками', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
+                // Если нет ID в данных, убираем
+                if (data[0] && !('ID' in data[0])) {
+                    columns = columns.filter(c => c !== 'ID');
+                }
             } else if (name === 'issues') {
                 // Для проблемных задач - особая логика с развёрнутыми проблемами
                 renderIssuesTable(data);
@@ -2299,7 +2307,16 @@
                 const isLargeNegative = row['Отклонение'] !== undefined && row['Отклонение'] < -10;
 
                 return '<tr>' + columns.map(col => {
-                    let cellValue = formatCell(row[col], col, row);
+                    let cellValue = row[col];
+                    
+                    // Извлекаем чистое значение и title для ячеек с [id]
+                    if (col === 'Клиент (Проект)' || col === 'Исполнитель') {
+                        const cleanValue = extractCleanValue(cellValue);
+                        const title = extractTitle(cellValue, col.toLowerCase());
+                        cellValue = `<span title="${title}">${cleanValue}</span>`;
+                    } else {
+                        cellValue = formatCell(cellValue, col, row);
+                    }
 
                     // Обработка колонок с процентами (Корректных и С ошибками)
                     if (col === 'Корректных' || col === 'С ошибками') {
@@ -2341,31 +2358,26 @@
             const thead = table.querySelector('thead');
             const tbody = table.querySelector('tbody');
 
-            // Определяем колонки из первой строки данных
+            // Определяем колонки - теперь данные приходят с ID в формате "value [id]"
+            // columnMapping нужен только для фильтрации и определения базовых имён
             const columnMapping = {
                 'URL': 'URL',
-                'ID [id]': 'ID',
-                'Дата исполнения [duedate]': 'Дата исполнения',
-                'Дата создания [created]': 'Дата создания',
-                'Проект [project]': 'Проект',
-                'Задача [summary]': 'Задача',
-                'Исполнитель [assignee]': 'Исполнитель',
-                'Автор [creator]': 'Автор',
-                'Проблемы': 'Проблемы',
+                'ID': 'ID',
                 'Дата исполнения': 'Дата исполнения',
                 'Дата создания': 'Дата создания',
                 'Проект': 'Проект',
                 'Задача': 'Задача',
                 'Исполнитель': 'Исполнитель',
-                'Автор': 'Автор'
+                'Автор': 'Автор',
+                'Проблемы': 'Проблемы'
             };
 
             // Получаем колонки из первой строки
             const rawColumns = data.length > 0 ? Object.keys(data[0]) : [];
-            const columns = rawColumns.filter(col => columnMapping[col]);
+            const columns = rawColumns.filter(col => columnMapping[col] || col === 'ID');
 
             // Формируем заголовки с базовыми именами
-            const headerColumns = columns.map(col => columnMapping[col]);
+            const headerColumns = columns.map(col => columnMapping[col] || col);
 
             thead.innerHTML = '<tr>' + headerColumns.map((col, i) => `<th onclick="sortTable('issues', '${col}')">${col}</th>`).join('') + '</tr>';
 
@@ -2375,7 +2387,7 @@
                 const problemList = Array.isArray(problems) ? problems : (problems || '').split(/[,;]/).filter(p => p.trim());
 
                 return '<tr>' + columns.map((col, i) => {
-                    const baseCol = columnMapping[col];
+                    const baseCol = columnMapping[col] || col;
                     if (baseCol === 'Проблемы') {
                         // Форматируем проблемы как список бейджей, каждый с новой строки
                         if (problemList.length === 0) {
@@ -2389,9 +2401,12 @@
                         }).join('')}</td>`;
                     }
                     if (baseCol === 'Автор') {
-                        // Проверяем автора
+                        // Проверяем автора - данные могут быть в формате "name [id]"
                         const author = row[col] || row['Автор'] || row.author || 'N/A';
-                        return `<td>${author}</td>`;
+                        // Извлекаем чистое имя для отображения (убираем [id])
+                        const cleanAuthor = extractCleanValue(author);
+                        const title = extractTitle(author, 'creator');
+                        return `<td title="${title}">${cleanAuthor}</td>`;
                     }
                     if (baseCol === 'URL') {
                         // URL с двумя ссылками: скрепка и ID задачи
@@ -2407,25 +2422,60 @@
                         }
                         return `<td>${url || '-'}</td>`;
                     }
-                    return `<td>${formatCell(row[col], col, row)}</td>`;
+                    // Для остальных колонок - форматирование с извлечением чистого значения и title
+                    return `<td>${formatCellWithTooltip(row[col], col, row)}</td>`;
                 }).join('') + '</tr>';
             }).join('');
         }
 
-        function formatCell(value, column, row) {
+        // Извлечение чистого значения без [id] и [field_name]
+        function extractCleanValue(value) {
+            if (!value || typeof value !== 'string') return value;
+            // Удаляем [id] и [field_name] из конца строки
+            return value.replace(/\s*\[[\w-]+\]\s*$/, '').trim();
+        }
+
+        // Извлечение title из значения в формате "value [field_name]"
+        function extractTitle(value, defaultField) {
+            if (!value || typeof value !== 'string') return '';
+            const match = value.match(/\[([\w-]+)\]\s*$/);
+            if (match) {
+                const fieldOrId = match[1];
+                // Если это ID (число или alphanumeric), возвращаем field_name
+                if (/^\w+$/.test(fieldOrId)) {
+                    return `${defaultField} = '${fieldOrId}'`;
+                }
+                return fieldOrId;
+            }
+            return defaultField;
+        }
+
+        // Форматирование ячейки с tooltip
+        function formatCellWithTooltip(value, column, row) {
             if (value === null || value === undefined) return '';
             
+            const cleanValue = extractCleanValue(value);
+            const title = extractTitle(value, column);
+
             // URL - иконка скрепки со ссылкой
-            if (column === 'URL' && value.startsWith('http')) {
-                const issueKey = value.split('/browse/')[1] || '';
-                return `<a href="${value}" target="_blank" title="${issueKey}" style="text-decoration:none;">📎</a>`;
+            if (column === 'URL' && cleanValue.startsWith('http')) {
+                const issueKey = cleanValue.split('/browse/')[1] || '';
+                return `<a href="${cleanValue}" target="_blank" title="${issueKey}" style="text-decoration:none;">📎 ${cleanValue}</a>`;
+            }
+
+            // Форматирование дат YYYY.MM.DD
+            if (typeof cleanValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(cleanValue)) {
+                const formatted = formatDisplayDate(cleanValue);
+                return `<span title="${title}">${formatted}</span>`;
             }
             
-            // Форматирование дат YYYY.MM.DD
-            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-                return formatDisplayDate(value);
+            // Числа (Факт, Оценка)
+            if (typeof cleanValue === 'string' && /^[\d.,]+$/.test(cleanValue)) {
+                return `<span title="${title}">${cleanValue}</span>`;
             }
-            return value;
+            
+            // Текст с tooltip
+            return `<span title="${title}">${cleanValue}</span>`;
         }
 
         function sortTable(name, column) {
