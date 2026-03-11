@@ -563,8 +563,8 @@ def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
     """
     Возвращает порядок колонок для каждого блока.
 
-    При включенном extra_verbose добавляется колонка 'ID' после 'URL'.
-    Заголовки остальных колонок остаются неизменными.
+    В extra_verbose режиме заголовки не меняются, ID добавляются
+    к значениям полей в квадратных скобках.
 
     Args:
         block: Название блока отчёта
@@ -577,35 +577,17 @@ def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
         ValueError: Если блок не найден
     """
     if block == 'summary':
-        base_cols = ['Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
-        if extra_verbose:
-            return ['Клиент (Проект)', 'ID', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
-        return base_cols
+        return ['Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
     elif block == 'assignees':
-        base_cols = ['Исполнитель', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
-        if extra_verbose:
-            return ['Исполнитель', 'ID', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
-        return base_cols
+        return ['Исполнитель', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
     elif block == 'detail':
-        base_cols = ['URL', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
-        if extra_verbose:
-            return ['URL', 'ID', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
-        return base_cols
+        return ['URL', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
     elif block == 'issues':
-        base_cols = ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
-        if extra_verbose:
-            return ['URL', 'ID', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
-        return base_cols
+        return ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
     elif block == 'internal':
-        base_cols = ['URL', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
-        if extra_verbose:
-            return ['URL', 'ID', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
-        return base_cols
+        return ['URL', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
     elif block == 'risk_zone':
-        base_cols = ['URL', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факторы риска', 'Приоритет']
-        if extra_verbose:
-            return ['URL', 'ID', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факторы риска', 'Приоритет']
-        return base_cols
+        return ['URL', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факторы риска', 'Приоритет']
     else:
         logger.warning(f"⚠️  Неизвестный блок '{block}', используются колонки по умолчанию")
         return ['Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Дата создания', 'Дата исполнения', 'Факт (ч)', 'Оценка (ч)']
@@ -1198,34 +1180,34 @@ def generate_report(
                 # Если есть факторы риска - добавляем в отчёт
                 if risk_factors:
                     assignee_name = assignee.get('displayName', 'Без исполнителя') if assignee else 'Без исполнителя'
-                    priority = fields.get('priority', {})
+                    priority_name = priority.get('name', 'Normal') if priority else 'Normal'
+                    
+                    # Формируем URL с иконкой 🔍 при extra_verbose
+                    issue_url = f"{JIRA_SERVER}/browse/{issue_key}"
+                    if extra_verbose:
+                        issue_url = f"{issue_url} 🔍"
                     
                     # Формируем данные с ID при extra_verbose
                     row = {
-                        'URL': f"{JIRA_SERVER}/browse/{issue_key}",
+                        'URL': issue_url,
                         'Ключ': issue_key,
                         'Задача': fields.get('summary', ''),
                         'Исполнитель': assignee_name,
                         'Статус': status_name,
                         'Факторы риска': '; '.join(risk_factors),
-                        'Приоритет': priority.get('name', 'Normal')
+                        'Приоритет': priority_name
                     }
-
+                    
                     if extra_verbose:
-                        # Добавляем ID задачи и ID исполнителя
-                        row_with_id = {
-                            'URL': row['URL'],
-                            'ID': issue_key,
-                            'Ключ': issue_key,
-                            'Задача': row['Задача'],
-                            'Исполнитель': f"{assignee_name} [{assignee['id']}]" if assignee and 'id' in assignee else assignee_name,
-                            'Статус': row['Статус'],
-                            'Факторы риска': row['Факторы риска'],
-                            'Приоритет': row['Приоритет']
-                        }
-                        risk_issues.append(row_with_id)
-                    else:
-                        risk_issues.append(row)
+                        # Добавляем ID к полям
+                        if assignee and 'id' in assignee:
+                            row['Исполнитель'] = f"{assignee_name} [{assignee['id']}]"
+                        if status_id:
+                            row['Статус'] = f"{status_name} [{status_id}]"
+                        if priority and 'id' in priority:
+                            row['Приоритет'] = f"{priority_name} [{priority['id']}]"
+                    
+                    risk_issues.append(row)
 
             logger.info(f"   Найдено {len(risk_issues)} рисковых задач")
         else:

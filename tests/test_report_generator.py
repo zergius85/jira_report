@@ -128,7 +128,10 @@ class TestReportBlockGenerator:
             proj_name='TEST', proj_correct=5, proj_issues=1,
             proj_estimated=40.0, proj_spent=42.0, issues_normal=[mock_issue]
         )
-        assert result['ID'] == '10000'
+        # В extra_verbose режиме ID добавляется к значению, а не отдельной колонкой
+        assert result['Клиент (Проект)'] == 'TEST [10000]'
+        assert result['Оценка (ч)'] == '40.0 [timeoriginalestimate]'
+        assert result['Факт (ч)'] == '42.0 [timespent]'
         assert result['Отклонение'] == -2.0
 
 

@@ -90,10 +90,11 @@ class TestGetColumnOrder:
         assert len(cols) == 7
 
     def test_summary_columns_extra_verbose(self):
+        # В extra_verbose режиме колонки не меняются, ID добавляется к значениям
         cols = get_column_order('summary', extra_verbose=True)
         assert 'Клиент (Проект)' in cols
-        assert 'ID' in cols
-        assert len(cols) == 8
+        assert 'ID' not in cols  # Отдельной колонки ID больше нет
+        assert len(cols) == 7  # Количество колонок не меняется
 
     def test_assignees_columns(self):
         cols = get_column_order('assignees')
@@ -102,10 +103,11 @@ class TestGetColumnOrder:
         assert len(cols) == 7
 
     def test_assignees_columns_extra_verbose(self):
+        # В extra_verbose режиме колонки не меняются
         cols = get_column_order('assignees', extra_verbose=True)
         assert 'Исполнитель' in cols
-        assert 'ID' in cols
-        assert len(cols) == 8
+        assert 'ID' not in cols
+        assert len(cols) == 7
 
     def test_detail_columns(self):
         cols = get_column_order('detail')
@@ -115,11 +117,12 @@ class TestGetColumnOrder:
         assert len(cols) == 10
 
     def test_detail_columns_extra_verbose(self):
+        # В extra_verbose режиме колонки не меняются
         cols = get_column_order('detail', extra_verbose=True)
         assert 'URL' in cols
-        assert 'ID' in cols
+        assert 'ID' not in cols
         assert 'Дата решения' in cols
-        assert len(cols) == 11
+        assert len(cols) == 10
 
     def test_issues_columns(self):
         cols = get_column_order('issues')
@@ -128,10 +131,11 @@ class TestGetColumnOrder:
         assert len(cols) == 8
 
     def test_issues_columns_extra_verbose(self):
+        # В extra_verbose режиме колонки не меняются
         cols = get_column_order('issues', extra_verbose=True)
         assert 'URL' in cols
-        assert 'ID' in cols
-        assert len(cols) == 9
+        assert 'ID' not in cols
+        assert len(cols) == 8
 
     def test_unknown_block(self):
         cols = get_column_order('unknown')
