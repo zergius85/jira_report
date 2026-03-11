@@ -78,3 +78,176 @@ def sanitize_jql_string_literal(value: str) -> str:
     value = value.replace("'", "''")
 
     return value
+
+
+# =============================================
+# ЛОГИРОВАНИЕ С КОНТЕКСТОМ
+# =============================================
+
+class LogContext:
+    """
+    Контекст для логирования.
+    
+    Используется для добавления дополнительной информации в логи:
+    - user: пользователь
+    - project: проект
+    - duration: длительность операции
+    - issue_key: ключ задачи
+    """
+    
+    def __init__(self, **kwargs):
+        """
+        Инициализация контекста.
+        
+        Args:
+            **kwargs: Произвольные параметры для логирования
+        """
+        self._context = kwargs
+    
+    def set(self, key: str, value: any) -> 'LogContext':
+        """
+        Установить значение в контексте.
+        
+        Args:
+            key: Ключ
+            value: Значение
+            
+        Returns:
+            self: Для цепочки вызовов
+        """
+        self._context[key] = value
+        return self
+    
+    def get(self, key: str, default: any = None) -> any:
+        """
+        Получить значение из контекста.
+        
+        Args:
+            key: Ключ
+            default: Значение по умолчанию
+            
+        Returns:
+            Значение из контекста
+        """
+        return self._context.get(key, default)
+    
+    def to_dict(self) -> dict:
+        """
+        Получить контекст как словарь.
+        
+        Returns:
+            dict: Словарь с контекстом
+        """
+        return self._context.copy()
+    
+    def clear(self) -> None:
+        """Очистить контекст."""
+        self._context.clear()
+
+
+def format_log_message(
+    message: str,
+    context: Optional[LogContext] = None,
+    **kwargs
+) -> str:
+    """
+    Форматирует сообщение лога с контекстом.
+    
+    Args:
+        message: Основное сообщение
+        context: Объект контекста (опционально)
+        **kwargs: Дополнительные параметры
+        
+    Returns:
+        str: Отформатированное сообщение
+        
+    Пример:
+        >>> ctx = LogContext().set('user', 'ivan').set('project', 'WEB')
+        >>> format_log_message('Отчёт сгенерирован', context=ctx)
+        'Отчёт сгенерирован [user=ivan, project=WEB]'
+    """
+    parts = [message]
+    
+    # Собираем контекст
+    ctx_dict = {}
+    if context:
+        ctx_dict.update(context.to_dict())
+    ctx_dict.update(kwargs)
+    
+    # Добавляем контекст в сообщение
+    if ctx_dict:
+        ctx_parts = []
+        if 'duration' in ctx_dict:
+            ctx_parts.append(f"duration={ctx_dict['duration']:.2f}s")
+            del ctx_dict['duration']
+        
+        for key, value in ctx_dict.items():
+            if value is not None:
+                ctx_parts.append(f"{key}={value}")
+        
+        if ctx_parts:
+            parts.append(f"[{', '.join(ctx_parts)}]")
+    
+    return ' '.join(parts)
+
+
+def log_with_context(
+    logger: logging.Logger,
+    level: str,
+    message: str,
+    context: Optional[LogContext] = None,
+    **kwargs
+) -> None:
+    """
+    Логирует сообщение с контекстом.
+    
+    Args:
+        logger: Объект logger
+        level: Уровень лога ('debug', 'info', 'warning', 'error')
+        message: Сообщение
+        context: Объект контекста (опционально)
+        **kwargs: Дополнительные параметры
+    """
+    formatted_message = format_log_message(message, context, **kwargs)
+    
+    log_func = getattr(logger, level, logger.info)
+    log_func(formatted_message)
+
+
+# Функции для замера времени
+class Timer:
+    """Таймер для замера длительности операций."""
+    
+    def __init__(self):
+        self._start = None
+        self._end = None
+    
+    def start(self) -> 'Timer':
+        """Запустить таймер."""
+        self._start = time.time()
+        return self
+    
+    def stop(self) -> 'Timer':
+        """Остановить таймер."""
+        self._end = time.time()
+        return self
+    
+    @property
+    def duration(self) -> float:
+        """Длительность в секундах."""
+        if self._start is None:
+            return 0.0
+        if self._end is None:
+            return time.time() - self._start
+        return self._end - self._start
+    
+    def __enter__(self) -> 'Timer':
+        self.start()
+        return self
+    
+    def __exit__(self, *args):
+        self.stop()
+
+
+# Импорт time для Timer
+import time

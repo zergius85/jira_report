@@ -568,6 +568,11 @@ def api_task_info_batch():
 @validate_json_request
 @conditional_cache(timeout=300)  # Кэш на 5 минут для production
 def api_report():
+    from core.utils import Timer, LogContext, log_with_context
+    
+    timer = Timer()
+    ctx = LogContext()
+    
     try:
         data = request.get_json()
         # Поддержка множественного выбора (список) или одиночного (строка)
@@ -585,21 +590,30 @@ def api_report():
         days = int(data.get('days', 0) or 0)  # 0 = без ограничений по датам
         blocks = data.get('blocks', None)
         extra_verbose = data.get('extra_verbose', False)
+        
+        # Добавляем контекст
+        ctx.set('projects', ','.join(projects) if projects else 'all')
+        ctx.set('days', days)
 
         if days < 0 or days > MAX_REPORT_DAYS:
             return jsonify({'error': f'Период должен быть от 0 до {MAX_REPORT_DAYS} дней (0 = без ограничений)'}), 400
 
-        report = generate_report(
-            project_keys=projects,
-            start_date=start_date,
-            end_date=end_date,
-            days=days,
-            assignee_filter=assignees,
-            issue_types=issue_types,
-            blocks=blocks,
-            verbose=False,
-            extra_verbose=extra_verbose
-        )
+        logger.info(f"Генерация отчёта...", extra={'ctx': ctx})
+        
+        with timer:
+            report = generate_report(
+                project_keys=projects,
+                start_date=start_date,
+                end_date=end_date,
+                days=days,
+                assignee_filter=assignees,
+                issue_types=issue_types,
+                blocks=blocks,
+                verbose=False,
+                extra_verbose=extra_verbose
+            )
+        
+        log_with_context(logger, 'info', f"Отчёт сгенерирован: {report['total_tasks']} задач", context=ctx, duration=timer.duration)
 
         response = {
             'success': True,
