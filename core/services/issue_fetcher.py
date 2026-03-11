@@ -19,6 +19,7 @@ from core.jira_report import (
     normalize_filter,
     get_default_start_date,
 )
+from core.services import get_metadata_cache
 
 logger = logging.getLogger(__name__)
 
@@ -108,13 +109,26 @@ class IssueFetcher:
     def get_projects(self) -> Dict[str, str]:
         """
         Получить список проектов.
-        
+
         Returns:
             Dict[str, str]: {project_key: project_name}
         """
         if not self.jira:
             self.connect()
+
+        # Формируем ключ кэша на основе параметров
+        cache_key = f"projects:{self.start_date_str}:{self.end_date_str}:{','.join(self.project_keys) if self.project_keys else 'all'}"
         
+        # Проверяем кэш
+        cache = get_metadata_cache()
+        cached_projects = cache.get(cache_key)
+        if cached_projects is not None:
+            logger.debug(f"Projects cache hit: {cache_key}")
+            self.projects_map = cached_projects
+            return self.projects_map
+        
+        logger.info("📋 Получение списка активных проектов...")
+
         if self.project_keys and len(self.project_keys) > 0:
             # Фильтр по выбранным проектам
             for proj_key in self.project_keys:
@@ -124,47 +138,47 @@ class IssueFetcher:
                         proj = get_project_cached(self.jira, proj_key)
                     except ImportError:
                         proj = self.jira.project(proj_key)
-                    
+
                     if proj:
                         self.projects_map[proj.key] = proj.name
                 except Exception:
                     logger.warning(f"Проект {proj_key} не найден")
         else:
             # Все активные проекты за период
-            logger.info("📋 Получение списка активных проектов...")
-            
             start_date_safe = sanitize_jql_string_literal(self.start_date_str)
             issues_end_safe = sanitize_jql_string_literal(self.issues_end_str)
-            
+
             jql_all_projects = (
                 f"created >= '{start_date_safe}' "
                 f"AND created <= '{issues_end_safe}' "
                 f"ORDER BY created DESC"
             )
-            
+
             all_issues_temp = search_all_issues(
                 self.jira,
                 jql_all_projects,
                 fields='project',
                 batch_size=100
             )
-            
+
             seen_projects = set()
             for issue in all_issues_temp:
                 if hasattr(issue, 'fields') and issue.fields:
                     project = issue.fields.project
                     if project and project.key not in seen_projects:
                         seen_projects.add(project.key)
-                        
+
                         if project.key in EXCLUDED_PROJECTS:
                             continue
-                        
+
                         self.projects_map[project.key] = project.name
-            
-            logger.info(f"✅ Найдено {len(self.projects_map)} активных проектов")
-        
+
+        # Сохраняем в кэш
+        cache.set(cache_key, self.projects_map)
+        logger.info(f"✅ Projects cached: {cache_key} ({len(self.projects_map)} projects)")
+
         return self.projects_map
-    
+
     def _build_jql(self, date_field: str, order: str = 'ASC') -> str:
         """
         Построить JQL-запрос.

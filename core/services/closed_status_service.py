@@ -10,6 +10,7 @@ from functools import lru_cache
 import logging
 
 from core.config import CLOSED_STATUS_IDS, JIRA_SERVER, JIRA_USER, JIRA_PASS
+from core.services import get_metadata_cache
 
 logger = logging.getLogger(__name__)
 

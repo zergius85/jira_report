@@ -349,13 +349,25 @@ def get_closed_status_ids() -> List[str]:
     """
     Автоматически определяет ID статуса "Закрыт" в Jira.
     Кэширует результат в .env для последующих запусков.
-    
+    Также использует MetadataCache для кэширования в памяти.
+
     Returns:
         List[str]: Список ID статусов
     """
+    # Проверяем .env сначала
     if CLOSED_STATUS_IDS and CLOSED_STATUS_IDS[0] != '':
         logger.info(f"✅ ID статуса 'Закрыт' загружен из .env: {CLOSED_STATUS_IDS}")
         return CLOSED_STATUS_IDS
+
+    # Проверяем кэш в памяти
+    from core.services import get_metadata_cache
+    cache = get_metadata_cache()
+    cache_key = 'closed_status_ids'
+    
+    cached_ids = cache.get(cache_key)
+    if cached_ids is not None:
+        logger.debug(f"Closed status IDs cache hit: {cache_key}")
+        return cached_ids
 
     logger.info("🔍 Определение ID статуса 'Закрыт' в Jira...")
 
@@ -365,13 +377,15 @@ def get_closed_status_ids() -> List[str]:
 
         closed_ids = []
         for status in statuses:
-            if status.name.lower() in ['закрыт', 'closed', 'закрыто']:
+            if status.name.lower() in ['закрыт', 'closed', 'закрыто', 'готово', 'done']:
                 closed_ids.append(status.id)
                 logger.info(f"   📌 Найден статус: {status.name} (ID: {status.id})")
 
         if closed_ids:
             save_closed_status_ids(closed_ids)
-            logger.info(f"✅ ID сохранены в .env: {closed_ids}")
+            # Сохраняем в кэш
+            cache.set(cache_key, closed_ids)
+            logger.info(f"✅ ID сохранены в .env и кэше: {closed_ids}")
             return closed_ids
         else:
             logger.warning("⚠️  Статус 'Закрыт' не найден.")

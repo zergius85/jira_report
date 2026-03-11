@@ -132,6 +132,17 @@ SCHEDULER_MAX_INSTANCES = int(os.getenv('SCHEDULER_MAX_INSTANCES', '3'))
 SCHEDULER_JOBSTORE_RELOAD_INTERVAL = int(os.getenv('SCHEDULER_JOBSTORE_RELOAD_INTERVAL', '60'))
 
 # =============================================
+# КЭШИРОВАНИЕ
+# =============================================
+# TTL для кэша метаданных (секунды)
+# Production: 15 минут (900 сек)
+# Development: 5 минут (300 сек)
+CACHE_METADATA_TTL = int(os.getenv('CACHE_METADATA_TTL', 900 if IS_PRODUCTION else 300))
+
+# Максимальный размер кэша (количество записей)
+CACHE_MAX_SIZE = int(os.getenv('CACHE_MAX_SIZE', '1000'))
+
+# =============================================
 # ЛОГИРОВАНИЕ
 # =============================================
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO' if IS_PRODUCTION else 'DEBUG')
