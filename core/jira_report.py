@@ -917,10 +917,10 @@ def generate_report(
                 duedate_display = f"{duedate} [duedate]"
             if resolutiondate and resolutiondate != '-':
                 resolutiondate_display = f"{resolutiondate} [resolutiondate]"
-            
-            # Числа с [field_name]
-            spent_display = f"{spent} [timespent]"
-            estimated_display = f"{estimated} [timeoriginalestimate]"
+
+            # Числа оставляем как есть для агрегации, форматируем в конце
+            spent_display = spent
+            estimated_display = estimated
 
         issue_data = {
             'URL': issue_url,
@@ -1181,6 +1181,21 @@ def generate_report(
     risk_issues = []
     if 'risk_zone' in result['blocks']:
         result['risk_zone'] = pd.DataFrame()
+
+    # Форматируем числа в строки при extra_verbose (ПОСЛЕ всех агрегаций)
+    if extra_verbose:
+        if not df_summary.empty:
+            df_summary['Оценка (ч)'] = df_summary['Оценка (ч)'].apply(lambda x: f"{x} [timeoriginalestimate]")
+            df_summary['Факт (ч)'] = df_summary['Факт (ч)'].apply(lambda x: f"{x} [timespent]")
+        
+        if not df_assignees.empty:
+            df_assignees['Оценка (ч)'] = df_assignees['Оценка (ч)'].apply(lambda x: f"{x} [timeoriginalestimate]")
+            df_assignees['Факт (ч)'] = df_assignees['Факт (ч)'].apply(lambda x: f"{x} [timespent]")
+            df_assignees['Отклонение'] = df_assignees['Отклонение'].apply(lambda x: str(x))
+        
+        if not df_detail.empty:
+            df_detail['Факт (ч)'] = df_detail['Факт (ч)'].apply(lambda x: f"{x} [timespent]")
+            df_detail['Оценка (ч)'] = df_detail['Оценка (ч)'].apply(lambda x: f"{x} [timeoriginalestimate]")
 
     # Фильтрация колонок для каждого блока
     if 'summary' in result['blocks'] and not result['summary'].empty:
