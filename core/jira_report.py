@@ -565,6 +565,8 @@ def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
 
     В extra_verbose режиме заголовки не меняются, ID добавляются
     к значениям полей в квадратных скобках.
+    
+    TEST COMMIT - проверка обновления на сервере
 
     Args:
         block: Название блока отчёта
