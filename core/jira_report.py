@@ -1035,7 +1035,7 @@ def generate_report(
     df_detail = pd.DataFrame(all_issues_data)
     df_summary = pd.DataFrame(summary_data)
     df_issues = pd.DataFrame(issues_with_problems)
-    
+
     # Сортировка и группировка
     if not df_detail.empty:
         df_detail = df_detail.sort_values(by=['Тип', 'Проект', 'Дата решения'], ascending=[True, True, True])
@@ -1044,15 +1044,40 @@ def generate_report(
         if not df_detail.empty:
             # Фильтруем только задачи с исполнителем (не "Без исполнителя")
             df_with_assignee = df_detail[~df_detail['Исполнитель'].str.contains('Без исполнителя', na=False)]
-            
+
             if not df_with_assignee.empty:
-                df_assignees = df_with_assignee.groupby('Исполнитель').agg(
-                    tasks_count=('Ключ', 'count'),
-                    correct_count=('Проблемы', lambda x: (x == '').sum()),
-                    issues_count=('Проблемы', lambda x: (x != '').sum()),
-                    fact_sum=('Факт (ч)', 'sum'),
-                    estimate_sum=('Оценка (ч)', 'sum')
-                ).reset_index()
+                # Извлекаем числа из строк для агрегации (если extra_verbose)
+                if extra_verbose:
+                    def extract_number(value):
+                        if isinstance(value, str):
+                            # Извлекаем число до [field_name]
+                            parts = value.split(' [')
+                            try:
+                                return float(parts[0])
+                            except (ValueError, IndexError):
+                                return 0.0
+                        return float(value) if value else 0.0
+                    
+                    df_with_assignee = df_with_assignee.copy()
+                    df_with_assignee['Факт (ч)_num'] = df_with_assignee['Факт (ч)'].apply(extract_number)
+                    df_with_assignee['Оценка (ч)_num'] = df_with_assignee['Оценка (ч)'].apply(extract_number)
+                    
+                    df_assignees = df_with_assignee.groupby('Исполнитель').agg(
+                        tasks_count=('Ключ', 'count'),
+                        correct_count=('Проблемы', lambda x: (x == '').sum()),
+                        issues_count=('Проблемы', lambda x: (x != '').sum()),
+                        fact_sum=('Факт (ч)_num', 'sum'),
+                        estimate_sum=('Оценка (ч)_num', 'sum')
+                    ).reset_index()
+                else:
+                    df_assignees = df_with_assignee.groupby('Исполнитель').agg(
+                        tasks_count=('Ключ', 'count'),
+                        correct_count=('Проблемы', lambda x: (x == '').sum()),
+                        issues_count=('Проблемы', lambda x: (x != '').sum()),
+                        fact_sum=('Факт (ч)', 'sum'),
+                        estimate_sum=('Оценка (ч)', 'sum')
+                    ).reset_index()
+                    
                 # Переименовываем колонки обратно в кириллицу для отображения
                 df_assignees = df_assignees.rename(columns={
                     'tasks_count': 'Задач',
