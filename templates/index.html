@@ -2413,18 +2413,20 @@
                         return `<td title="${title}">${cleanAuthor}</td>`;
                     }
                     if (baseCol === 'URL') {
-                        // URL с двумя ссылками: скрепка и ID задачи
+                        // URL с 🔍 - две ссылки: скрепка и ID задачи
                         const url = row[col] || row['URL'] || row.url || '';
-                        const debugUrl = row['URL_debug'] || `/?debug=${row['Ключ'] || row.key || ''}`;
-                        const issueKey = row['Ключ'] || row.key || url.split('/browse/')[1] || '';
+                        const cleanUrl = extractCleanValue(url);
+                        const issueKey = extractIssueKey(cleanUrl);
+                        const debugUrl = row['URL_debug'] || `/?debug=${issueKey}`;
+                        const title = extractTitle(url, 'id');
 
-                        if (url && url.startsWith('http')) {
+                        if (cleanUrl && cleanUrl.startsWith('http')) {
                             return `<td style="display: flex; gap: 8px; align-items: center;">
-                                <a href="${url}" target="_blank" title="Открыть в Jira: ${issueKey}" style="text-decoration:none;">📎</a>
-                                <a href="${debugUrl}" onclick="switchToDebugTab('${issueKey}'); return false;" title="Отладка: ${issueKey}" style="text-decoration:none; font-size: 12px; color: #3498db;">🔍 ${issueKey}</a>
+                                <a href="${cleanUrl}" target="_blank" title="Открыть в Jira: ${issueKey}" style="text-decoration:none;">📎</a>
+                                <a href="${debugUrl}" onclick="switchToDebugTab('${issueKey}'); return false;" title="${title}" style="text-decoration:none; font-size: 12px; color: #3498db;">🔍 ${issueKey}</a>
                             </td>`;
                         }
-                        return `<td>${url || '-'}</td>`;
+                        return `<td>${cleanUrl || '-'}</td>`;
                     }
                     // Для остальных колонок - форматирование с извлечением чистого значения и title
                     return `<td>${formatCellWithTooltip(row[col], col, row)}</td>`;
@@ -2432,39 +2434,60 @@
             }).join('');
         }
 
-        // Извлечение чистого значения без [id] и [field_name]
+        // Извлечение чистого значения без [id], [field_name] и 🔍
         function extractCleanValue(value) {
             if (!value || typeof value !== 'string') return value;
+            // Удаляем 🔍 из конца строки
+            let clean = value.replace(/\s*🔍\s*$/, '').trim();
             // Удаляем [id] и [field_name] из конца строки
-            return value.replace(/\s*\[[\w-]+\]\s*$/, '').trim();
+            clean = clean.replace(/\s*\[[\w-]+\]\s*$/, '').trim();
+            return clean;
         }
 
-        // Извлечение title из значения в формате "value [field_name]"
+        // Извлечение title из значения в формате "value [field_name]" или "value 🔍"
         function extractTitle(value, defaultField) {
             if (!value || typeof value !== 'string') return '';
+            
+            // Проверяем на наличие 🔍 - это ID задачи
+            if (value.includes('🔍')) {
+                const issueKey = extractIssueKey(value);
+                return `id = '${issueKey}'`;
+            }
+            
             const match = value.match(/\[([\w-]+)\]\s*$/);
             if (match) {
                 const fieldOrId = match[1];
                 // Если это ID (число или alphanumeric), возвращаем field_name
-                if (/^\w+$/.test(fieldOrId)) {
+                if (/^\d+$/.test(fieldOrId)) {
                     return `${defaultField} = '${fieldOrId}'`;
                 }
                 return fieldOrId;
             }
             return defaultField;
         }
+        
+        // Извлечение ключа задачи из URL
+        function extractIssueKey(url) {
+            if (!url) return '';
+            const match = url.match(/\/browse\/([A-Z]+-\d+)/);
+            return match ? match[1] : '';
+        }
 
         // Форматирование ячейки с tooltip
         function formatCellWithTooltip(value, column, row) {
             if (value === null || value === undefined) return '';
-            
+
             const cleanValue = extractCleanValue(value);
             const title = extractTitle(value, column);
 
-            // URL - иконка скрепки со ссылкой
+            // URL с 🔍 - иконка скрепки со ссылкой и tooltip
             if (column === 'URL' && cleanValue.startsWith('http')) {
-                const issueKey = cleanValue.split('/browse/')[1] || '';
-                return `<a href="${cleanValue}" target="_blank" title="${issueKey}" style="text-decoration:none;">📎 ${cleanValue}</a>`;
+                const issueKey = extractIssueKey(cleanValue);
+                const debugUrl = row['URL_debug'] || `/?debug=${issueKey}`;
+                return `<td style="display: flex; gap: 8px; align-items: center;">
+                    <a href="${cleanValue}" target="_blank" title="Открыть в Jira: ${issueKey}" style="text-decoration:none;">📎</a>
+                    <a href="${debugUrl}" onclick="switchToDebugTab('${issueKey}'); return false;" title="${title}" style="text-decoration:none; font-size: 12px; color: #3498db;">🔍 ${issueKey}</a>
+                </td>`;
             }
 
             // Форматирование дат YYYY.MM.DD
@@ -2472,12 +2495,12 @@
                 const formatted = formatDisplayDate(cleanValue);
                 return `<span title="${title}">${formatted}</span>`;
             }
-            
+
             // Числа (Факт, Оценка)
             if (typeof cleanValue === 'string' && /^[\d.,]+$/.test(cleanValue)) {
                 return `<span title="${title}">${cleanValue}</span>`;
             }
-            
+
             // Текст с tooltip
             return `<span title="${title}">${cleanValue}</span>`;
         }
