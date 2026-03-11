@@ -10,6 +10,7 @@ from core.services.closed_status_service import (
 from core.services.issue_fetcher import IssueFetcher
 from core.services.issue_validator import IssueValidator
 from core.services.report_aggregator import ReportAggregator
+from core.services.report_orchestrator import ReportOrchestrator
 
 __all__ = [
     'ClosedStatusService',
@@ -18,4 +19,5 @@ __all__ = [
     'IssueFetcher',
     'IssueValidator',
     'ReportAggregator',
+    'ReportOrchestrator',
 ]
