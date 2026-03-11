@@ -853,8 +853,10 @@ def generate_report(
         status_full = f"{status_name} ({status_category})"
 
         issue_key = issue_data.get('key', '')
+        # Формируем URL с 🔍 при extra_verbose
         issue_url = f"{JIRA_SERVER}/browse/{issue_key}"
-        issue_id = issue_data.get('id') if extra_verbose else None
+        if extra_verbose:
+            issue_url = f"{issue_url} 🔍"
 
         # Создаём псевдо-объект issue для validate_issue
         class MockIssue:
@@ -880,34 +882,57 @@ def generate_report(
 
         # Формируем отображаемые значения с ID если нужно
         project_display = proj_name
-        status_display = f"{status_name} ({status_category}) [{status_id}]"  # Всегда показываем ID статуса
+        status_display = f"{status_name} ({status_category})"
         issue_type_display = issue_type
         assignee_display = assignee
+        spent_display = str(spent)
+        estimated_display = str(estimated)
+        created_display = created
+        duedate_display = duedate
+        resolutiondate_display = resolutiondate
 
         if extra_verbose:
+            # Проект с ID
             project_id = fields.get('project', {}).get('id', '')
             project_display = f"{proj_name} [{project_id}]" if project_id else proj_name
-
+            
+            # Статус с ID
+            if status_id:
+                status_display = f"{status_full} [{status_id}]"
+            
+            # Тип с ID
             type_id = issuetype.get('id', '')
             issue_type_display = f"{issue_type} [{type_id}]" if type_id else issue_type
-
+            
+            # Исполнитель с ID
             assignee_id = fields.get('assignee', {}).get('accountId', '')
             assignee_display = f"{assignee} [{assignee_id}]" if assignee_id else assignee
+            
+            # Даты с [field_name]
+            if created and created != '-':
+                created_display = f"{created} [created]"
+            if duedate and duedate != '-':
+                duedate_display = f"{duedate} [duedate]"
+            if resolutiondate and resolutiondate != '-':
+                resolutiondate_display = f"{resolutiondate} [resolutiondate]"
+            
+            # Числа с [field_name]
+            spent_display = f"{spent} [timespent]"
+            estimated_display = f"{estimated} [timeoriginalestimate]"
 
         issue_data = {
             'URL': issue_url,
-            'ID': issue_id,
             'Проект': project_display,
             'Ключ': issue_key,
             'Тип': issue_type_display,
             'Задача': fields.get('summary', ''),
             'Исполнитель': assignee_display,
             'Статус': status_display,
-            'Дата создания': created,
-            'Дата исполнения': duedate,
-            'Дата решения': resolutiondate,
-            'Факт (ч)': spent,
-            'Оценка (ч)': estimated,
+            'Дата создания': created_display,
+            'Дата исполнения': duedate_display,
+            'Дата решения': resolutiondate_display,
+            'Факт (ч)': spent_display,
+            'Оценка (ч)': estimated_display,
             'Проблемы': ', '.join(problems) if problems else ''
         }
 
@@ -933,50 +958,78 @@ def generate_report(
             if not creator:
                 logger.warning(f"⚠️  Creator не доступен для {issue_key}")
 
+            # URL с 🔍 при extra_verbose
+            issues_url = issue_url
+            if extra_verbose:
+                issues_url = f"{issue_url} 🔍"
+            
+            # Проект с ID
+            project_display = proj_name
+            if extra_verbose:
+                project_id = fields.get('project', {}).get('id', '')
+                if project_id:
+                    project_display = f"{proj_name} [{project_id}]"
+            
+            # Исполнитель с ID
+            assignee_display = assignee
+            if extra_verbose:
+                assignee_id = fields.get('assignee', {}).get('accountId', '')
+                if assignee_id:
+                    assignee_display = f"{assignee} [{assignee_id}]"
+            
+            # Автор с ID
             author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
+            
+            # Даты с [field_name]
+            created_display = created
+            duedate_display = duedate
+            if extra_verbose:
+                if created and created != '-':
+                    created_display = f"{created} [created]"
+                if duedate and duedate != '-':
+                    duedate_display = f"{duedate} [duedate]"
 
             issue_data_probs = {
-                'URL': issue_url,
+                'URL': issues_url,
                 'URL_debug': f"/?debug={issue_key}",
-                'Проект': proj_name,
+                'Проект': project_display,
                 'Задача': fields.get('summary', ''),
-                'Исполнитель': assignee,
+                'Исполнитель': assignee_display,
                 'Автор': author_display,
-                'Дата создания': created,
-                'Дата исполнения': duedate,
+                'Дата создания': created_display,
+                'Дата исполнения': duedate_display,
                 'Проблемы': ', '.join(problems)
             }
-            if extra_verbose:
-                issue_data_probs = {'ID': issue_data.get('id'), **issue_data_probs}
             issues_with_problems.append(issue_data_probs)
 
     # Формируем summary из агрегированной статистики
     for proj_key, stats in project_stats.items():
         if stats['correct'] > 0 or stats['issues'] > 0:
+            # Берём ID проекта из первой задачи
+            proj_issues_list = [i for i in issues_normal_global if i.get('fields', {}).get('project', {}).get('key') == proj_key]
+            proj_id = proj_issues_list[0].get('fields', {}).get('project', {}).get('id', '') if proj_issues_list else ''
+            
+            proj_name_display = stats['name']
+            estimated_display = round(stats['estimated'], 2)
+            spent_display = round(stats['spent'], 2)
+            
             if extra_verbose:
-                # Берём ID проекта из первой задачи
-                proj_issues_list = [i for i in issues_normal_global if i.get('fields', {}).get('project', {}).get('key') == proj_key]
-                proj_id = proj_issues_list[0].get('fields', {}).get('project', {}).get('id', '') if proj_issues_list else ''
-                summary_row = {
-                    'Клиент (Проект)': stats['name'],
-                    'ID': proj_id,
-                    'Задач закрыто': stats['correct'] + stats['issues'],
-                    'Корректных': stats['correct'],
-                    'С ошибками': stats['issues'],
-                    'Оценка (ч)': round(stats['estimated'], 2),
-                    'Факт (ч)': round(stats['spent'], 2),
-                    'Отклонение': round(stats['estimated'] - stats['spent'], 2)
-                }
-            else:
-                summary_row = {
-                    'Клиент (Проект)': stats['name'],
-                    'Задач закрыто': stats['correct'] + stats['issues'],
-                    'Корректных': stats['correct'],
-                    'С ошибками': stats['issues'],
-                    'Оценка (ч)': round(stats['estimated'], 2),
-                    'Факт (ч)': round(stats['spent'], 2),
-                    'Отклонение': round(stats['estimated'] - stats['spent'], 2)
-                }
+                # Проект с ID
+                if proj_id:
+                    proj_name_display = f"{stats['name']} [{proj_id}]"
+                # Числа с [field_name]
+                estimated_display = f"{estimated_display} [timeoriginalestimate]"
+                spent_display = f"{spent_display} [timespent]"
+            
+            summary_row = {
+                'Клиент (Проект)': proj_name_display,
+                'Задач закрыто': stats['correct'] + stats['issues'],
+                'Корректных': stats['correct'],
+                'С ошибками': stats['issues'],
+                'Оценка (ч)': estimated_display,
+                'Факт (ч)': spent_display,
+                'Отклонение': round(stats['estimated'] - stats['spent'], 2)
+            }
             summary_data.append(summary_row)
     
     df_detail = pd.DataFrame(all_issues_data)
