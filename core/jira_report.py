@@ -1180,13 +1180,14 @@ def generate_report(
                 # Если есть факторы риска - добавляем в отчёт
                 if risk_factors:
                     assignee_name = assignee.get('displayName', 'Без исполнителя') if assignee else 'Без исполнителя'
+                    priority = fields.get('priority', {})
                     priority_name = priority.get('name', 'Normal') if priority else 'Normal'
-                    
+
                     # Формируем URL с иконкой 🔍 при extra_verbose
                     issue_url = f"{JIRA_SERVER}/browse/{issue_key}"
                     if extra_verbose:
                         issue_url = f"{issue_url} 🔍"
-                    
+
                     # Формируем данные с ID при extra_verbose
                     row = {
                         'URL': issue_url,
@@ -1197,7 +1198,7 @@ def generate_report(
                         'Факторы риска': '; '.join(risk_factors),
                         'Приоритет': priority_name
                     }
-                    
+
                     if extra_verbose:
                         # Добавляем ID к полям
                         if assignee and 'id' in assignee:
@@ -1206,7 +1207,7 @@ def generate_report(
                             row['Статус'] = f"{status_name} [{status_id}]"
                         if priority and 'id' in priority:
                             row['Приоритет'] = f"{priority_name} [{priority['id']}]"
-                    
+
                     risk_issues.append(row)
 
             logger.info(f"   Найдено {len(risk_issues)} рисковых задач")
