@@ -7,9 +7,13 @@ from core.services.closed_status_service import (
     get_closed_status_service,
     is_status_closed,
 )
+from core.services.issue_fetcher import IssueFetcher
+from core.services.issue_validator import IssueValidator
 
 __all__ = [
     'ClosedStatusService',
     'get_closed_status_service',
     'is_status_closed',
+    'IssueFetcher',
+    'IssueValidator',
 ]
