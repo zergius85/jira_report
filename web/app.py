@@ -1322,22 +1322,22 @@ def api_workload_metrics():
 def api_kpi_metrics():
     """Custom KPI метрики: Cycle time, Lead time."""
     from core.jira_report import generate_report
-    
+
     report = generate_report(days=30, blocks=['detail'])
-    
+
     if 'detail' not in report or not report['detail']:
         return jsonify({'success': True, 'kpi': {}})
-    
+
     detail = report['detail']
     detail['created'] = pd.to_datetime(detail['Дата создания'])
     detail['resolved'] = pd.to_datetime(detail['Дата решения'])
     detail['due'] = pd.to_datetime(detail['Дата исполнения'])
-    
+
     # Cycle time: от начала работы до завершения
     # Lead time: от создания до завершения
     detail['cycle_time'] = (detail['resolved'] - detail['created']).dt.days
     detail['lead_time'] = (detail['resolved'] - detail['created']).dt.days
-    
+
     kpi = {
         'avg_cycle_time': round(detail['cycle_time'].mean(), 2),
         'median_cycle_time': round(detail['cycle_time'].median(), 2),
@@ -1347,10 +1347,88 @@ def api_kpi_metrics():
             (detail['resolved'] <= detail['due']).sum() / len(detail) * 100, 2
         ) if len(detail) > 0 else 0,
     }
-    
+
     return jsonify({
         'success': True,
         'kpi': kpi,
+    })
+
+
+@app.route('/api/dashboard')
+@conditional_cache(timeout=300)
+def api_dashboard():
+    """
+    Сводный дашборд с метриками.
+    
+    Возвращает все ключевые метрики для главного экрана:
+    - Velocity (задачи за период)
+    - Проблемные задачи (top issues)
+    - Нагрузка по исполнителям
+    - Risk Zone
+    """
+    from core.jira_report import generate_report
+    from core.services import get_metadata_cache
+    
+    # Получаем параметры из запроса
+    days = request.args.get('days', 30, type=int)
+    project = request.args.get('project', None)
+    
+    # Генерируем отчёт
+    report = generate_report(
+        days=days,
+        project_keys=project,
+        blocks=['summary', 'assignees', 'issues', 'risk_zone']
+    )
+    
+    # Формируем дашборд
+    dashboard = {
+        'period': report.get('period', ''),
+        'totals': {
+            'projects': report.get('total_projects', 0),
+            'tasks': report.get('total_tasks', 0),
+            'correct': report.get('total_correct', 0),
+            'issues': report.get('total_issues', 0),
+            'spent': round(report.get('total_spent', 0), 2),
+            'estimated': round(report.get('total_estimated', 0), 2),
+        },
+        'top_projects': [],
+        'top_assignees': [],
+        'recent_issues': [],
+        'risk_tasks': [],
+    }
+    
+    # Топ проектов по задачам
+    if 'summary' in report and not report['summary'].empty:
+        summary = report['summary'].to_dict('records')
+        dashboard['top_projects'] = sorted(
+            summary[:5],
+            key=lambda x: x.get('Задач закрыто', 0),
+            reverse=True
+        )
+    
+    # Топ исполнителей по задачам
+    if 'assignees' in report and not report['assignees'].empty:
+        assignees = report['assignees'].to_dict('records')
+        dashboard['top_assignees'] = sorted(
+            assignees[:5],
+            key=lambda x: x.get('Задач', 0),
+            reverse=True
+        )
+    
+    # Последние проблемные задачи
+    if 'issues' in report and not report['issues'].empty:
+        issues = report['issues'].to_dict('records')
+        dashboard['recent_issues'] = issues[:5]
+    
+    # Risk Zone задачи
+    if 'risk_zone' in report and not report['risk_zone'].empty:
+        risks = report['risk_zone'].to_dict('records')
+        dashboard['risk_tasks'] = risks[:5]
+    
+    return jsonify({
+        'success': True,
+        'dashboard': dashboard,
+        'cache_stats': get_metadata_cache().stats()
     })
 
 
