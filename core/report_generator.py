@@ -301,14 +301,19 @@ class RiskZoneAnalyzer:
         if issue.fields.duedate:
             due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
             status_name = (
-                issue.fields.status.name.lower()
+                issue.fields.status.name
                 if issue.fields.status
                 else ''
             )
-            if (
-                due_date < self.today
-                and status_name not in ['закрыт', 'closed', 'done']
-            ):
+            status_id = (
+                issue.fields.status.id
+                if issue.fields.status
+                else ''
+            )
+            # Используем сервис для проверки закрытого статуса
+            from core.services import is_status_closed
+            
+            if due_date < self.today and not is_status_closed(status_name=status_name, status_id=status_id):
                 days_overdue = (self.today - due_date).days
                 risk_factors.append(f'Просрочена на {days_overdue} дн.')
 
@@ -320,14 +325,19 @@ class RiskZoneAnalyzer:
             )
             days_inactive = (self.today - updated).days
             status_name = (
-                issue.fields.status.name.lower()
+                issue.fields.status.name
                 if issue.fields.status
                 else ''
             )
-            if (
-                days_inactive > RISK_ZONE_INACTIVITY_THRESHOLD
-                and status_name not in ['закрыт', 'closed', 'done']
-            ):
+            status_id = (
+                issue.fields.status.id
+                if issue.fields.status
+                else ''
+            )
+            # Используем сервис для проверки закрытого статуса
+            from core.services import is_status_closed
+            
+            if days_inactive > RISK_ZONE_INACTIVITY_THRESHOLD and not is_status_closed(status_name=status_name, status_id=status_id):
                 risk_factors.append(f'Не двигается {days_inactive} дн.')
 
         return risk_factors

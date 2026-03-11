@@ -1239,6 +1239,7 @@ def generate_report(
                 # Получаем статус для проверки
                 status = fields.get('status', {})
                 status_id = status.get('id', '')
+                status_name = status.get('name', '')
 
                 # 1. Задачи без исполнителя
                 assignee = fields.get('assignee')
@@ -1246,21 +1247,27 @@ def generate_report(
                     risk_factors.append('Без исполнителя')
 
                 # 2. Задачи с истёкшим сроком (Due Date)
-                # Проверка: duedate < сегодня И status.id НЕ в закрытых статусах
+                # Проверка: duedate < сегодня И статус НЕ закрытый
                 duedate = fields.get('duedate')
                 if duedate:
                     due_date = datetime.strptime(duedate[:10], '%Y-%m-%d')
-                    if due_date < today and status_id not in CLOSED_STATUS_IDS:
+                    # Используем сервис для проверки закрытого статуса
+                    from core.services import is_status_closed
+                    
+                    if due_date < today and not is_status_closed(status_name=status_name, status_id=status_id):
                         days_overdue = (today - due_date).days
                         risk_factors.append(f'Просрочена на {days_overdue} дн.')
 
                 # 3. Задачи, которые не двигались > порога неактивности
-                # Проверка: не обновлялась N дней И status.id НЕ в закрытых статусах
+                # Проверка: не обновлялась N дней И статус НЕ закрытый
                 updated = fields.get('updated')
                 if updated:
                     updated_dt = datetime.strptime(updated[:19], '%Y-%m-%dT%H:%M:%S')
                     days_inactive = (today - updated_dt).days
-                    if days_inactive > RISK_ZONE_INACTIVITY_THRESHOLD and status_id not in CLOSED_STATUS_IDS:
+                    # Используем сервис для проверки закрытого статуса
+                    from core.services import is_status_closed
+                    
+                    if days_inactive > RISK_ZONE_INACTIVITY_THRESHOLD and not is_status_closed(status_name=status_name, status_id=status_id):
                         risk_factors.append(f'Не двигается {days_inactive} дн.')
 
                 # Если есть факторы риска - добавляем в отчёт

@@ -220,14 +220,19 @@ def check_overdue(issue: Any) -> bool:
     """Проверка: просрочена (дата решения истекла)."""
     if not hasattr(issue.fields, 'duedate') or not issue.fields.duedate:
         return False
-    
+
     if not hasattr(issue.fields, 'status') or not issue.fields.status:
         return False
+
+    # Используем сервис для проверки закрытого статуса
+    from core.services import is_status_closed
     
-    status_name = issue.fields.status.name.lower()
-    if status_name in ['закрыт', 'closed', 'done']:
+    status_name = issue.fields.status.name
+    status_id = issue.fields.status.id
+    
+    if is_status_closed(status_name=status_name, status_id=status_id):
         return False
-    
+
     try:
         due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
         return due_date < datetime.now()
