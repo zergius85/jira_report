@@ -856,9 +856,23 @@ class ReportGenerator:
                     }
                     
                     if self.extra_verbose:
-                        row.insert(0, 'ID', issue.id)
-                    
-                    internal_issues_data.append(row)
+                        # Добавляем ID задачи в начало
+                        row_with_id = {
+                            'ID': issue.id,
+                            'URL': f"{JIRA_SERVER}/browse/{issue.key}",
+                            'Проект': proj_display,
+                            'Ключ': issue.key,
+                            'Тип': issue_type,
+                            'Задача': issue.fields.summary,
+                            'Исполнитель': assignee_display,
+                            'Статус': status_name,
+                            'Дата создания': created,
+                            'Факт (ч)': spent,
+                            'Оценка (ч)': estimated
+                        }
+                        internal_issues_data.append(row_with_id)
+                    else:
+                        internal_issues_data.append(row)
             except Exception as e:
                 logger.warning(
                     f"Не удалось получить задачи из проекта {internal_proj_key}: {e}"

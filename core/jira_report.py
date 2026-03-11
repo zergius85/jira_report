@@ -1176,15 +1176,22 @@ def generate_report(
                         'Факторы риска': '; '.join(risk_factors),
                         'Приоритет': priority.get('name', 'Normal')
                     }
-                    
+
                     if extra_verbose:
-                        # Добавляем ID задачи
-                        row.insert(1, 'ID', issue_key)
-                        # Добавляем ID к исполнителю если есть
-                        if assignee and 'id' in assignee:
-                            row['Исполнитель'] = f"{assignee_name} [{assignee['id']}]"
-                    
-                    risk_issues.append(row)
+                        # Добавляем ID задачи и ID исполнителя
+                        row_with_id = {
+                            'URL': row['URL'],
+                            'ID': issue_key,
+                            'Ключ': issue_key,
+                            'Задача': row['Задача'],
+                            'Исполнитель': f"{assignee_name} [{assignee['id']}]" if assignee and 'id' in assignee else assignee_name,
+                            'Статус': row['Статус'],
+                            'Факторы риска': row['Факторы риска'],
+                            'Приоритет': row['Приоритет']
+                        }
+                        risk_issues.append(row_with_id)
+                    else:
+                        risk_issues.append(row)
 
             logger.info(f"   Найдено {len(risk_issues)} рисковых задач")
         else:
