@@ -395,7 +395,7 @@ class ReportGenerator:
         self.days = days
         self.assignee_filter = normalize_filter(assignee_filter)
         self.issue_types = normalize_filter(issue_types)
-        self.blocks = blocks or list(REPORT_BLOCKS.keys())
+        self.blocks = blocks if blocks else list(REPORT_BLOCKS.keys())
         self.verbose = verbose
         self.extra_verbose = extra_verbose
         self.closed_status_ids = closed_status_ids or CLOSED_STATUS_IDS

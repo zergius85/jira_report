@@ -1064,7 +1064,7 @@ def generate_report(
 
     result = {
         'period': f"{start_date_str} — {end_date_str}",
-        'blocks': blocks or list(REPORT_BLOCKS.keys()),
+        'blocks': blocks if blocks else list(REPORT_BLOCKS.keys()),
         'total_projects': len(df_summary),
         'total_tasks': len(df_detail),
         'total_correct': len(df_detail[df_detail['Проблемы'] == '']) if not df_detail.empty else 0,
@@ -1083,8 +1083,11 @@ def generate_report(
         result['issues'] = df_issues
     if 'internal' in result['blocks']:
         result['internal'] = df_internal
+    
+    # Инициализируем risk_issues перед использованием
+    risk_issues = []
     if 'risk_zone' in result['blocks']:
-        result['risk_zone'] = pd.DataFrame(risk_issues) if risk_issues else pd.DataFrame()
+        result['risk_zone'] = pd.DataFrame()
 
     # Фильтрация колонок для каждого блока
     if 'summary' in result['blocks'] and not result['summary'].empty:
@@ -1197,13 +1200,14 @@ def generate_report(
         else:
             logger.warning("   ⚠️  all_issues_normal пуст")
 
-        # Обновляем result['risk_zone'] с отсортированными данными
-        if risk_issues:
-            result['risk_zone'] = pd.DataFrame(risk_issues)
-            result['risk_zone'] = result['risk_zone'].sort_values('Приоритет', ascending=False)
-            logger.info(f"✅ Risk Zone заполнен: {len(risk_issues)} задач")
-        else:
-            logger.info("ℹ️  Risk Zone пуст (нет рисковых задач)")
+        # Обновляем result['risk_zone'] с отсортированными данными только если блок запрошен
+        if 'risk_zone' in result['blocks']:
+            if risk_issues:
+                result['risk_zone'] = pd.DataFrame(risk_issues)
+                result['risk_zone'] = result['risk_zone'].sort_values('Приоритет', ascending=False)
+                logger.info(f"✅ Risk Zone заполнен: {len(risk_issues)} задач")
+            else:
+                logger.info("ℹ️  Risk Zone пуст (нет рисковых задач)")
 
     return result
 
