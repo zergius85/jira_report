@@ -1034,8 +1034,25 @@ def generate_report(
     
     df_detail = pd.DataFrame(all_issues_data)
     df_summary = pd.DataFrame(summary_data)
+
+    # Преобразуем числовые колонки в df_summary в числовой тип (на случай если там строки с суффиксами из extra_verbose)
+    if not df_summary.empty:
+        def extract_number(s):
+            """Извлекает число из строки вида '1.5 [timespent]' или возвращает исходное значение если это уже число"""
+            if isinstance(s, (int, float)):
+                return s
+            match = re.match(r'^([\d.]+)', str(s))
+            if match:
+                return float(match.group(1))
+            return 0.0
+
+        df_summary['Оценка (ч)'] = df_summary['Оценка (ч)'].apply(extract_number)
+        df_summary['Факт (ч)'] = df_summary['Факт (ч)'].apply(extract_number)
+        df_summary['Отклонение'] = df_summary['Оценка (ч)'] - df_summary['Факт (ч)']
+        df_summary = df_summary.round(2)
+
     df_issues = pd.DataFrame(issues_with_problems)
-    
+
     # Сортировка и группировка
     if not df_detail.empty:
         df_detail = df_detail.sort_values(by=['Тип', 'Проект', 'Дата решения'], ascending=[True, True, True])
@@ -1044,7 +1061,7 @@ def generate_report(
         if not df_detail.empty:
             # Фильтруем только задачи с исполнителем (не "Без исполнителя")
             df_with_assignee = df_detail[~df_detail['Исполнитель'].str.contains('Без исполнителя', na=False)]
-            
+
             if not df_with_assignee.empty:
                 df_assignees = df_with_assignee.groupby('Исполнитель').agg(
                     tasks_count=('Ключ', 'count'),
@@ -1061,6 +1078,18 @@ def generate_report(
                     'fact_sum': 'Факт (ч)',
                     'estimate_sum': 'Оценка (ч)'
                 })
+                # Преобразуем колонки в числовой тип (на случай если там строки с суффиксами из extra_verbose)
+                def sum_numbers(s):
+                    """Извлекает все числа из строки и суммирует их (для обработанных groupby.sum() строк вида '1.5 [x]2.0 [y]')"""
+                    if isinstance(s, (int, float)):
+                        return s
+                    numbers = re.findall(r'[\d.]+', str(s))
+                    if numbers:
+                        return sum(float(n) for n in numbers)
+                    return 0.0
+
+                df_assignees['Факт (ч)'] = df_assignees['Факт (ч)'].apply(sum_numbers)
+                df_assignees['Оценка (ч)'] = df_assignees['Оценка (ч)'].apply(sum_numbers)
                 df_assignees['Отклонение'] = df_assignees['Оценка (ч)'] - df_assignees['Факт (ч)']
                 df_assignees = df_assignees.round(2)
                 df_assignees = df_assignees.sort_values(by='Факт (ч)', ascending=False)
