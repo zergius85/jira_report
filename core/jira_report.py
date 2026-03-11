@@ -1089,7 +1089,8 @@ def generate_report(
                     'estimate_sum': 'Оценка (ч)'
                 })
                 
-                # СНАЧАЛА вычисления с числами
+                # СНАЧАЛА вычисления с числами (ВАЖНО!)
+                # SERVER_CHECK_v2 - если видите это, код обновился
                 df_assignees['Отклонение'] = df_assignees['Оценка (ч)'] - df_assignees['Факт (ч)']
                 df_assignees = df_assignees.round(2)
                 df_assignees = df_assignees.sort_values(by='Факт (ч)', ascending=False)
