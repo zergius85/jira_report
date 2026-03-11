@@ -1063,12 +1063,28 @@ def generate_report(
             df_with_assignee = df_detail[~df_detail['Исполнитель'].str.contains('Без исполнителя', na=False)]
 
             if not df_with_assignee.empty:
+                # Сначала извлекаем числа из колонок (на случай extra_verbose суффиксов)
+                # чтобы groupby().sum() корректно суммировал числа, а не конкатенировал строки
+                df_with_assignee = df_with_assignee.copy()
+                
+                def extract_number_safe(s):
+                    """Извлекает первое число из строки или возвращает 0.0"""
+                    if isinstance(s, (int, float)):
+                        return s
+                    match = re.match(r'^([\d.]+)', str(s))
+                    if match:
+                        return float(match.group(1))
+                    return 0.0
+                
+                df_with_assignee['Факт (ч)_num'] = df_with_assignee['Факт (ч)'].apply(extract_number_safe)
+                df_with_assignee['Оценка (ч)_num'] = df_with_assignee['Оценка (ч)'].apply(extract_number_safe)
+                
                 df_assignees = df_with_assignee.groupby('Исполнитель').agg(
                     tasks_count=('Ключ', 'count'),
                     correct_count=('Проблемы', lambda x: (x == '').sum()),
                     issues_count=('Проблемы', lambda x: (x != '').sum()),
-                    fact_sum=('Факт (ч)', 'sum'),
-                    estimate_sum=('Оценка (ч)', 'sum')
+                    fact_sum=('Факт (ч)_num', 'sum'),
+                    estimate_sum=('Оценка (ч)_num', 'sum')
                 ).reset_index()
                 # Переименовываем колонки обратно в кириллицу для отображения
                 df_assignees = df_assignees.rename(columns={
@@ -1078,18 +1094,6 @@ def generate_report(
                     'fact_sum': 'Факт (ч)',
                     'estimate_sum': 'Оценка (ч)'
                 })
-                # Преобразуем колонки в числовой тип (на случай если там строки с суффиксами из extra_verbose)
-                def sum_numbers(s):
-                    """Извлекает все числа из строки и суммирует их (для обработанных groupby.sum() строк вида '1.5 [x]2.0 [y]')"""
-                    if isinstance(s, (int, float)):
-                        return s
-                    numbers = re.findall(r'[\d.]+', str(s))
-                    if numbers:
-                        return sum(float(n) for n in numbers)
-                    return 0.0
-
-                df_assignees['Факт (ч)'] = df_assignees['Факт (ч)'].apply(sum_numbers)
-                df_assignees['Оценка (ч)'] = df_assignees['Оценка (ч)'].apply(sum_numbers)
                 df_assignees['Отклонение'] = df_assignees['Оценка (ч)'] - df_assignees['Факт (ч)']
                 df_assignees = df_assignees.round(2)
                 df_assignees = df_assignees.sort_values(by='Факт (ч)', ascending=False)
