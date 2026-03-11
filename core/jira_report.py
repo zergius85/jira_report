@@ -857,26 +857,9 @@ def generate_report(
         if extra_verbose:
             issue_url = f"{issue_url} 🔍"
 
-        # Создаём псевдо-объект issue для validate_issue
-        class MockIssue:
-            def __init__(self, data):
-                self.fields = type('obj', (object,), {
-                    'assignee': type('obj', (object,), {'displayName': data.get('fields', {}).get('assignee', {}).get('displayName') if data.get('fields', {}).get('assignee') else None})(),
-                    'timespent': data.get('fields', {}).get('timespent'),
-                    'timeoriginalestimate': data.get('fields', {}).get('timeoriginalestimate'),
-                    'resolutiondate': data.get('fields', {}).get('resolutiondate'),
-                    'status': type('obj', (object,), {
-                        'id': data.get('fields', {}).get('status', {}).get('id'),
-                        'name': data.get('fields', {}).get('status', {}).get('name'),
-                        'statusCategory': type('obj', (object,), {'key': data.get('fields', {}).get('status', {}).get('statusCategory', {}).get('key')})()
-                    })(),
-                    'created': data.get('fields', {}).get('created'),
-                    'duedate': data.get('fields', {}).get('duedate'),
-                    'issuetype': type('obj', (object,), {'name': data.get('fields', {}).get('issuetype', {}).get('name')})()
-                })()
-                self.key = data.get('key', '')
-
-        mock_issue = MockIssue(issue_data)
+        # Создаём DTO для validate_issue
+        from core.dtos import IssueDTO
+        mock_issue = IssueDTO.from_dict(issue_data)
         problems = validate_issue(mock_issue, jira, closed_status_ids, proj_key)
 
         # Формируем отображаемые значения с ID если нужно
