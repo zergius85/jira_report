@@ -685,6 +685,10 @@ def generate_report(
 
     jira = get_jira_connection()
 
+    # Санизируем даты для JQL (нужны до получения проектов)
+    start_date_safe = sanitize_jql_string_literal(start_date_str)
+    issues_end_safe = sanitize_jql_string_literal(issues_end_str)
+
     # Список проектов
     if project_keys and len(project_keys) > 0:
         # Фильтр по выбранным проектам
@@ -706,16 +710,45 @@ def generate_report(
                 logger.warning(f"Проект {proj_key} не найден")
         projects_keys = list(projects_map.keys())  # Обновляем список ключей
     else:
-        # Все проекты
-        all_projects = jira.projects()
+        # Все активные проекты - получаем через JQL для экономии запросов
+        # Jira.projects() делает много запросов, поэтому используем search_issues
+        logger.info("📋 Получение списка активных проектов...")
+        
+        # Запрос для получения всех проектов за период (по одному разу)
+        jql_all_projects = (
+            f"created >= '{start_date_safe}' "
+            f"AND created <= '{issues_end_safe}' "
+            f"ORDER BY created DESC"
+        )
+        
+        # Получаем все задачи за период для определения проектов
+        all_issues_temp = search_all_issues(
+            jira,
+            jql_all_projects,
+            fields='project',
+            batch_size=100
+        )
+        
+        # Извлекаем уникальные проекты из задач
         projects_map = {}
-        for proj in all_projects:
-            if proj.key in EXCLUDED_PROJECTS:
-                continue
-            if hasattr(proj, 'archived') and proj.archived:
-                continue
-            projects_map[proj.key] = proj.name
+        seen_projects = set()
+        
+        for issue in all_issues_temp:
+            if hasattr(issue, 'fields') and issue.fields:
+                project = issue.fields.project
+                if project and project.key not in seen_projects:
+                    seen_projects.add(project.key)
+                    
+                    # Пропускаем исключённые проекты
+                    if project.key in EXCLUDED_PROJECTS:
+                        continue
+                    
+                    # Пропускаем "закрытые" проекты по ключу (если есть в EXCLUDED_PROJECTS)
+                    # Дополнительные проверки на archived можно добавить здесь
+                    projects_map[project.key] = project.name
+        
         projects_keys = list(projects_map.keys())
+        logger.info(f"✅ Найдено {len(projects_keys)} активных проектов")
 
     all_issues_data = []
     summary_data = []
@@ -749,10 +782,8 @@ def generate_report(
             assignee_filter_jql = ' AND assignee IN (' + ','.join(sanitized_assignees) + ')'
 
     # ========== ОПТИМИЗАЦИЯ: 2 глобальных запроса вместо 2×N проектов ==========
-    # Санизируем даты (только формат YYYY-MM-DD)
-    start_date_safe = sanitize_jql_string_literal(start_date_str)
+    # Санизируем end_date (start_date_safe и issues_end_safe уже определены выше)
     end_date_safe = sanitize_jql_string_literal(end_date_str)
-    issues_end_safe = sanitize_jql_string_literal(issues_end_str)
 
     # Формируем список проектов для JQL
     projects_jql = ','.join([sanitize_jql_identifier(p) for p in projects_keys])
