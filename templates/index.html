@@ -2308,14 +2308,18 @@
 
                 return '<tr>' + columns.map(col => {
                     let cellValue = row[col];
-                    
+
                     // Извлекаем чистое значение и title для ячеек с [id]
                     if (col === 'Клиент (Проект)' || col === 'Исполнитель') {
                         const cleanValue = extractCleanValue(cellValue);
                         const title = extractTitle(cellValue, col.toLowerCase());
                         cellValue = `<span title="${title}">${cleanValue}</span>`;
+                    } else if (col === 'ID' || col === 'Задач закрыто' || col === 'Задач' || col === 'Корректных' || col === 'С ошибками' || col === 'Отклонение') {
+                        // Числовые колонки — оставляем как есть
+                        cellValue = cellValue;
                     } else {
-                        cellValue = formatCell(cellValue, col, row);
+                        // Для остальных колонок используем formatCellWithTooltip
+                        cellValue = formatCellWithTooltip(cellValue, col, row);
                     }
 
                     // Обработка колонок с процентами (Корректных и С ошибками)
