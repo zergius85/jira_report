@@ -1414,8 +1414,8 @@ if __name__ == '__main__':
         app.logger.info("🚀 Запуск Jira Report System с ротацией логов")
     
     mode = "prod" if IS_PRODUCTION else "dev"
-    print("🚀 Запуск веб-интерфейса...")
-    print(f"📍 Откройте в браузере: http://localhost:{ACTIVE_PORT}")
-    print(f"📦 Доступные блоки: {', '.join(REPORT_BLOCKS.keys())}")
-    print(f"🔧 Режим: {mode}, Хост: {FLASK_HOST}, Порт: {ACTIVE_PORT}")
+    logger.info(f"🚀 Запуск веб-интерфейса...")
+    logger.info(f"📍 Откройте в браузере: http://localhost:{ACTIVE_PORT}")
+    logger.info(f"📦 Доступные блоки: {', '.join(REPORT_BLOCKS.keys())}")
+    logger.info(f"🔧 Режим: {mode}, Хост: {FLASK_HOST}, Порт: {ACTIVE_PORT}")
     app.run(host=FLASK_HOST, port=ACTIVE_PORT, debug=not IS_PRODUCTION)
