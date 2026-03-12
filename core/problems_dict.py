@@ -284,27 +284,35 @@ def check_late_creation(issue: Any, threshold_days: int = 7) -> bool:
         return False
 
 
-def check_inactive(issue: Any, threshold_days: int = 5) -> bool:
+def check_inactive(issue: Any, threshold_days: int = 5, closed_status_ids: List[str] = None) -> bool:
     """
     Проверка: задача не двигается.
-    
+
     Args:
         issue: Задача Jira
         threshold_days: Порог неактивности (дни)
-    
+        closed_status_ids: Список ID закрытых статусов (опционально)
+
     Returns:
         bool: True если задача не обновлялась более threshold_days
     """
     if not hasattr(issue.fields, 'updated') or not issue.fields.updated:
         return False
-    
+
     if not hasattr(issue.fields, 'status') or not issue.fields.status:
         return False
-    
+
     status_name = issue.fields.status.name.lower()
-    if status_name in ['закрыт', 'closed', 'done']:
+    status_id = issue.fields.status.id
+
+    # Проверяем закрытые статусы по названию
+    if status_name in ['закрыт', 'closed', 'done', 'готово']:
         return False
-    
+
+    # Проверяем закрытые статусы по ID (если переданы)
+    if closed_status_ids and status_id in closed_status_ids:
+        return False
+
     try:
         updated = datetime.strptime(issue.fields.updated[:19], '%Y-%m-%dT%H:%M:%S')
         days_inactive = (datetime.now() - updated).days
@@ -423,14 +431,16 @@ def check_changelog(
                             return (False, None)
 
             # Не нашли переход в закрытый статус в changelog
+            logger.info(f"ℹ️  Задача {getattr(issue, 'key', 'UNKNOWN')}: в changelog не найден переход в закрытый статус")
             return (False, PROBLEM_TYPES['CHANGELOG_CHECK_FAILED']['short_name'])
         else:
             # Changelog отсутствует — не можем проверить кто закрыл
+            logger.info(f"ℹ️  Задача {getattr(issue, 'key', 'UNKNOWN')}: changelog отсутствует")
             return (False, PROBLEM_TYPES['CHANGELOG_CHECK_FAILED']['short_name'])
 
     except Exception as e:
-        # Если не удалось получить changelog
-        logger.debug(f"Ошибка при проверке changelog: {e}")
+        # Если не удалось получить changelog — логируем как INFO
+        logger.info(f"ℹ️  Задача {getattr(issue, 'key', 'UNKNOWN')}: не удалось проверить changelog (отсутствует или ошибка)")
         return (False, PROBLEM_TYPES['CHANGELOG_CHECK_FAILED']['short_name'])
 
 

@@ -157,7 +157,7 @@ class IssueValidator:
             'threshold_days',
             RISK_ZONE_INACTIVITY_THRESHOLD
         )
-        return check_inactive(issue, threshold)
+        return check_inactive(issue, threshold, self.closed_status_ids)
     
     def _check_status(self, issue: Any) -> tuple:
         """

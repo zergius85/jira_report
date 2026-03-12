@@ -299,15 +299,20 @@ class TestValidateIssue:
         mock_issue.fields.updated = '2024-01-01T10:00:00'
         mock_issue.fields.status = Mock()
         mock_issue.fields.status.name = 'In Progress'
-        
+
         with patch('core.problems_dict.datetime') as mock_datetime:
             mock_datetime.now.return_value = datetime(2024, 1, 15)  # 14 дней прошло
             mock_datetime.strptime = datetime.strptime
-            assert check_inactive(mock_issue, threshold_days=5) == True
-        
-        # Статус закрыт
+            assert check_inactive(mock_issue, threshold_days=5, closed_status_ids=['10001']) == True
+
+        # Статус закрыт по названию
         mock_issue.fields.status.name = 'Closed'
-        assert check_inactive(mock_issue, threshold_days=5) == False
+        assert check_inactive(mock_issue, threshold_days=5, closed_status_ids=['10001']) == False
+        
+        # Статус закрыт по ID
+        mock_issue.fields.status.name = 'Open'
+        mock_issue.fields.status.id = '10001'
+        assert check_inactive(mock_issue, threshold_days=5, closed_status_ids=['10001']) == False
 
     def test_closed_status_without_changelog_is_problem(self):
         """Если статус 'Закрыт' и нет changelog — это проблема"""
