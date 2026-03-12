@@ -2688,28 +2688,40 @@
         function applyIssuesFilter() {
             const table = document.getElementById('issues_table');
             const tbody = table.querySelector('tbody');
+            const thead = table.querySelector('thead');
             const rows = Array.from(tbody.querySelectorAll('tr'));
-            
+
             // Если фильтров нет - показываем все
             if (issuesFilters.size === 0) {
                 rows.forEach(row => row.style.display = '');
                 console.log('🔍 Фильтр проблем: все');
                 return;
             }
-            
+
+            // Находим индекс колонки "Проблемы" по заголовку
+            const headers = Array.from(thead.querySelectorAll('th'));
+            const problemsIndex = headers.findIndex(th => 
+                th.textContent.includes('Проблемы') || th.textContent.includes('Проблемы')
+            );
+
+            if (problemsIndex === -1) {
+                console.error('❌ Колонка "Проблемы" не найдена');
+                return;
+            }
+
             // Фильтруем строки
             rows.forEach((row, index) => {
-                const problemsCell = row.children[7]; // Колонка "Проблемы"
+                const problemsCell = row.children[problemsIndex];
                 const problemsText = problemsCell.textContent.toLowerCase();
-                
+
                 // Показываем если хотя бы один фильтр совпадает
-                const matches = Array.from(issuesFilters).some(filter => 
+                const matches = Array.from(issuesFilters).some(filter =>
                     problemsText.includes(filter.toLowerCase())
                 );
-                
+
                 row.style.display = matches ? '' : 'none';
             });
-            
+
             console.log(`🔍 Фильтр проблем: ${Array.from(issuesFilters).join(', ') || 'все'}`);
         }
         
