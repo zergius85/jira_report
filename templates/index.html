@@ -2757,14 +2757,14 @@
                 createChart('chartClosed', 'line', {
                     labels: Object.keys(dueByDate).sort(),
                     datasets: [{
-                        label: 'Задач с дедлайном',
+                        label: 'Задач',
                         data: Object.keys(dueByDate).sort().map(d => dueByDate[d]),
                         borderColor: '#27ae60',
                         backgroundColor: 'rgba(39, 174, 96, 0.1)',
                         fill: true,
                         tension: 0.3
                     }]
-                }, 'Задач с дедлайном по дням');
+                }, 'Задач по дням');
 
                 createChart('chartCreated', 'line', {
                     labels: Object.keys(createdByDate).sort(),

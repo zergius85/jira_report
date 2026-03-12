@@ -279,7 +279,7 @@ class RiskZoneAnalyzer:
     """Анализирует задачи на факторы риска."""
 
     def __init__(self):
-        self.today = datetime.now()
+        self.today = datetime.now().date()  # Используем дату без времени
 
     def analyze(self, issue) -> List[str]:
         """
@@ -313,8 +313,8 @@ class RiskZoneAnalyzer:
             # Используем сервис для проверки закрытого статуса
             from core.services.closed_status_service import is_status_closed
 
-            if due_date < self.today and not is_status_closed(status_name=status_name, status_id=status_id):
-                days_overdue = (self.today - due_date).days
+            if due_date.date() < self.today and not is_status_closed(status_name=status_name, status_id=status_id):
+                days_overdue = (self.today - due_date.date()).days
                 risk_factors.append(f'Просрочена на {days_overdue} дн.')
 
         # 3. Задачи, которые не двигались > порога неактивности

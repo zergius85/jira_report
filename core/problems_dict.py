@@ -258,7 +258,8 @@ def check_overdue(issue: Any) -> bool:
 
     try:
         due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
-        return due_date < datetime.now()
+        # Сравниваем даты без времени — задача просрочена, если duedate < сегодня
+        return due_date.date() < datetime.now().date()
     except Exception:
         return False
 

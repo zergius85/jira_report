@@ -139,7 +139,9 @@ class IssueValidator:
         """Получить количество дней просрочки."""
         try:
             due_date = datetime.strptime(duedate[:10], '%Y-%m-%d')
-            return (datetime.now() - due_date).days
+            # Сравниваем даты без времени
+            days = (datetime.now().date() - due_date.date()).days
+            return max(0, days)  # Не возвращать отрицательные значения
         except Exception:
             return 0
 

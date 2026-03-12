@@ -299,8 +299,8 @@ class ReportOrchestrator:
             duedate = fields.get('duedate')
             if duedate:
                 due_date = datetime.strptime(duedate[:10], '%Y-%m-%d')
-                if due_date < today and not is_status_closed(status_name=status_name, status_id=status_id):
-                    days_overdue = (today - due_date).days
+                if due_date.date() < today.date() and not is_status_closed(status_name=status_name, status_id=status_id):
+                    days_overdue = (today.date() - due_date.date()).days
                     risk_factors.append(f'Просрочена на {days_overdue} дн.')
             
             # 3. Не двигается
