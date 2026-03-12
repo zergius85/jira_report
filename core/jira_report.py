@@ -700,7 +700,9 @@ def generate_report(
 
     # ========== Обработка ВСЕХ задач за ОДИН проход ==========
     # Словарь для агрегации по проектам: proj_key -> {spent, estimated, correct, issues}
-    project_stats = {}
+    # Инициализируем для всех проектов заранее
+    project_stats = {proj_key: {'name': proj_name, 'spent': 0, 'estimated': 0, 'correct': 0, 'issues': 0} 
+                     for proj_key, proj_name in projects_map.items()}
 
     for issue_data in issues_normal_global:
         # REST API возвращает dict, а не объект
