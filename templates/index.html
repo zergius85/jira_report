@@ -2501,29 +2501,26 @@
             const thead = table.querySelector('thead');
             const tbody = table.querySelector('tbody');
 
-            // Определяем колонки - теперь данные приходят с ID в формате "value [id]"
-            // columnMapping нужен только для фильтрации и определения базовых имён
-            const columnMapping = {
-                'URL': 'URL',
-                'ID': 'ID',
-                'Дата исполнения': 'Дата исполнения',
-                'Дата создания': 'Дата создания',
-                'Проект': 'Проект',
-                'Задача': 'Задача',
-                'Исполнитель': 'Исполнитель',
-                'Автор': 'Автор',
-                'Проблемы': 'Проблемы',
-                'Статус': 'Статус'
-            };
-
-            // Получаем колонки из первой строки
+            // Определяем колонки - явно задаём порядок
+            const columnOrder = [
+                'URL',
+                'Проект',
+                'Задача',
+                'Исполнитель',
+                'Автор',
+                'Проблемы',
+                'Статус',
+                'Дата создания',
+                'Дата исполнения'
+            ];
+            
+            // Получаем все доступные колонки из данных
             const rawColumns = data.length > 0 ? Object.keys(data[0]) : [];
-            const columns = rawColumns.filter(col => columnMapping[col] || col === 'ID');
+            
+            // Фильтруем только нужные колонки и сохраняем порядок
+            const columns = columnOrder.filter(col => rawColumns.includes(col));
 
-            // Формируем заголовки с базовыми именами
-            const headerColumns = columns.map(col => columnMapping[col] || col);
-
-            thead.innerHTML = '<tr>' + headerColumns.map((col, i) => `<th onclick="sortTable('issues', '${col}')">${col}</th>`).join('') + '</tr>';
+            thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('issues', '${col}')">${col}</th>`).join('') + '</tr>';
 
             tbody.innerHTML = data.map(row => {
                 const problems = row['Проблемы'] || row.problems || '';
@@ -2531,8 +2528,7 @@
                 const problemList = Array.isArray(problems) ? problems : (problems || '').split(/[,;]/).filter(p => p.trim());
 
                 return '<tr>' + columns.map((col, i) => {
-                    const baseCol = columnMapping[col] || col;
-                    if (baseCol === 'Проблемы') {
+                    if (col === 'Проблемы') {
                         // Форматируем проблемы как список бейджей, каждый с новой строки
                         if (problemList.length === 0) {
                             return '<td>-</td>';
@@ -2544,12 +2540,12 @@
                             return `<span class="problem-badge" title="${description}">${problemText}</span>`;
                         }).join('')}</td>`;
                     }
-                    if (baseCol === 'Статус') {
+                    if (col === 'Статус') {
                         // Статус с цветным бейджем
                         const status = row[col] || row['Статус'] || row.status || '-';
                         const cleanStatus = extractCleanValue(status);
                         const title = extractTitle(status, 'status');
-                        
+
                         // Определяем цвет статуса
                         let bgColor = '#95a5a6';  // По умолчанию серый
                         if (cleanStatus.toLowerCase().includes('закрыт') || cleanStatus.toLowerCase().includes('closed')) {
@@ -2561,10 +2557,10 @@
                         } else if (cleanStatus.toLowerCase().includes('открыт') || cleanStatus.toLowerCase().includes('open')) {
                             bgColor = '#f39c12';  // Оранжевый для открытых
                         }
-                        
+
                         return `<td><span class="problem-badge" style="background: ${bgColor}; color: white;" title="${title}">${cleanStatus}</span></td>`;
                     }
-                    if (baseCol === 'URL') {
+                    if (col === 'URL') {
                         // URL с 🔍 - две ссылки: скрепка и ID задачи
                         const url = row[col] || row['URL'] || row.url || '';
                         const cleanUrl = extractCleanValue(url);
@@ -2580,7 +2576,7 @@
                         }
                         return `<td>${cleanUrl || '-'}</td>`;
                     }
-                    if (baseCol === 'Автор') {
+                    if (col === 'Автор') {
                         // Проверяем автора - данные могут быть в формате "name [id]"
                         const author = row[col] || row['Автор'] || row.author || 'N/A';
                         // Извлекаем чистое имя для отображения (убираем [id])
