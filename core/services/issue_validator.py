@@ -5,6 +5,7 @@
 Инкапсулирует логику проверки задач на корректность.
 """
 from typing import List, Optional, Any, Dict
+from datetime import datetime
 import logging
 
 from core.problems_dict import (
@@ -14,6 +15,8 @@ from core.problems_dict import (
     check_overdue,
     check_late_creation,
     check_inactive,
+    check_changelog,
+    format_problem,
     PROBLEM_TYPES,
 )
 from core.config import (
@@ -91,20 +94,26 @@ class IssueValidator:
         
         # Проверка: просрочка планирования
         if self._check_late_creation(issue):
-            problems.append(self._format_late_creation(issue))
-        
+            days_diff = self._get_days_diff(issue.fields.created, issue.fields.duedate)
+            problems.append(format_problem('LATE_CREATION', days_diff=days_diff))
+
         # Проверка: просрочена
         if check_overdue(issue):
-            problems.append(PROBLEM_TYPES['OVERDUE']['short_name'])
-        
+            days_overdue = self._get_days_overdue(issue.fields.duedate)
+            problems.append(format_problem('OVERDUE', days_overdue=days_overdue))
+
         # Проверка: неактивна
         if self._check_inactive(issue):
-            problems.append(self._format_inactive(issue))
-        
+            days_inactive = self._get_days_inactive(issue.fields.updated)
+            problems.append(format_problem('INACTIVE', days_inactive=days_inactive))
+
         # Проверка статуса "Закрыт"
-        if self._check_status(issue):
+        is_correct, error_message = self._check_status(issue)
+        if error_message:
+            problems.append(error_message)
+        elif not is_correct:
             problems.append(PROBLEM_TYPES['INCORRECT_STATUS']['short_name'])
-        
+
         return problems
     
     def _check_late_creation(self, issue: Any) -> bool:
@@ -113,19 +122,34 @@ class IssueValidator:
             return False
         if not hasattr(issue.fields, 'duedate') or not issue.fields.duedate:
             return False
-        
+
         threshold = PROBLEM_TYPES['LATE_CREATION'].get('threshold_days', 7)
         return check_late_creation(issue, threshold)
-    
-    def _format_late_creation(self, issue: Any) -> str:
-        """Форматировать проблему просрочки планирования."""
+
+    def _get_days_diff(self, created: str, duedate: str) -> int:
+        """Получить разницу в днях между created и duedate."""
         try:
-            created_date = datetime.strptime(issue.fields.created[:10], '%Y-%m-%d')
-            due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
-            days_diff = (created_date - due_date).days
-            return f"Создана на {days_diff} дн. позже даты решения"
+            created_date = datetime.strptime(created[:10], '%Y-%m-%d')
+            due_date = datetime.strptime(duedate[:10], '%Y-%m-%d')
+            return (created_date - due_date).days
         except Exception:
-            return PROBLEM_TYPES['LATE_CREATION']['short_name']
+            return 0
+
+    def _get_days_overdue(self, duedate: str) -> int:
+        """Получить количество дней просрочки."""
+        try:
+            due_date = datetime.strptime(duedate[:10], '%Y-%m-%d')
+            return (datetime.now() - due_date).days
+        except Exception:
+            return 0
+
+    def _get_days_inactive(self, updated: str) -> int:
+        """Получить количество дней неактивности."""
+        try:
+            updated_dt = datetime.strptime(updated[:19], '%Y-%m-%dT%H:%M:%S')
+            return (datetime.now() - updated_dt).days
+        except Exception:
+            return 0
     
     def _check_inactive(self, issue: Any) -> bool:
         """Проверка: неактивна."""
@@ -135,32 +159,28 @@ class IssueValidator:
         )
         return check_inactive(issue, threshold)
     
-    def _format_inactive(self, issue: Any) -> str:
-        """Форматировать проблему неактивности."""
-        try:
-            updated = datetime.strptime(issue.fields.updated[:19], '%Y-%m-%dT%H:%M:%S')
-            days_inactive = (datetime.now() - updated).days
-            return f"Не двигается {days_inactive} дн."
-        except Exception:
-            return PROBLEM_TYPES['INACTIVE']['short_name']
-    
-    def _check_status(self, issue: Any) -> bool:
+    def _check_status(self, issue: Any) -> tuple:
         """
         Проверка статуса "Закрыт".
-        
+
+        Args:
+            issue: Объект задачи Jira
+
         Returns:
-            bool: True если статус "Закрыт" установлен некорректно
+            tuple: (is_correct, error_message)
+                - is_correct: True если статус корректен
+                - error_message: Сообщение об ошибке или None
         """
         if not hasattr(issue.fields, 'status') or not issue.fields.status:
-            return False
-        
+            return (True, None)
+
         status_id = issue.fields.status.id
         status_name = issue.fields.status.name
-        
+
         # Проверяем только если статус "Закрыт"
         if not is_status_closed(status_name=status_name, status_id=status_id):
-            return False
-        
+            return (True, None)
+
         # Проверяем исполнителя на исключение
         assignee_name = ''
         if issue.fields.assignee:
@@ -170,52 +190,16 @@ class IssueValidator:
                 else issue.fields.assignee.displayName
             )
             assignee_name = assignee_name or ''
-        
+
         for exc in EXCLUDED_ASSIGNEE_CLOSE:
             if exc.lower() in assignee_name.lower():
-                return False
-        
-        # Проверяем changelog
-        return self._check_changelog(issue)
-    
-    def _check_changelog(self, issue: Any) -> bool:
-        """
-        Проверить changelog задачи.
-        
-        Returns:
-            bool: True если changelog некорректен
-        """
-        try:
-            # Проверяем наличие changelog
-            if hasattr(issue, 'changelog') and issue.changelog:
-                for history in reversed(issue.changelog.histories):
-                    for item in history.items:
-                        if item.field == 'status' and item.toString:
-                            if hasattr(item, 'to') and item.to in self.closed_status_ids:
-                                # Проверяем автора перехода
-                                author_name = ''
-                                if hasattr(history, 'author') and history.author:
-                                    author_name = (
-                                        history.author.name
-                                        if hasattr(history.author, 'name')
-                                        else history.author.displayName
-                                    )
-                                    author_name = author_name or ''
-                                
-                                # Если переход сделал бот — это корректно
-                                if JIRA_USER and JIRA_USER.lower() in author_name.lower():
-                                    return False
-                
-                # Changelog есть, но корректного перехода не найдено
-                return True
-            else:
-                # Changelog отсутствует
-                logger.warning(f"⚠️  Отсутствует changelog для {issue.key}")
-                return True
-        except Exception as e:
-            logger.warning(f"⚠️  Ошибка при проверке changelog для {issue.key}: {e}")
-            return True
+                return (True, None)
 
-
-# Импорт datetime
-from datetime import datetime
+        # Проверяем changelog через функцию из problems_dict
+        is_correct, error_message = check_changelog(
+            issue,
+            self.closed_status_ids,
+            EXCLUDED_ASSIGNEE_CLOSE,
+            JIRA_USER
+        )
+        return (is_correct, error_message)

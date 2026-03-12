@@ -29,10 +29,10 @@ from core.jira_report import (
     sanitize_jql_identifier,
     sanitize_jql_string_literal,
     search_all_issues,
-    validate_issue,
     get_column_order,
     get_closed_status_ids
 )
+from core.services.issue_validator import IssueValidator
 
 logger = logging.getLogger(__name__)
 
@@ -402,6 +402,7 @@ class ReportGenerator:
         self.issue_extractor = IssueDataExtractor(extra_verbose)
         self.block_generator = ReportBlockGenerator('summary', extra_verbose)
         self.risk_analyzer = RiskZoneAnalyzer()
+        self.issue_validator = IssueValidator(closed_status_ids=self.closed_status_ids)
 
         # Данные
         self.jira = None
@@ -610,10 +611,11 @@ class ReportGenerator:
         proj_issues = 0
 
         for issue in issues_normal:
+            problems = self.issue_validator.validate(issue, proj_key)
             issue_data = self.issue_extractor.extract(
                 issue,
                 proj_name,
-                validate_issue(issue, self.jira, self.closed_status_ids, proj_key)
+                problems
             )
 
             self.all_issues_data.append(issue_data)
@@ -645,7 +647,7 @@ class ReportGenerator:
     ):
         """Обрабатывает проблемные задачи."""
         for issue in issues_all:
-            problems = validate_issue(issue, self.jira, self.closed_status_ids, proj_key)
+            problems = self.issue_validator.validate(issue, proj_key)
             if problems:
                 assignee = (
                     issue.fields.assignee.displayName

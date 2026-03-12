@@ -439,137 +439,10 @@ def save_closed_status_ids(status_ids: List[str]) -> None:
         f.write(env_content)
 
 # Импортируем функции проверки проблем из справочника
+# (используются в IssueValidator)
 from core.problems_dict import (
-    check_no_assignee,
-    check_no_time_spent,
-    check_no_resolution_date,
-    check_incorrect_status,
-    check_overdue,
-    check_late_creation,
-    check_inactive,
     PROBLEM_TYPES,
 )
-
-def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: Optional[List[str]] = None, project_key: Optional[str] = None) -> List[str]:
-    """
-    Проверяет задачу на корректность заполнения.
-
-    Использует справочник проблем (core.problems_dict) для проверки.
-
-    Args:
-        issue: Объект задачи Jira
-        jira: Объект подключения к Jira (нужен для проверки changelog)
-        closed_status_ids: Список ID закрытых статусов (опционально)
-        project_key: Ключ проекта (опционально, для исключений)
-
-    Returns:
-        List[str]: Список проблем
-    """
-    problems = []
-
-    # Используем переданный список или глобальный
-    status_ids = closed_status_ids if closed_status_ids else CLOSED_STATUS_IDS
-
-    # Проверка: нет исполнителя
-    if check_no_assignee(issue):
-        problems.append(PROBLEM_TYPES['NO_ASSIGNEE']['short_name'])
-
-    # Проверка: нет фактического времени (исключение для проектов из EXCLUDED_PROJECTS_NO_TIMESPENT)
-    if check_no_time_spent(issue):
-        # Проверяем, не в исключённом ли проекте задача
-        if not project_key or project_key.upper() not in [p.upper() for p in EXCLUDED_PROJECTS_NO_TIMESPENT]:
-            problems.append(PROBLEM_TYPES['NO_TIME_SPENT']['short_name'])
-
-    # Проверка: нет даты решения
-    if check_no_resolution_date(issue):
-        problems.append(PROBLEM_TYPES['NO_RESOLUTION_DATE']['short_name'])
-
-    # Проверка: просрочка планирования (создана позже даты решения)
-    if issue.fields.created and issue.fields.duedate:
-        threshold = PROBLEM_TYPES['LATE_CREATION'].get('threshold_days', 7)
-        if check_late_creation(issue, threshold):
-            try:
-                created_date = datetime.strptime(issue.fields.created[:10], '%Y-%m-%d')
-                due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
-                days_diff = (created_date - due_date).days
-                problems.append(f"Создана на {days_diff} дн. позже даты решения")
-            except Exception:
-                pass  # Если не удалось сравнить даты — не считаем проблемой
-
-    # Проверка: просрочена (дата решения истёк)
-    if check_overdue(issue):
-        problems.append(PROBLEM_TYPES['OVERDUE']['short_name'])
-
-    # Проверка: не двигается (неактивна)
-    threshold_inactive = PROBLEM_TYPES['INACTIVE'].get('threshold_days', RISK_ZONE_INACTIVITY_THRESHOLD)
-    if check_inactive(issue, threshold_inactive):
-        try:
-            updated = datetime.strptime(issue.fields.updated[:19], '%Y-%m-%dT%H:%M:%S')
-            days_inactive = (datetime.now() - updated).days
-            problems.append(f"Не двигается {days_inactive} дн.")
-        except Exception:
-            pass
-
-    # Проверка статуса "Закрыт" по ID
-    if issue.fields.status:
-        status_id = issue.fields.status.id
-        status_name = issue.fields.status.name
-
-        # Проверяем changelog ТОЛЬКО если статус "Закрыт"
-        if status_id in status_ids:
-            is_correct_close = False
-
-            # Проверяем, не является ли исполнитель исключением (holin и т.п.)
-            assignee_name = ''
-            if issue.fields.assignee:
-                assignee_name = issue.fields.assignee.name if hasattr(issue.fields.assignee, 'name') else issue.fields.assignee.displayName
-                assignee_name = assignee_name or ''  # Защита от None
-
-            for exc in EXCLUDED_ASSIGNEE_CLOSE:
-                if exc.lower() in assignee_name.lower():
-                    is_correct_close = True
-                    break
-
-            # Если не исключение, проверяем changelog (кто перевёл в "Закрыт")
-            # Используем предзагруженный changelog из issues_normal (экономия запросов к API)
-            if not is_correct_close:
-                try:
-                    # Проверяем, есть ли changelog в предзагруженном объекте
-                    if hasattr(issue, 'changelog') and issue.changelog:
-                        # Ищем последний переход в статус "Закрыт"
-                        found_correct_close = False
-                        for history in reversed(issue.changelog.histories):
-                            for item in history.items:
-                                if item.field == 'status' and item.toString:
-                                    # Проверяем, был ли это переход в закрытый статус
-                                    if hasattr(item, 'to') and item.to in CLOSED_STATUS_IDS:
-                                        # Проверяем, кто сделал переход
-                                        author_name = ''
-                                        if hasattr(history, 'author') and history.author:
-                                            author_name = history.author.name if hasattr(history.author, 'name') else history.author.displayName
-                                            author_name = author_name or ''  # Защита от None
-
-                                        # Если переход сделал пользователь демона — это корректно
-                                        if JIRA_USER and JIRA_USER.lower() in author_name.lower():
-                                            is_correct_close = True
-                                            found_correct_close = True
-                                        break
-                            if found_correct_close:
-                                break
-                    else:
-                        # Changelog отсутствует — это проблема
-                        logger.warning(f"⚠️  Отсутствует changelog для {issue.key}")
-                        problems.append('Не удалось проверить историю переходов')
-                except Exception as e:
-                    # Если не удалось получить changelog, считаем это проблемой
-                    logger.warning(f"⚠️  Ошибка при проверке changelog для {issue.key}: {e}")
-                    problems.append('Не удалось проверить историю переходов')
-
-            # Если статус "Закрыт" и не корректно закрыт — это проблема
-            if not is_correct_close:
-                problems.append(PROBLEM_TYPES['INCORRECT_STATUS']['short_name'])
-
-    return problems
 
 
 def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
@@ -871,10 +744,12 @@ def generate_report(
         if extra_verbose:
             issue_url = f"{issue_url} 🔍"
 
-        # Создаём DTO для validate_issue
+        # Создаём DTO для валидации
         from core.dtos import IssueDTO
+        from core.services.issue_validator import IssueValidator
         mock_issue = IssueDTO.from_dict(issue_data)
-        problems = validate_issue(mock_issue, jira, closed_status_ids, proj_key)
+        validator = IssueValidator(closed_status_ids=closed_status_ids)
+        problems = validator.validate(mock_issue, proj_key)
 
         # Формируем отображаемые значения
         project_display = proj_name

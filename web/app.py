@@ -397,6 +397,30 @@ def api_issue_types():
         logger.error(f"Ошибка получения типов задач: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@app.route('/api/problem-types')
+def api_problem_types():
+    """Получить справочник типов проблем для фильтрации"""
+    try:
+        from core.problems_dict import PROBLEM_TYPES
+        
+        # Преобразуем в список для удобства использования в JS
+        problem_types = []
+        for key, value in PROBLEM_TYPES.items():
+            problem_types.append({
+                'key': key,
+                **value
+            })
+        
+        return jsonify({
+            'success': True,
+            'problem_types': problem_types
+        })
+    except Exception as e:
+        logger.error(f"Ошибка получения справочника проблем: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/task-info', methods=['POST'])
 def api_task_info():
     """Получить полную информацию о задаче со всеми полями"""

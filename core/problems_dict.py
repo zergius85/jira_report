@@ -112,6 +112,7 @@ PROBLEM_TYPES: Dict[str, Dict[str, Any]] = {
         'icon': '⏰',
         'color': '#fb8c00',  # Оранжевый
         'jql_condition': 'duedate < now() AND status not in (Closed, Done)',
+        'detail_template': 'Просрочена на {days_overdue} дн.',  # Шаблон для детального сообщения
     },
 
     'LATE_CREATION': {
@@ -126,6 +127,7 @@ PROBLEM_TYPES: Dict[str, Dict[str, Any]] = {
         'color': '#fb8c00',  # Оранжевый (как у просроченных)
         'jql_condition': 'created > duedate',
         'threshold_days': 7,  # Минимальное количество дней для проблемы
+        'detail_template': 'Создана на {days_diff} дн. позже даты решения',  # Шаблон для детального сообщения
     },
     
     # =============================================
@@ -143,6 +145,23 @@ PROBLEM_TYPES: Dict[str, Dict[str, Any]] = {
         'color': '#fbc02d',  # Жёлтый
         'jql_condition': 'updated < -5d AND status not in (Closed, Done)',
         'threshold_days': 5,  # Порог неактивности (дни)
+        'detail_template': 'Не двигается {days_inactive} дн.',  # Шаблон для детального сообщения
+    },
+
+    # =============================================
+    # Проблемы с проверкой истории (changelog)
+    # =============================================
+    'CHANGELOG_CHECK_FAILED': {
+        'id': 'changelog_check_failed',
+        'short_name': 'Не удалось проверить историю переходов',
+        'description': 'Не удалось получить или проверить историю переходов в статусе "Закрыт"',
+        'category': 'status',
+        'severity': 'high',
+        'check_function': 'check_changelog',
+        'filter_name': 'История переходов',
+        'icon': '⚠️',
+        'color': '#f44336',  # Красный
+        'jql_condition': 'status in (Closed, Done) AND changelog is EMPTY',
     },
 }
 
@@ -297,6 +316,117 @@ def check_inactive(issue: Any, threshold_days: int = 5) -> bool:
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # =============================================
 
+def format_problem(problem_key: str, **kwargs) -> str:
+    """
+    Форматирует сообщение проблемы с подстановкой значений.
+
+    Если в PROBLEM_TYPES есть 'detail_template', использует его,
+    иначе возвращает short_name.
+
+    Args:
+        problem_key: Ключ проблемы (например, 'OVERDUE')
+        **kwargs: Параметры для подстановки в шаблон (days_overdue, days_diff, и т.д.)
+
+    Returns:
+        str: Отформатированное сообщение проблемы
+
+    Пример:
+        format_problem('OVERDUE', days_overdue=5) -> "Просрочена на 5 дн."
+    """
+    problem = PROBLEM_TYPES.get(problem_key)
+    if not problem:
+        return problem_key
+
+    template = problem.get('detail_template')
+    if template:
+        try:
+            return template.format(**kwargs)
+        except (KeyError, ValueError):
+            # Если шаблон не удалось заполнить, возвращаем short_name
+            return problem['short_name']
+    else:
+        return problem['short_name']
+
+
+def check_changelog(
+    issue: Any,
+    closed_status_ids: List[str],
+    excluded_assignees: List[str],
+    jira_user: str
+) -> tuple:
+    """
+    Проверяет корректность закрытия задачи по changelog.
+
+    Args:
+        issue: Задача Jira
+        closed_status_ids: Список ID закрытых статусов
+        excluded_assignees: Список имён исполнителей-исключений
+        jira_user: Имя пользователя-бота (корректное закрытие)
+
+    Returns:
+        tuple: (is_correct, error_message)
+            - is_correct: True если закрытие корректно или не требуется проверка
+            - error_message: Сообщение об ошибке или None
+    """
+    # Проверяем, что задача в закрытом статусе
+    if not hasattr(issue.fields, 'status') or not issue.fields.status:
+        return (True, None)  # Нет статуса — не проверяем
+
+    status_id = issue.fields.status.id
+    if status_id not in closed_status_ids:
+        return (True, None)  # Статус не закрытый — не проверяем
+
+    # Проверяем, не является ли исполнитель исключением
+    assignee_name = ''
+    if issue.fields.assignee:
+        assignee_name = (
+            issue.fields.assignee.name
+            if hasattr(issue.fields.assignee, 'name')
+            else issue.fields.assignee.displayName
+        )
+        assignee_name = assignee_name or ''
+
+    for exc in excluded_assignees:
+        if exc.lower() in assignee_name.lower():
+            return (True, None)  # Исполнитель в исключениях — ок
+
+    # Проверяем changelog
+    try:
+        if hasattr(issue, 'changelog') and issue.changelog:
+            # Ищем последний переход в статус "Закрыт"
+            for history in reversed(issue.changelog.histories):
+                for item in history.items:
+                    if item.field == 'status' and hasattr(item, 'to'):
+                        if item.to in closed_status_ids:
+                            # Проверяем, кто сделал переход
+                            author_name = ''
+                            if hasattr(history, 'author') and history.author:
+                                author_name = (
+                                    history.author.name
+                                    if hasattr(history.author, 'name')
+                                    else history.author.displayName
+                                )
+                                author_name = author_name or ''
+
+                            # Если переход сделал бот — это корректно
+                            if jira_user and jira_user.lower() in author_name.lower():
+                                return (True, None)
+
+                            # Нашли переход в закрытый статус, но сделал не бот
+                            # Это не ошибка, просто некорректное закрытие
+                            return (False, None)
+
+            # Не нашли переход в закрытый статус в changelog
+            return (False, PROBLEM_TYPES['CHANGELOG_CHECK_FAILED']['short_name'])
+        else:
+            # Changelog отсутствует — это проблема
+            return (False, PROBLEM_TYPES['CHANGELOG_CHECK_FAILED']['short_name'])
+
+    except Exception:
+        # Если не удалось получить changelog, считаем это проблемой
+        return (False, PROBLEM_TYPES['CHANGELOG_CHECK_FAILED']['short_name'])
+
+
 def get_problem_type_by_id(problem_id: str) -> Optional[Dict[str, Any]]:
     """
     Получить тип проблемы по ID.
@@ -408,6 +538,8 @@ __all__ = [
     'get_filter_names',
     'get_problem_categories',
     'get_problem_description',
+    'format_problem',
+    'check_changelog',
     'check_no_assignee',
     'check_no_time_spent',
     'check_no_resolution_date',

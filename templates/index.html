@@ -754,17 +754,7 @@
             border-radius: 10px;
             background: rgba(255,255,255,0.3);
         }
-        .issues-filter-chip[data-filter="Без исполнителя"] { background: #ffebee; border-color: #ffcdd2; }
-        .issues-filter-chip[data-filter="Без исполнителя"].active { background: #e53935; }
-        .issues-filter-chip[data-filter="Просрочена"] { background: #fff3e0; border-color: #ffe0b2; }
-        .issues-filter-chip[data-filter="Просрочена"].active { background: #fb8c00; }
-        .issues-filter-chip[data-filter="Нет фактического"] { background: #e3f2fd; border-color: #bbdefb; }
-        .issues-filter-chip[data-filter="Нет фактического"].active { background: #1e88e5; }
-        .issues-filter-chip[data-filter="Статус"] { background: #f3e5f5; border-color: #e1bee7; }
-        .issues-filter-chip[data-filter="Статус"].active { background: #8e24aa; }
-        .issues-filter-chip[data-filter="Не двигается"] { background: #fffde7; border-color: #fff9c4; }
-        .issues-filter-chip[data-filter="Не двигается"].active { background: #fbc02d; }
-        
+
         /* Мобильная адаптация */
         @media (max-width: 1200px) {
             .form-three-columns {
@@ -1237,22 +1227,8 @@
                 <h2 class="section-title">
                     <span>Проблемные задачи <span class="badge warning" id="issues_count">0</span></span>
                 </h2>
-                <div class="issues-filter-container">
-                    <span class="issues-filter-chip" data-filter="Без исполнителя" onclick="toggleIssueFilter(this)">
-                        👤 Без исполнителя <span class="chip-count" id="filter_count_no_assignee">0</span>
-                    </span>
-                    <span class="issues-filter-chip" data-filter="Просрочена" onclick="toggleIssueFilter(this)">
-                        ⏰ Просрочена <span class="chip-count" id="filter_count_overdue">0</span>
-                    </span>
-                    <span class="issues-filter-chip" data-filter="Нет фактического" onclick="toggleIssueFilter(this)">
-                        ⏱️ Нет факта <span class="chip-count" id="filter_count_no_time">0</span>
-                    </span>
-                    <span class="issues-filter-chip" data-filter="Статус" onclick="toggleIssueFilter(this)">
-                        ❌ Статус <span class="chip-count" id="filter_count_status">0</span>
-                    </span>
-                    <span class="issues-filter-chip" data-filter="Не двигается" onclick="toggleIssueFilter(this)">
-                        😴 Не двигается <span class="chip-count" id="filter_count_inactive">0</span>
-                    </span>
+                <div class="issues-filter-container" id="issues_filters">
+                    <!-- Фильтры генерируются динамически из /api/problem-types -->
                     <span class="issues-filter-chip" onclick="resetIssuesFilter()">✖ Сбросить всё</span>
                 </div>
                 <div class="table-container">
@@ -1408,6 +1384,7 @@
             await loadProjects();
             await loadAssignees();
             await loadIssueTypes();
+            await loadProblemTypes();
             loadPresetList();
         };
         
@@ -1806,6 +1783,82 @@
                     });
                 }
             } catch (e) { console.error('Ошибка загрузки типов:', e); }
+        }
+
+        async function loadProblemTypes() {
+            try {
+                const resp = await fetch('/api/problem-types');
+                const data = await resp.json();
+                if (data.success && data.problem_types) {
+                    window.PROBLEM_TYPES = data.problem_types;
+                    renderProblemFilters(data.problem_types);
+                }
+            } catch (e) { console.error('Ошибка загрузки типов проблем:', e); }
+        }
+
+        function renderProblemFilters(problemTypes) {
+            const container = document.getElementById('issues_filters');
+            if (!container) return;
+
+            // Сбрасываем контейнер (оставляем только кнопку сброса)
+            container.innerHTML = '';
+
+            // Словарь иконок для категорий
+            const icons = {
+                'assignee': '👤',
+                'time': '⏱️',
+                'status': '❌',
+                'deadline': '⏰',
+                'activity': '😴',
+            };
+
+            // Словарь цветов для категорий
+            const colors = {
+                'assignee': '#e53935',
+                'time': '#1e88e5',
+                'status': '#8e24aa',
+                'deadline': '#fb8c00',
+                'activity': '#fbc02d',
+            };
+
+            // Группируем по filter_name (уникальные фильтры)
+            const filterMap = new Map();
+            problemTypes.forEach(pt => {
+                const filterName = pt.filter_name;
+                if (!filterMap.has(filterName)) {
+                    filterMap.set(filterName, {
+                        name: filterName,
+                        icon: pt.icon || icons[pt.category] || '🔹',
+                        color: pt.color || colors[pt.category] || '#757575',
+                        category: pt.category,
+                    });
+                }
+            });
+
+            // Создаём чипы фильтров
+            filterMap.forEach((filter, filterName) => {
+                const chip = document.createElement('span');
+                chip.className = 'issues-filter-chip';
+                chip.setAttribute('data-filter', filterName);
+                chip.setAttribute('onclick', 'toggleIssueFilter(this)');
+                chip.style.cssText = `border-left: 3px solid ${filter.color};`;
+
+                const countSpan = document.createElement('span');
+                countSpan.className = 'chip-count';
+                countSpan.id = `filter_count_${filterName.replace(/\s+/g, '_').toLowerCase()}`;
+                countSpan.textContent = '0';
+
+                chip.innerHTML = `${filter.icon} ${filterName} `;
+                chip.appendChild(countSpan);
+                container.appendChild(chip);
+            });
+
+            // Добавляем кнопку сброса
+            const resetChip = document.createElement('span');
+            resetChip.className = 'issues-filter-chip';
+            resetChip.setAttribute('onclick', 'resetIssuesFilter()');
+            resetChip.textContent = '✖ Сбросить всё';
+            container.appendChild(resetChip);
         }
 
         // ========== Вкладки ==========
@@ -2628,50 +2681,43 @@
             console.log('🔍 Фильтр проблем: сброшен');
         }
         
-        // Подсчёт количества проблем для фильтра
+        // ========== Подсчёт количества проблем для фильтра ==========
         function updateIssueFilterCounts(issuesData) {
             if (!issuesData || issuesData.length === 0) {
-                // Сброс счётчиков
-                ['no_assignee', 'overdue', 'no_time', 'status', 'inactive'].forEach(key => {
-                    const el = document.getElementById(`filter_count_${key}`);
-                    if (el) el.textContent = '0';
+                // Сброс счётчиков - находим все элементы chip-count
+                document.querySelectorAll('.chip-count').forEach(el => {
+                    el.textContent = '0';
+                    el.style.display = 'none';
                 });
                 return;
             }
-            
-            // Подсчёт по типам проблем
-            const counts = {
-                'Без исполнителя': 0,
-                'Просрочена': 0,
-                'Нет фактического': 0,
-                'Статус': 0,
-                'Не двигается': 0,
-            };
-            
+
+            // Инициализируем счётчики для всех фильтров
+            const counts = {};
+            document.querySelectorAll('.issues-filter-chip[data-filter]').forEach(chip => {
+                const filterName = chip.getAttribute('data-filter');
+                counts[filterName] = 0;
+            });
+
             issuesData.forEach(task => {
                 const problems = task['Проблемы'] || task.problems || '';
                 const problemList = problems.split(/[,;]/).map(p => p.trim()).filter(p => p);
-                
+
                 problemList.forEach(problem => {
-                    if (problem.includes('Без исполнителя')) counts['Без исполнителя']++;
-                    else if (problem.includes('Просрочена') || problem.includes('позже дедлайна')) counts['Просрочена']++;
-                    else if (problem.includes('фактического')) counts['Нет фактического']++;
-                    else if (problem.includes('Статус')) counts['Статус']++;
-                    else if (problem.includes('двигается')) counts['Не двигается']++;
+                    // Проверяем совпадение с каждым фильтром
+                    for (const filterName of Object.keys(counts)) {
+                        if (problem.includes(filterName)) {
+                            counts[filterName]++;
+                            break; // Считаем только один раз на задачу
+                        }
+                    }
                 });
             });
-            
+
             // Обновляем счётчики
-            const elMap = {
-                'Без исполнителя': 'filter_count_no_assignee',
-                'Просрочена': 'filter_count_overdue',
-                'Нет фактического': 'filter_count_no_time',
-                'Статус': 'filter_count_status',
-                'Не двигается': 'filter_count_inactive',
-            };
-            
-            for (const [problem, count] of Object.entries(counts)) {
-                const el = document.getElementById(elMap[problem]);
+            for (const [filterName, count] of Object.entries(counts)) {
+                const elId = `filter_count_${filterName.replace(/\s+/g, '_').toLowerCase()}`;
+                const el = document.getElementById(elId);
                 if (el) {
                     el.textContent = count > 0 ? count : '';
                     el.style.display = count > 0 ? 'inline-block' : 'none';

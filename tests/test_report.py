@@ -17,10 +17,10 @@ from core.jira_report import (
     get_default_start_date,
     get_column_order,
     validate_config,
-    validate_issue,
     EXCLUDED_ASSIGNEE_CLOSE,
     RISK_ZONE_INACTIVITY_THRESHOLD,
 )
+from core.services.issue_validator import IssueValidator
 
 # Импортируем справочник проблем для тестов
 from core.problems_dict import (
@@ -31,6 +31,8 @@ from core.problems_dict import (
     check_overdue,
     check_late_creation,
     check_inactive,
+    format_problem,
+    check_changelog,
 )
 
 
@@ -199,7 +201,8 @@ class TestValidateIssue:
         mock_issue.fields.status.name = 'Done'
         mock_issue.fields.assignee = None
 
-        problems = validate_issue(mock_issue)
+        validator = IssueValidator()
+        problems = validator.validate(mock_issue)
         assert PROBLEM_TYPES['NO_RESOLUTION_DATE']['short_name'] in problems
 
     def test_no_time_spent(self):
@@ -212,7 +215,8 @@ class TestValidateIssue:
         mock_issue.fields.status.name = 'Done'
         mock_issue.fields.assignee = None
 
-        problems = validate_issue(mock_issue)
+        validator = IssueValidator()
+        problems = validator.validate(mock_issue)
         assert PROBLEM_TYPES['NO_TIME_SPENT']['short_name'] in problems
 
     def test_zero_time_spent(self):
@@ -225,7 +229,8 @@ class TestValidateIssue:
         mock_issue.fields.status.name = 'Done'
         mock_issue.fields.assignee = None
 
-        problems = validate_issue(mock_issue)
+        validator = IssueValidator()
+        problems = validator.validate(mock_issue)
         assert PROBLEM_TYPES['NO_TIME_SPENT']['short_name'] in problems
 
     def test_check_no_time_spent_function(self):
@@ -305,7 +310,7 @@ class TestValidateIssue:
         assert check_inactive(mock_issue, threshold_days=5) == False
 
     def test_closed_status_without_changelog_is_problem(self):
-        """Если статус 'Закрыт' и нет changelog (jira=None) — это проблема"""
+        """Если статус 'Закрыт' и нет changelog — это проблема"""
         mock_issue = Mock()
         mock_issue.fields.resolutiondate = '2024-01-01'
         mock_issue.fields.timespent = 3600
@@ -316,10 +321,9 @@ class TestValidateIssue:
         mock_issue.fields.assignee.name = 'ivanov'
         mock_issue.fields.assignee.displayName = 'Ivanov Ivan'
 
-        with patch('core.jira_report.CLOSED_STATUS_IDS', ['10001']):
-            # jira=None, changelog проверить нельзя
-            problems = validate_issue(mock_issue, jira=None)
-            assert any(PROBLEM_TYPES['INCORRECT_STATUS']['short_name'] in p for p in problems)
+        validator = IssueValidator(closed_status_ids=['10001'])
+        problems = validator.validate(mock_issue)
+        assert any(PROBLEM_TYPES['INCORRECT_STATUS']['short_name'] in p for p in problems)
 
     def test_excluded_assignee_closed_status_ok(self):
         """Для исполнителя из EXCLUDED_ASSIGNEE_CLOSE статус 'Закрыт' — ОК"""
@@ -333,10 +337,10 @@ class TestValidateIssue:
         mock_issue.fields.assignee.name = 'holin'
         mock_issue.fields.assignee.displayName = 'Holin Petr'
 
-        with patch('core.jira_report.CLOSED_STATUS_IDS', ['10001']):
-            problems = validate_issue(mock_issue, jira=None)
-            # Для holin статус "Закрыт" не должен быть проблемой
-            assert not any(PROBLEM_TYPES['INCORRECT_STATUS']['short_name'] in p for p in problems)
+        validator = IssueValidator(closed_status_ids=['10001'])
+        problems = validator.validate(mock_issue)
+        # Для holin статус "Закрыт" не должен быть проблемой
+        assert not any(PROBLEM_TYPES['INCORRECT_STATUS']['short_name'] in p for p in problems)
 
     def test_closed_by_jira_user_is_ok(self):
         """Если задача закрыта пользователем демона (JIRA_USER) — это ОК"""
@@ -362,22 +366,22 @@ class TestValidateIssue:
 
         mock_author = Mock()
         mock_author.name = 'jira_user'  # Пользователь демона
-        
+
         mock_history = Mock()
         mock_history.items = [mock_history_item]
         mock_history.author = mock_author
-        
+
         mock_changelog = Mock()
         mock_changelog.histories = [mock_history]  # Список для reversed()
-        
+
         # Добавляем changelog прямо в mock_issue (теперь используем его напрямую)
         mock_issue.changelog = mock_changelog
 
-        with patch('core.jira_report.CLOSED_STATUS_IDS', ['10001']):
-            with patch('core.jira_report.JIRA_USER', 'jira_user'):
-                problems = validate_issue(mock_issue, jira=None)  # jira=None, т.к. changelog уже в issue
-                # Закрыто пользователем демона — проблем нет
-                assert not any('Статус' in p for p in problems)
+        validator = IssueValidator(closed_status_ids=['10001'])
+        with patch('core.services.issue_validator.JIRA_USER', 'jira_user'):
+            problems = validator.validate(mock_issue)
+            # Закрыто пользователем демона — проблем нет
+            assert not any('Статус' in p for p in problems)
 
     def test_closed_by_other_user_is_problem(self):
         """Если задача закрыта не пользователем демона — это проблема"""
@@ -398,25 +402,25 @@ class TestValidateIssue:
         mock_history_item.field = 'status'
         mock_history_item.toString = 'Закрыт'
         mock_history_item.to = '10001'
-        
+
         mock_author = Mock()
         mock_author.name = 'petrov'  # Другой пользователь
-        
+
         mock_history = Mock()
         mock_history.items = [mock_history_item]
         mock_history.author = mock_author
-        
+
         mock_changelog = Mock()
         mock_changelog.histories = [mock_history]
-        
+
         # Добавляем changelog прямо в mock_issue
         mock_issue.changelog = mock_changelog
 
-        with patch('core.jira_report.CLOSED_STATUS_IDS', ['10001']):
-            with patch('core.jira_report.JIRA_USER', 'jira_user'):
-                problems = validate_issue(mock_issue, jira=None)  # jira=None, т.к. changelog уже в issue
-                # Закрыто не пользователем демона — это проблема
-                assert any('Некорректный статус' in p for p in problems)
+        validator = IssueValidator(closed_status_ids=['10001'])
+        with patch('core.services.issue_validator.JIRA_USER', 'jira_user'):
+            problems = validator.validate(mock_issue)
+            # Закрыто не пользователем демона — это проблема
+            assert any('Некорректный статус' in p for p in problems)
 
     def test_correct_issue_no_problems(self):
         mock_issue = Mock()
