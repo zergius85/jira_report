@@ -2465,14 +2465,6 @@
                             return `<span class="problem-badge" title="${description}">${problemText}</span>`;
                         }).join('')}</td>`;
                     }
-                    if (baseCol === 'Автор') {
-                        // Проверяем автора - данные могут быть в формате "name [id]"
-                        const author = row[col] || row['Автор'] || row.author || 'N/A';
-                        // Извлекаем чистое имя для отображения (убираем [id])
-                        const cleanAuthor = extractCleanValue(author);
-                        const title = extractTitle(author, 'creator');
-                        return `<td title="${title}">${cleanAuthor}</td>`;
-                    }
                     if (baseCol === 'URL') {
                         // URL с 🔍 - две ссылки: скрепка и ID задачи
                         const url = row[col] || row['URL'] || row.url || '';
@@ -2488,6 +2480,14 @@
                             </td>`;
                         }
                         return `<td>${cleanUrl || '-'}</td>`;
+                    }
+                    if (baseCol === 'Автор') {
+                        // Проверяем автора - данные могут быть в формате "name [id]"
+                        const author = row[col] || row['Автор'] || row.author || 'N/A';
+                        // Извлекаем чистое имя для отображения (убираем [id])
+                        const cleanAuthor = extractCleanValue(author);
+                        const title = extractTitle(author, 'creator');
+                        return `<td title="${title}">${cleanAuthor}</td>`;
                     }
                     // Для остальных колонок - форматирование с извлечением чистого значения и title
                     return `<td>${formatCellWithTooltip(row[col], col, row)}</td>`;
