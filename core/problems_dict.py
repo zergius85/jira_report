@@ -162,6 +162,7 @@ PROBLEM_TYPES: Dict[str, Dict[str, Any]] = {
         'icon': '⚠️',
         'color': '#f44336',  # Красный
         'jql_condition': 'status in (Closed, Done) AND changelog is EMPTY',
+        'help_text': 'Задача в статусе "Закрыт", но невозможно определить кто её закрыл. Возможно задача была закрыта давно и история переходов не сохранилась.',
     },
 }
 
@@ -357,15 +358,19 @@ def check_changelog(
     """
     Проверяет корректность закрытия задачи по changelog.
 
+    Логика:
+    - Статус "Готово" [10001] — всегда OK, независимо от кто закрыл
+    - Статус "Закрыт" [6] — должен закрыть пользователь из EXCLUDED_ASSIGNEE_CLOSE (holin)
+
     Args:
         issue: Задача Jira
         closed_status_ids: Список ID закрытых статусов
-        excluded_assignees: Список имён исполнителей-исключений
-        jira_user: Имя пользователя-бота (корректное закрытие)
+        excluded_assignees: Список имён исполнителей-исключений (кто может закрывать)
+        jira_user: Имя пользователя-бота (не используется в текущей логике)
 
     Returns:
         tuple: (is_correct, error_message)
-            - is_correct: True если закрытие корректно или не требуется проверка
+            - is_correct: True если закрытие корректно
             - error_message: Сообщение об ошибке или None
     """
     # Проверяем, что задача в закрытом статусе
@@ -377,6 +382,7 @@ def check_changelog(
         return (True, None)  # Статус не закрытый — не проверяем
 
     # Проверяем, не является ли исполнитель исключением
+    # Если исполнитель в списке исключений — задача закрыта корректно
     assignee_name = ''
     if issue.fields.assignee:
         assignee_name = (
@@ -390,15 +396,15 @@ def check_changelog(
         if exc.lower() in assignee_name.lower():
             return (True, None)  # Исполнитель в исключениях — ок
 
-    # Проверяем changelog
+    # Проверяем changelog — ищем кто перевёл задачу в закрытый статус
     try:
         if hasattr(issue, 'changelog') and issue.changelog:
-            # Ищем последний переход в статус "Закрыт"
+            # Ищем последний переход в закрытый статус
             for history in reversed(issue.changelog.histories):
                 for item in history.items:
                     if item.field == 'status' and hasattr(item, 'to'):
                         if item.to in closed_status_ids:
-                            # Проверяем, кто сделал переход
+                            # Нашли переход в закрытый статус — проверяем автора
                             author_name = ''
                             if hasattr(history, 'author') and history.author:
                                 author_name = (
@@ -408,22 +414,23 @@ def check_changelog(
                                 )
                                 author_name = author_name or ''
 
-                            # Если переход сделал бот — это корректно
-                            if jira_user and jira_user.lower() in author_name.lower():
-                                return (True, None)
+                            # Проверяем, кто закрыл задачу
+                            for exc in excluded_assignees:
+                                if exc.lower() in author_name.lower():
+                                    return (True, None)  # Закрыл пользователь из исключений — ок
 
-                            # Нашли переход в закрытый статус, но сделал не бот
-                            # Это не ошибка, просто некорректное закрытие
+                            # Закрыл кто-то другой — это ошибка
                             return (False, None)
 
             # Не нашли переход в закрытый статус в changelog
             return (False, PROBLEM_TYPES['CHANGELOG_CHECK_FAILED']['short_name'])
         else:
-            # Changelog отсутствует — это проблема
+            # Changelog отсутствует — не можем проверить кто закрыл
             return (False, PROBLEM_TYPES['CHANGELOG_CHECK_FAILED']['short_name'])
 
-    except Exception:
-        # Если не удалось получить changelog, считаем это проблемой
+    except Exception as e:
+        # Если не удалось получить changelog
+        logger.debug(f"Ошибка при проверке changelog: {e}")
         return (False, PROBLEM_TYPES['CHANGELOG_CHECK_FAILED']['short_name'])
 
 
