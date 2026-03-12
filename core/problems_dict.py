@@ -370,8 +370,9 @@ def check_changelog(
     Проверяет корректность закрытия задачи по changelog.
 
     Логика:
-    - Статус "Готово" [10001] — всегда OK, независимо от кто закрыл
-    - Статус "Закрыт" [6] — должен закрыть пользователь из EXCLUDED_ASSIGNEE_CLOSE (holin)
+    - Статус "Готово" [10001] — всегда OK, changelog НЕ проверяем
+    - Статус "Закрыт" [6] — проверяем changelog, должен закрыть пользователь из EXCLUDED_ASSIGNEE_CLOSE (holin)
+    - Другие статусы — НЕ проверяем
 
     ВНИМАНИЕ: Эта проверка работает ТОЛЬКО если changelog загружен в объекте issue.
     При массовом поиске через search_issues() changelog не загружается.
@@ -388,13 +389,17 @@ def check_changelog(
             - is_correct: True если закрытие корректно ИЛИ changelog не загружен
             - error_message: Сообщение об ошибке или None
     """
-    # Проверяем, что задача в закрытом статусе
+    # Проверяем, что задача в статусе "Закрыт" [6]
+    # Для статуса "Готово" [10001] и других — проверка НЕ нужна
     if not hasattr(issue.fields, 'status') or not issue.fields.status:
         return (True, None)  # Нет статуса — не проверяем
 
     status_id = issue.fields.status.id
-    if status_id not in closed_status_ids:
-        return (True, None)  # Статус не закрытый — не проверяем
+    
+    # Проверяем ТОЛЬКО статус "Закрыт" [6]
+    # Если статус не "Закрыт" — пропускаем проверку
+    if status_id != '6':
+        return (True, None)
 
     # Проверяем, не является ли исполнитель исключением
     # Если исполнитель в списке исключений — задача закрыта корректно
@@ -411,16 +416,16 @@ def check_changelog(
         if exc.lower() in assignee_name.lower():
             return (True, None)  # Исполнитель в исключениях — ок
 
-    # Проверяем changelog — ищем кто перевёл задачу в закрытый статус
+    # Проверяем changelog — ищем кто перевёл задачу в статус "Закрыт"
     # ВАЖНО: При массовом поиске changelog не загружен, поэтому пропускаем проверку
     try:
         if hasattr(issue, 'changelog') and issue.changelog and hasattr(issue.changelog, 'histories') and issue.changelog.histories:
-            # Ищем последний переход в закрытый статус
+            # Ищем последний переход в статус "Закрыт"
             for history in reversed(issue.changelog.histories):
                 for item in history.items:
                     if item.field == 'status' and hasattr(item, 'to'):
-                        if item.to in closed_status_ids:
-                            # Нашли переход в закрытый статус — проверяем автора
+                        if item.to == '6':  # Переход именно в "Закрыт" [6]
+                            # Нашли переход в статус "Закрыт" — проверяем автора
                             author_name = ''
                             if hasattr(history, 'author') and history.author:
                                 author_name = (
@@ -438,8 +443,8 @@ def check_changelog(
                             # Закрыл кто-то другой — это ошибка
                             return (False, None)
 
-            # Не нашли переход в закрытый статус в changelog
-            logger.info(f"ℹ️  Задача {getattr(issue, 'key', 'UNKNOWN')}: в changelog не найден переход в закрытый статус")
+            # Не нашли переход в статус "Закрыт" в changelog
+            logger.info(f"ℹ️  Задача {getattr(issue, 'key', 'UNKNOWN')}: в changelog не найден переход в статус 'Закрыт'")
             return (False, PROBLEM_TYPES['CHANGELOG_CHECK_FAILED']['short_name'])
         else:
             # Changelog отсутствует — это нормально при массовом поиске
