@@ -753,6 +753,12 @@ def generate_report(
         validator = IssueValidator(closed_status_ids=closed_status_ids)
         problems = validator.validate(mock_issue, proj_key)
 
+        # Инициализируем author_display для всех задач
+        creator = fields.get('creator', {})
+        author = creator.get('displayName', 'N/A') if creator else 'N/A'
+        author_id = creator.get('accountId', '') if creator else ''
+        author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
+
         # Формируем отображаемые значения
         project_display = proj_name
         status_display = f"{status_name} ({status_category})"
