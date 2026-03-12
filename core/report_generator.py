@@ -311,8 +311,8 @@ class RiskZoneAnalyzer:
                 else ''
             )
             # Используем сервис для проверки закрытого статуса
-            from core.services import is_status_closed
-            
+            from core.services.closed_status_service import is_status_closed
+
             if due_date < self.today and not is_status_closed(status_name=status_name, status_id=status_id):
                 days_overdue = (self.today - due_date).days
                 risk_factors.append(f'Просрочена на {days_overdue} дн.')

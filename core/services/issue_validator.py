@@ -23,7 +23,7 @@ from core.config import (
     RISK_ZONE_INACTIVITY_THRESHOLD,
     JIRA_USER,
 )
-from core.services import is_status_closed
+from core.services.closed_status_service import is_status_closed
 
 logger = logging.getLogger(__name__)
 

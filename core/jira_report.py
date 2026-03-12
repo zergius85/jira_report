@@ -360,7 +360,7 @@ def get_closed_status_ids() -> List[str]:
         return CLOSED_STATUS_IDS
 
     # Проверяем кэш в памяти
-    from core.services import get_metadata_cache
+    from core.services.cache_service import get_metadata_cache
     cache = get_metadata_cache()
     cache_key = 'closed_status_ids'
     
@@ -1234,8 +1234,8 @@ def generate_report(
                 if duedate:
                     due_date = datetime.strptime(duedate[:10], '%Y-%m-%d')
                     # Используем сервис для проверки закрытого статуса
-                    from core.services import is_status_closed
-                    
+                    from core.services.closed_status_service import is_status_closed
+
                     if due_date < today and not is_status_closed(status_name=status_name, status_id=status_id):
                         days_overdue = (today - due_date).days
                         risk_factors.append(f'Просрочена на {days_overdue} дн.')
@@ -1247,8 +1247,8 @@ def generate_report(
                     updated_dt = datetime.strptime(updated[:19], '%Y-%m-%dT%H:%M:%S')
                     days_inactive = (today - updated_dt).days
                     # Используем сервис для проверки закрытого статуса
-                    from core.services import is_status_closed
-                    
+                    from core.services.closed_status_service import is_status_closed
+
                     if days_inactive > RISK_ZONE_INACTIVITY_THRESHOLD and not is_status_closed(status_name=status_name, status_id=status_id):
                         risk_factors.append(f'Не двигается {days_inactive} дн.')
 

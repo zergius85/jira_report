@@ -225,8 +225,8 @@ def check_overdue(issue: Any) -> bool:
         return False
 
     # Используем сервис для проверки закрытого статуса
-    from core.services import is_status_closed
-    
+    from core.services.closed_status_service import is_status_closed
+
     status_name = issue.fields.status.name
     status_id = issue.fields.status.id
     

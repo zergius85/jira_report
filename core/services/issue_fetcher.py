@@ -19,7 +19,7 @@ from core.jira_report import (
     normalize_filter,
     get_default_start_date,
 )
-from core.services import get_metadata_cache
+from core.services.cache_service import get_metadata_cache
 
 logger = logging.getLogger(__name__)
 
