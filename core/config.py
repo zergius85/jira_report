@@ -87,6 +87,7 @@ SSL_VERIFY = os.getenv('SSL_VERIFY', 'true').lower() == 'true'
 # ОТЧЁТЫ
 # =============================================
 REPORT_BLOCKS = {
+    'metrics': 'Метрики и KPI',
     'summary': 'Сводка по проектам',
     'assignees': 'Нагрузка по исполнителям',
     'detail': 'Детализация по задачам',
@@ -94,6 +95,9 @@ REPORT_BLOCKS = {
     'internal': 'Непонятное (NEW, local)',
     'risk_zone': 'Зависшие задачи (Risk Zone)'
 }
+
+# Блоки, которые скрыты по умолчанию
+HIDDEN_BLOCKS_BY_DEFAULT = ['internal', 'risk_zone']
 
 # =============================================
 # КОНСТАНТЫ ДЛЯ ОТЧЁТОВ
@@ -130,6 +134,17 @@ SCHEDULER_MISFIRE_GRACE_TIME = int(os.getenv('SCHEDULER_MISFIRE_GRACE_TIME', '36
 SCHEDULER_MAX_INSTANCES = int(os.getenv('SCHEDULER_MAX_INSTANCES', '3'))
 # Интервал запуска джобы (секунды)
 SCHEDULER_JOBSTORE_RELOAD_INTERVAL = int(os.getenv('SCHEDULER_JOBSTORE_RELOAD_INTERVAL', '60'))
+
+# =============================================
+# КЭШИРОВАНИЕ
+# =============================================
+# TTL для кэша метаданных (секунды)
+# Production: 15 минут (900 сек)
+# Development: 5 минут (300 сек)
+CACHE_METADATA_TTL = int(os.getenv('CACHE_METADATA_TTL', 900 if IS_PRODUCTION else 300))
+
+# Максимальный размер кэша (количество записей)
+CACHE_MAX_SIZE = int(os.getenv('CACHE_MAX_SIZE', '1000'))
 
 # =============================================
 # ЛОГИРОВАНИЕ

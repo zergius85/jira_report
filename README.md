@@ -13,7 +13,6 @@
 - ✅ **Анализ загрузки** исполнителей
 - ✅ **Выявление проблемных** задач
 - ✅ **Web-интерфейс** с удобным UI
-- ✅ **Консольный режим** для автоматизации
 - ✅ **Выгрузка в Excel** (5 листов: Сводка, Исполнители, Детали, Проблемы, Непонятное, Risk Zone)
 
 ### 🆕 Dashboard 2.0 — Новые возможности
@@ -57,25 +56,26 @@ JIRA_PASS=your_password_or_token
 python scripts/init_db.py
 ```
 
-### 4. Запуск
+### 4. Запуск веб-приложения
 
-**Web-интерфейс (dev-режим, порт 5001):**
+**Dev-режим (порт 5001, debug):**
 ```bash
 python app.py
 ```
 Откройте в браузере: http://localhost:5001
 
-**Web-интерфейс (prod-режим, порт 5000):**
+**Prod-режим (порт 5000):**
+
+Добавьте в `.env`:
+```ini
+FLASK_ENV=production
+```
+
+Запустите:
 ```bash
-# В .env добавьте: FLASK_ENV=production
 python app.py
 ```
 Откройте в браузере: http://localhost:5000
-
-**Консольный режим:**
-```bash
-python jira_report.py -e
-```
 
 ---
 
@@ -101,42 +101,6 @@ python jira_report.py -e
 | **Не двигается** | Задача не обновлялась более 5 дней и не закрыта | `updated < today - 5 days AND status NOT IN (Closed, Done)` |
 
 Задачи сортируются по приоритету (от высокого к низкому).
-
----
-
-## 🔧 Консольные команды
-
-### Базовое использование
-
-```bash
-# Отчёт за последние 30 дней с выгрузкой в Excel
-python jira_report.py -e
-
-# Отчёт за прошлый месяц
-python jira_report.py -s 2024-02-01 -d 28 -e
-
-# Только сводка и исполнители
-python jira_report.py -b summary,assignees -e
-
-# Конкретный проект и исполнитель
-python jira_report.py -p WEB -a "Иванов" -b detail -e
-
-# Проблемные задачи с подробным выводом
-python jira_report.py -b issues -vv
-```
-
-### Все флаги
-
-| Флаг | Описание |
-|------|----------|
-| `-p, --project` | Ключ проекта |
-| `-s, --start-date` | Дата начала (ГГГГ-ММ-ДД) |
-| `-d, --days` | Период в днях (по умолчанию 30) |
-| `-a, --assignee` | Фильтр по исполнителю |
-| `-b, --blocks` | Блоки отчёта через запятую |
-| `-e, --excel` | Выгрузка в Excel |
-| `-v, --verbose` | Показать детали в консоль |
-| `-vv, --extra-verbose` | Показать ID объектов в [скобках] |
 
 ---
 
@@ -179,6 +143,8 @@ FLASK_ENV=production
 
 ## 🏗️ Архитектура
 
+### Компоненты системы
+
 ```
 ┌─────────────────┐
 │   Web-интерфейс │
@@ -196,9 +162,11 @@ FLASK_ENV=production
 └────────┬────────┘
          │
 ┌────────▼────────┐
-│ core/           │
-│ jira_report.py  │
-│   (Ядро отчётов)│
+│ core/services/  │
+│ - IssueFetcher  │
+│ - IssueValidator│
+│ - ReportAggr.   │
+│ - Orchestrator  │
 └────────┬────────┘
          │
 ┌────────▼────────┐
@@ -206,6 +174,23 @@ FLASK_ENV=production
 │   (REST API)    │
 └─────────────────┘
 ```
+
+### Сервисы (core/services/)
+
+| Сервис | Описание |
+|--------|----------|
+| `ClosedStatusService` | Проверка закрытых статусов |
+| `IssueFetcher` | Получение задач из Jira |
+| `IssueValidator` | Валидация задач на проблемы |
+| `ReportAggregator` | Агрегация статистики |
+| `ReportOrchestrator` | Координация сервисов |
+
+### DTO и форматтеры
+
+| Модуль | Описание |
+|--------|----------|
+| `core/dtos/issue_dto.py` | Модели данных задач |
+| `core/formatters/verbose_formatter.py` | Форматирование extra_verbose |
 
 ---
 
@@ -230,13 +215,10 @@ FLASK_ENV=production
 ```
 jira_report/
 ├── app.py                  # Точка входа Web-приложения
-├── jira_report.py          # Точка входа консольного режима
 ├── requirements.txt        # Зависимости Python
 ├── pytest.ini             # Настройки тестов
 ├── .gitignore             # Игнорируемые файлы
 ├── README.md              # Этот файл
-├── RECOMMENDATIONS.md     # Рекомендации по развитию
-├── IMPROVEMENTS.md        # Предложения по улучшению
 │
 ├── .github/                # GitHub Actions
 │   └── workflows/
@@ -247,27 +229,49 @@ jira_report/
 │   ├── config.py          # Конфигурация (настройки)
 │   ├── jira_report.py     # Основная логика отчётов
 │   ├── jql_builder.py     # Конструктор JQL-запросов
+│   ├── problems_dict.py   # Справочник проблем
+│   ├── utils.py           # Утилиты (санитизация, логирование)
+│   │
+│   ├── services/          # Сервисы
+│   │   ├── __init__.py
+│   │   ├── closed_status_service.py
+│   │   ├── issue_fetcher.py
+│   │   ├── issue_validator.py
+│   │   ├── report_aggregator.py
+│   │   └── report_orchestrator.py
+│   │
+│   ├── dtos/              # Модели данных
+│   │   ├── __init__.py
+│   │   └── issue_dto.py
+│   │
+│   ├── formatters/        # Форматтеры
+│   │   ├── __init__.py
+│   │   └── verbose_formatter.py
+│   │
 │   └── report_generator.py # Генератор отчётов (ООП)
 │
 ├── web/                    # Веб-интерфейс
 │   ├── __init__.py
 │   ├── app.py             # Flask API и endpoints
-│   └── validators.py      # Валидаторы API
+│   ├── middleware.py      # Middleware
+│   ├── validators.py      # Валидаторы API
+│   └── telegram_routes.py # Telegram маршруты
 │
 ├── services/               # Служебные файлы
 │   ├── __init__.py
 │   ├── install-service.sh # Скрипт установки службы
-│   ├── jira-report.service
-│   └── jira-report.service.template
+│   └── jira-report.service
 │
 ├── configs/                # Конфигурационные шаблоны
 │   ├── __init__.py
 │   ├── .env.example
-│   ├── .env.local.example
-│   └── .env.preinstall
+│   └── .env.local.example
 │
 ├── templates/              # HTML шаблоны
 │   └── index.html
+│
+├── scripts/                # Скрипты
+│   └── init_db.py         # Инициализация БД
 │
 └── tests/                  # Тесты
     └── test_report.py
@@ -370,11 +374,13 @@ http://<server-ip>:5000
 
 ### Cron (альтернатива для разовых отчётов)
 
-Добавьте в crontab (`crontab -e`):
+Для автоматизации используйте API веб-приложения:
 
-```cron
-# Запуск отчёта 1-го числа каждого месяца в 09:00
-0 9 1 * * /usr/bin/python3 /path/to/jira_report/jira_report.py -e >> /var/log/jira-report.log 2>&1
+```bash
+# Пример вызова API через curl
+curl -X POST http://localhost:5000/api/report \
+  -H "Content-Type: application/json" \
+  -d '{"projects": ["WEB"], "days": 30, "blocks": ["summary", "detail"]}'
 ```
 
 ---

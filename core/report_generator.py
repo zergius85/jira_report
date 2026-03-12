@@ -29,10 +29,10 @@ from core.jira_report import (
     sanitize_jql_identifier,
     sanitize_jql_string_literal,
     search_all_issues,
-    validate_issue,
     get_column_order,
     get_closed_status_ids
 )
+from core.services.issue_validator import IssueValidator
 
 logger = logging.getLogger(__name__)
 
@@ -279,7 +279,7 @@ class RiskZoneAnalyzer:
     """Анализирует задачи на факторы риска."""
 
     def __init__(self):
-        self.today = datetime.now()
+        self.today = datetime.now().date()  # Используем дату без времени
 
     def analyze(self, issue) -> List[str]:
         """
@@ -301,15 +301,20 @@ class RiskZoneAnalyzer:
         if issue.fields.duedate:
             due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
             status_name = (
-                issue.fields.status.name.lower()
+                issue.fields.status.name
                 if issue.fields.status
                 else ''
             )
-            if (
-                due_date < self.today
-                and status_name not in ['закрыт', 'closed', 'done']
-            ):
-                days_overdue = (self.today - due_date).days
+            status_id = (
+                issue.fields.status.id
+                if issue.fields.status
+                else ''
+            )
+            # Используем сервис для проверки закрытого статуса
+            from core.services.closed_status_service import is_status_closed
+
+            if due_date.date() < self.today and not is_status_closed(status_name=status_name, status_id=status_id):
+                days_overdue = (self.today - due_date.date()).days
                 risk_factors.append(f'Просрочена на {days_overdue} дн.')
 
         # 3. Задачи, которые не двигались > порога неактивности
@@ -320,14 +325,19 @@ class RiskZoneAnalyzer:
             )
             days_inactive = (self.today - updated).days
             status_name = (
-                issue.fields.status.name.lower()
+                issue.fields.status.name
                 if issue.fields.status
                 else ''
             )
-            if (
-                days_inactive > RISK_ZONE_INACTIVITY_THRESHOLD
-                and status_name not in ['закрыт', 'closed', 'done']
-            ):
+            status_id = (
+                issue.fields.status.id
+                if issue.fields.status
+                else ''
+            )
+            # Используем сервис для проверки закрытого статуса
+            from core.services import is_status_closed
+            
+            if days_inactive > RISK_ZONE_INACTIVITY_THRESHOLD and not is_status_closed(status_name=status_name, status_id=status_id):
                 risk_factors.append(f'Не двигается {days_inactive} дн.')
 
         return risk_factors
@@ -392,6 +402,7 @@ class ReportGenerator:
         self.issue_extractor = IssueDataExtractor(extra_verbose)
         self.block_generator = ReportBlockGenerator('summary', extra_verbose)
         self.risk_analyzer = RiskZoneAnalyzer()
+        self.issue_validator = IssueValidator(closed_status_ids=self.closed_status_ids)
 
         # Данные
         self.jira = None
@@ -600,10 +611,11 @@ class ReportGenerator:
         proj_issues = 0
 
         for issue in issues_normal:
+            problems = self.issue_validator.validate(issue, proj_key)
             issue_data = self.issue_extractor.extract(
                 issue,
                 proj_name,
-                validate_issue(issue, self.jira, self.closed_status_ids, proj_key)
+                problems
             )
 
             self.all_issues_data.append(issue_data)
@@ -635,7 +647,7 @@ class ReportGenerator:
     ):
         """Обрабатывает проблемные задачи."""
         for issue in issues_all:
-            problems = validate_issue(issue, self.jira, self.closed_status_ids, proj_key)
+            problems = self.issue_validator.validate(issue, proj_key)
             if problems:
                 assignee = (
                     issue.fields.assignee.displayName

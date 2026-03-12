@@ -397,6 +397,30 @@ def api_issue_types():
         logger.error(f"Ошибка получения типов задач: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@app.route('/api/problem-types')
+def api_problem_types():
+    """Получить справочник типов проблем для фильтрации"""
+    try:
+        from core.problems_dict import PROBLEM_TYPES
+        
+        # Преобразуем в список для удобства использования в JS
+        problem_types = []
+        for key, value in PROBLEM_TYPES.items():
+            problem_types.append({
+                'key': key,
+                **value
+            })
+        
+        return jsonify({
+            'success': True,
+            'problem_types': problem_types
+        })
+    except Exception as e:
+        logger.error(f"Ошибка получения справочника проблем: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/task-info', methods=['POST'])
 def api_task_info():
     """Получить полную информацию о задаче со всеми полями"""
@@ -568,6 +592,11 @@ def api_task_info_batch():
 @validate_json_request
 @conditional_cache(timeout=300)  # Кэш на 5 минут для production
 def api_report():
+    from core.utils import Timer, LogContext, log_with_context
+    
+    timer = Timer()
+    ctx = LogContext()
+    
     try:
         data = request.get_json()
         # Поддержка множественного выбора (список) или одиночного (строка)
@@ -585,21 +614,30 @@ def api_report():
         days = int(data.get('days', 0) or 0)  # 0 = без ограничений по датам
         blocks = data.get('blocks', None)
         extra_verbose = data.get('extra_verbose', False)
+        
+        # Добавляем контекст
+        ctx.set('projects', ','.join(projects) if projects else 'all')
+        ctx.set('days', days)
 
         if days < 0 or days > MAX_REPORT_DAYS:
             return jsonify({'error': f'Период должен быть от 0 до {MAX_REPORT_DAYS} дней (0 = без ограничений)'}), 400
 
-        report = generate_report(
-            project_keys=projects,
-            start_date=start_date,
-            end_date=end_date,
-            days=days,
-            assignee_filter=assignees,
-            issue_types=issue_types,
-            blocks=blocks,
-            verbose=False,
-            extra_verbose=extra_verbose
-        )
+        logger.info(f"Генерация отчёта...", extra={'ctx': ctx})
+        
+        with timer:
+            report = generate_report(
+                project_keys=projects,
+                start_date=start_date,
+                end_date=end_date,
+                days=days,
+                assignee_filter=assignees,
+                issue_types=issue_types,
+                blocks=blocks,
+                verbose=False,
+                extra_verbose=extra_verbose
+            )
+        
+        log_with_context(logger, 'info', f"Отчёт сгенерирован: {report['total_tasks']} задач", context=ctx, duration=timer.duration)
 
         response = {
             'success': True,
@@ -1308,22 +1346,22 @@ def api_workload_metrics():
 def api_kpi_metrics():
     """Custom KPI метрики: Cycle time, Lead time."""
     from core.jira_report import generate_report
-    
+
     report = generate_report(days=30, blocks=['detail'])
-    
+
     if 'detail' not in report or not report['detail']:
         return jsonify({'success': True, 'kpi': {}})
-    
+
     detail = report['detail']
     detail['created'] = pd.to_datetime(detail['Дата создания'])
     detail['resolved'] = pd.to_datetime(detail['Дата решения'])
     detail['due'] = pd.to_datetime(detail['Дата исполнения'])
-    
+
     # Cycle time: от начала работы до завершения
     # Lead time: от создания до завершения
     detail['cycle_time'] = (detail['resolved'] - detail['created']).dt.days
     detail['lead_time'] = (detail['resolved'] - detail['created']).dt.days
-    
+
     kpi = {
         'avg_cycle_time': round(detail['cycle_time'].mean(), 2),
         'median_cycle_time': round(detail['cycle_time'].median(), 2),
@@ -1333,10 +1371,88 @@ def api_kpi_metrics():
             (detail['resolved'] <= detail['due']).sum() / len(detail) * 100, 2
         ) if len(detail) > 0 else 0,
     }
-    
+
     return jsonify({
         'success': True,
         'kpi': kpi,
+    })
+
+
+@app.route('/api/dashboard')
+@conditional_cache(timeout=300)
+def api_dashboard():
+    """
+    Сводный дашборд с метриками.
+    
+    Возвращает все ключевые метрики для главного экрана:
+    - Velocity (задачи за период)
+    - Проблемные задачи (top issues)
+    - Нагрузка по исполнителям
+    - Risk Zone
+    """
+    from core.jira_report import generate_report
+    from core.services import get_metadata_cache
+    
+    # Получаем параметры из запроса
+    days = request.args.get('days', 30, type=int)
+    project = request.args.get('project', None)
+    
+    # Генерируем отчёт
+    report = generate_report(
+        days=days,
+        project_keys=project,
+        blocks=['summary', 'assignees', 'issues', 'risk_zone']
+    )
+    
+    # Формируем дашборд
+    dashboard = {
+        'period': report.get('period', ''),
+        'totals': {
+            'projects': report.get('total_projects', 0),
+            'tasks': report.get('total_tasks', 0),
+            'correct': report.get('total_correct', 0),
+            'issues': report.get('total_issues', 0),
+            'spent': round(report.get('total_spent', 0), 2),
+            'estimated': round(report.get('total_estimated', 0), 2),
+        },
+        'top_projects': [],
+        'top_assignees': [],
+        'recent_issues': [],
+        'risk_tasks': [],
+    }
+    
+    # Топ проектов по задачам
+    if 'summary' in report and not report['summary'].empty:
+        summary = report['summary'].to_dict('records')
+        dashboard['top_projects'] = sorted(
+            summary[:5],
+            key=lambda x: x.get('Задач закрыто', 0),
+            reverse=True
+        )
+    
+    # Топ исполнителей по задачам
+    if 'assignees' in report and not report['assignees'].empty:
+        assignees = report['assignees'].to_dict('records')
+        dashboard['top_assignees'] = sorted(
+            assignees[:5],
+            key=lambda x: x.get('Задач', 0),
+            reverse=True
+        )
+    
+    # Последние проблемные задачи
+    if 'issues' in report and not report['issues'].empty:
+        issues = report['issues'].to_dict('records')
+        dashboard['recent_issues'] = issues[:5]
+    
+    # Risk Zone задачи
+    if 'risk_zone' in report and not report['risk_zone'].empty:
+        risks = report['risk_zone'].to_dict('records')
+        dashboard['risk_tasks'] = risks[:5]
+    
+    return jsonify({
+        'success': True,
+        'dashboard': dashboard,
+        'cache_stats': get_metadata_cache().stats()
     })
 
 
@@ -1414,8 +1530,8 @@ if __name__ == '__main__':
         app.logger.info("🚀 Запуск Jira Report System с ротацией логов")
     
     mode = "prod" if IS_PRODUCTION else "dev"
-    print("🚀 Запуск веб-интерфейса...")
-    print(f"📍 Откройте в браузере: http://localhost:{ACTIVE_PORT}")
-    print(f"📦 Доступные блоки: {', '.join(REPORT_BLOCKS.keys())}")
-    print(f"🔧 Режим: {mode}, Хост: {FLASK_HOST}, Порт: {ACTIVE_PORT}")
+    logger.info(f"🚀 Запуск веб-интерфейса...")
+    logger.info(f"📍 Откройте в браузере: http://localhost:{ACTIVE_PORT}")
+    logger.info(f"📦 Доступные блоки: {', '.join(REPORT_BLOCKS.keys())}")
+    logger.info(f"🔧 Режим: {mode}, Хост: {FLASK_HOST}, Порт: {ACTIVE_PORT}")
     app.run(host=FLASK_HOST, port=ACTIVE_PORT, debug=not IS_PRODUCTION)
