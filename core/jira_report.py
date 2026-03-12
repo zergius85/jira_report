@@ -836,7 +836,16 @@ def generate_report(
             
             # Автор с ID
             author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
-            
+
+            # Статус
+            status = fields.get('status', {})
+            status_name = status.get('name', '-') if status else '-'
+            status_category = status.get('statusCategory', {}).get('name', '-') if status else '-'
+            status_display = f"{status_name} ({status_category})"
+            if extra_verbose:
+                status_id = status.get('id', '')
+                status_display = f"{status_display} [{status_id}]"
+
             # Даты с [field_name]
             created_display = created
             duedate_display = duedate
