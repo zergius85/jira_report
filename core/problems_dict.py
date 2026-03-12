@@ -450,12 +450,10 @@ def check_changelog(
         else:
             # Changelog отсутствует — это нормально при массовом поиске
             # Пропускаем проверку без ошибки
-            logger.debug(f"ℹ️  Задача {getattr(issue, 'key', 'UNKNOWN')}: changelog не загружен (пропускаем проверку)")
             return (True, None)
 
     except Exception as e:
         # Если не удалось получить changelog — пропускаем проверку
-        logger.debug(f"ℹ️  Задача {getattr(issue, 'key', 'UNKNOWN')}: ошибка при проверке changelog (пропускаем)")
         return (True, None)
 
 
