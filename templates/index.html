@@ -1103,6 +1103,7 @@
                 <button class="tab-btn" id="tab-btn-assignees" onclick="switchTab('assignees')">👤 Исполнители</button>
                 <button class="tab-btn" id="tab-btn-detail" onclick="switchTab('detail')">📝 Детали</button>
                 <button class="tab-btn" id="tab-btn-issues" onclick="switchTab('issues')">⚠️ Проблемы</button>
+                <button class="tab-btn" id="tab-btn-no_duedate" onclick="switchTab('no_duedate')">📅 Без даты решения</button>
                 <button class="tab-btn" id="tab-btn-internal" onclick="switchTab('internal')">❓ Непонятное</button>
                 <button class="tab-btn" id="tab-btn-risk" onclick="switchTab('risk')">🔴 Risk Zone</button>
                 <button class="tab-btn" id="tab-btn-debug" onclick="switchTab('debug')">🐛 Отладка</button>
@@ -1247,6 +1248,16 @@
                     <ul class="risk-zone-list" id="risk_zone_list">
                         <!-- Заполняется JS -->
                     </ul>
+                </div>
+            </div>
+
+            <!-- Без даты решения -->
+            <div id="tab-no_duedate" class="tab-content">
+                <h2 class="section-title">
+                    <span>Без даты решения <span class="badge warning" id="no_duedate_count">0</span></span>
+                </h2>
+                <div class="table-container">
+                    <table id="no_duedate_table"><thead></thead><tbody></tbody></table>
                 </div>
             </div>
 
@@ -2310,6 +2321,7 @@
                 renderTable('assignees', data.assignees);
                 renderTable('detail', data.detail);
                 renderTable('issues', data.issues);
+                renderTable('no_duedate', data.no_duedate);
                 renderTable('internal', data.internal);
                 renderTable('risk', data.risk_zone);
 
@@ -2318,6 +2330,7 @@
                 updateCount('assignees', data.assignees);
                 updateCount('detail', data.detail);
                 updateCount('issues', data.issues);
+                updateCount('no_duedate', data.no_duedate);
                 updateCount('internal', data.internal);
                 updateCount('risk', data.risk_zone);
 
