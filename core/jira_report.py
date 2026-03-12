@@ -660,18 +660,17 @@ def generate_report(
     # Глобальный JQL для обычных отчётов (фильтр по duedate)
     if days > 0:
         jql_normal_global = (f"{project_filter} "
-                          f"AND duedate >= '{start_date_safe}' "
-                          f"AND duedate <= '{end_date_safe}' "
-                          f"AND duedate is not null"
+                          f"AND (duedate >= '{start_date_safe}' "
+                          f"OR duedate is null)"
                           f"{issue_type_filter}"
                           f"{assignee_filter_jql} "
                           f"ORDER BY duedate ASC")
     else:
         jql_normal_global = (f"{project_filter} "
-                          f"AND duedate is not null"
+                          f"AND duedate is null"
                           f"{issue_type_filter}"
                           f"{assignee_filter_jql} "
-                          f"ORDER BY duedate DESC")
+                          f"ORDER BY created DESC")
 
     # Глобальный JQL для проблемных задач (фильтр по created + 2 месяца)
     if days > 0:
