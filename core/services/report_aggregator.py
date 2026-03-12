@@ -12,7 +12,7 @@ from datetime import datetime
 import pandas as pd
 
 from core.formatters import VerboseFormatter
-from core.utils import convert_seconds_to_hours
+from core.jira_report import convert_seconds_to_hours
 
 logger = logging.getLogger(__name__)
 
