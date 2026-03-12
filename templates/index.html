@@ -116,6 +116,246 @@
             font-size: 12px;
         }
         
+        /* Быстрые пресеты */
+        .quick-presets {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .preset-btn {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            font-size: 13px;
+        }
+        .preset-btn:hover {
+            border-color: #3498db;
+            background: #f8f9fa;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .preset-btn .preset-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 4px;
+        }
+        .preset-btn .preset-desc {
+            font-size: 11px;
+            color: #6c757d;
+        }
+        
+        /* Скрываемая шапка */
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 12px 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 6px;
+            color: white;
+        }
+        .filter-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .toggle-filters-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        .toggle-filters-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .filters-content {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        .filters-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+            visibility: hidden;
+        }
+        .filters-content.expanded {
+            max-height: 2000px;
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* Улучшенный дашборд */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            color: white;
+        }
+        .dashboard-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .dashboard-period-selector {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .dashboard-period-selector option {
+            color: #333;
+        }
+        
+        /* KPI карточки */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .kpi-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid #3498db;
+            position: relative;
+            overflow: hidden;
+        }
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, rgba(52,152,219,0.1) 0%, transparent 70%);
+            border-radius: 0 0 0 100%;
+        }
+        .kpi-card.warning { border-left-color: #f39c12; }
+        .kpi-card.danger { border-left-color: #e74c3c; }
+        .kpi-card.success { border-left-color: #27ae60; }
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .kpi-label {
+            font-size: 13px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .kpi-trend {
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .kpi-trend.up { color: #27ae60; }
+        .kpi-trend.down { color: #e74c3c; }
+        .kpi-trend.neutral { color: #95a5a6; }
+        
+        /* Risk Zone виджет */
+        .risk-zone-widget {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .risk-zone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .risk-zone-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #856404;
+        }
+        .risk-zone-list {
+            list-style: none;
+        }
+        .risk-zone-item {
+            padding: 12px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            border-left: 3px solid #e74c3c;
+        }
+        .risk-zone-item-key {
+            font-weight: 600;
+            color: #3498db;
+        }
+        .risk-zone-item-summary {
+            font-size: 13px;
+            color: #555;
+            margin: 4px 0;
+        }
+        .risk-zone-item-meta {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        /* Charts grid */
+        .charts-grid-improved {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .chart-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 15px;
+        }
+        
+        /* Таблицы - исправленные колонки */
+        .table-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .problem-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #fee;
+            color: #c0392b;
+            border-radius: 12px;
+            font-size: 11px;
+            margin: 2px 0;
+            cursor: help;
+            border: 1px solid #fcc;
+        }
+        .problem-badge:hover {
+            background: #fcc;
+        }
+        
         /* Header с пресетами */
         .header-bar {
             display: flex;
@@ -467,101 +707,360 @@
             font-size: 13px;
         }
         .risk-info strong { color: #856404; }
+        
+        /* Бейдж режима приложения */
+        #app_mode_badge.dev {
+            background: #f39c12;
+            color: white;
+        }
+        #app_mode_badge.test {
+            background: #27ae60;
+            color: white;
+        }
+        
+        /* Фильтр проблем (плашки) */
+        .issues-filter-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .issues-filter-chip {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid #ddd;
+            background: white;
+            color: #666;
+            user-select: none;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .issues-filter-chip:hover {
+            border-color: #3498db;
+            background: #f0f7ff;
+            color: #3498db;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(52,152,219,0.2);
+        }
+        .issues-filter-chip.active {
+            background: #3498db;
+            border-color: #3498db;
+            color: white;
+        }
+        .issues-filter-chip.active .chip-count {
+            background: rgba(255,255,255,0.3);
+            color: white;
+        }
+        .issues-filter-chip .chip-count {
+            margin-left: 4px;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: #e0e0e0;
+            color: #666;
+        }
 
+        /* Мобильная адаптация */
         @media (max-width: 1200px) {
             .form-three-columns {
                 grid-template-columns: 1fr;
             }
+            .quick-presets {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .charts-grid-improved {
+                grid-template-columns: 1fr;
+            }
+            .dashboard-header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            .risk-zone-widget {
+                padding: 15px;
+            }
+            #app_mode_badge {
+                display: none; /* Скрываем на планшетах */
+            }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .quick-presets {
+                grid-template-columns: 1fr;
+            }
+            .quick-presets .preset-btn {
+                padding: 10px 12px;
+            }
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            .kpi-value {
+                font-size: 24px;
+            }
+            .kpi-label {
+                font-size: 11px;
+            }
+            .filter-header {
+                padding: 10px 12px;
+            }
+            .filter-title {
+                font-size: 14px;
+            }
+            .toggle-filters-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            .tabs {
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch;
+            }
+            .tab-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+            .table-container {
+                height: 400px;
+            }
+            table {
+                font-size: 12px;
+            }
+            th, td {
+                padding: 6px 8px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5em;
+            }
+            .preset-btn .preset-desc {
+                display: none;
+            }
+            .dashboard-title {
+                font-size: 16px;
+            }
+            .dashboard-period-selector {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+        }
+    </style>
+    <style>
+        /* Вкладка Отладка */
+        .task-info-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .task-info-card h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .task-basic-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .task-info-field {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #3498db;
+        }
+        .task-info-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .task-info-value {
+            font-size: 14px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        #debug_fields_table td {
+            word-break: break-all;
+        }
+        #debug_fields_table td:first-child {
+            font-family: monospace;
+            background: #f8f9fa;
+            color: #666;
+        }
+        .changelog-entry {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .changelog-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .changelog-author {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .changelog-date {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        .changelog-item {
+            font-size: 13px;
+            padding: 5px 0;
+        }
+        .changelog-field {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+        .changelog-from {
+            color: #95a5a6;
+        }
+        .changelog-to {
+            color: #27ae60;
+            font-weight: 600;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📊 Jira Report Generator</h1>
+        <h1>
+            📊 Jira Report Generator
+            <span id="app_version_badge" style="font-size: 0.4em; padding: 3px 8px; border-radius: 8px; background: #3498db; color: white; margin-left: 15px; font-weight: 600;">v2.5.0</span>
+            <span id="app_mode_badge" style="font-size: 0.4em; padding: 3px 10px; border-radius: 12px; margin-left: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"></span>
+            <span id="report_period_display" style="font-size: 0.5em; color: #666; font-weight: normal; margin-left: 10px;"></span>
+        </h1>
 
         <!-- Форма -->
         <div class="card">
-            <!-- Header с пресетами -->
-            <div class="header-bar">
-                <div class="header-title">🔧 Параметры отчёта</div>
-                <div class="preset-controls">
-                    <span class="preset-info" id="preset_info">Сохранённые пресеты хранятся в браузере</span>
-                    <button class="btn btn-select btn-sm" onclick="openPresetManager()">⚙️ Управление пресетами</button>
-                    <button class="btn btn-select btn-sm" onclick="savePreset()" title="Сохранить текущие настройки">💾 Сохранить</button>
-                    <select id="preset_select" onchange="loadPreset()" style="padding: 6px 12px; font-size: 13px; border-radius: 3px; border: 1px solid #ccc;">
-                        <option value="">📁 Загрузить пресет...</option>
-                    </select>
-                </div>
+            <!-- Быстрые пресеты -->
+            <div class="quick-presets">
+                <button class="preset-btn" onclick="applyQuickPreset('last_month')">
+                    <div class="preset-title">📅 Прошлый месяц</div>
+                    <div class="preset-desc">1-е число — последнее число</div>
+                </button>
+                <button class="preset-btn" onclick="applyQuickPreset('current_month')">
+                    <div class="preset-title">📅 Текущий месяц</div>
+                    <div class="preset-desc">1-е число — сегодня</div>
+                </button>
+                <button class="preset-btn" onclick="applyQuickPreset('last_week')">
+                    <div class="preset-title">📊 Прошлая неделя</div>
+                    <div class="preset-desc">Понедельник — воскресенье</div>
+                </button>
+                <button class="preset-btn" onclick="applyQuickPreset('this_week')">
+                    <div class="preset-title">📊 Эта неделя</div>
+                    <div class="preset-desc">Понедельник — сегодня</div>
+                </button>
             </div>
-
-            <!-- Трёхколоночная форма -->
-            <div class="form-three-columns">
-                <!-- Левая колонка - Фильтры (2/4) -->
-                <div class="form-column">
-                    <div class="column-title">📊 Фильтры</div>
-                    <div class="form-row" style="grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <div class="form-group">
-                            <label for="project">📦 Проекты</label>
-                            <select id="project" multiple size="6" style="height: 140px;">
-                                <option value="">Все проекты</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="assignee">👤 Исполнители</label>
-                            <select id="assignee" multiple size="6" style="height: 140px;">
-                                <option value="">Все исполнители</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="issue_type">📝 Типы задач</label>
-                        <select id="issue_type" multiple size="3" style="height: 70px;">
-                            <option value="">Все типы</option>
+            
+            <!-- Скрываемая шапка с фильтрами -->
+            <div class="filter-header">
+                <div class="filter-title">🔧 Параметры отчёта</div>
+                <button class="toggle-filters-btn" onclick="toggleFilters()">
+                    <span id="toggle_btn_text">▶ Показать фильтры</span>
+                </button>
+            </div>
+            
+            <!-- Содержимое фильтров -->
+            <div class="filters-content collapsed" id="filters_content">
+                <!-- Header с пресетами -->
+                <div class="header-bar" style="margin-bottom: 15px;">
+                    <div class="header-title">⚙️ Дополнительные настройки</div>
+                    <div class="preset-controls">
+                        <span class="preset-info" id="preset_info">Сохранённые пресеты хранятся в браузере</span>
+                        <button class="btn btn-select btn-sm" onclick="openPresetManager()">⚙️ Управление пресетами</button>
+                        <button class="btn btn-select btn-sm" onclick="savePreset()" title="Сохранить текущие настройки">💾 Сохранить</button>
+                        <select id="preset_select" onchange="loadPreset()" style="padding: 6px 12px; font-size: 13px; border-radius: 3px; border: 1px solid #ccc;">
+                            <option value="">📁 Загрузить пресет...</option>
                         </select>
                     </div>
-                    <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-                        <div class="form-group">
-                            <label for="start_date">📅 Дата начала</label>
-                            <input type="date" id="start_date">
-                        </div>
-                        <div class="form-group">
-                            <label for="end_date">📅 Дата окончания</label>
-                            <input type="date" id="end_date">
-                            <small style="color: #999; font-size: 10px;">Приоритет над периодом</small>
-                        </div>
-                        <div class="form-group">
-                            <label for="days">Период (дней)</label>
-                            <input type="number" id="days" value="30" min="0" max="365">
-                            <small style="color: #999; font-size: 10px;">0 = без ограничений</small>
-                        </div>
-                    </div>
                 </div>
 
-                <!-- Средняя колонка - Блоки отчёта (1/4) -->
-                <div class="form-column">
-                    <div class="column-title">📦 Блоки отчёта</div>
-                    <div class="checkbox-group" id="blocks_container"></div>
-                </div>
-
-                <!-- Правая колонка - Опции и экспорт (1/4) -->
-                <div class="form-column">
-                    <div class="column-title">⚙️ Опции</div>
-                    <label class="checkbox-item" style="margin-bottom: 10px;">
-                        <input type="checkbox" id="extra_verbose">
-                        <span>Показывать ID в [скобках]</span>
-                    </label>
-
-                    <div style="margin-top: 20px;">
-                        <button class="btn btn-primary" id="generate_btn" onclick="generateReport()">📋 Сгенерировать</button>
-                        <button class="btn btn-success" onclick="openExportModal()">💾 Экспорт</button>
+                <!-- Трёхколоночная форма -->
+                <div class="form-three-columns">
+                    <!-- Левая колонка - Фильтры -->
+                    <div class="form-column">
+                        <div class="column-title">📊 Фильтры</div>
+                        <div class="form-row" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group">
+                                <label for="project">📦 Проекты</label>
+                                <select id="project" multiple size="6" style="height: 140px;">
+                                    <option value="">Все проекты</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="assignee">👤 Исполнители</label>
+                                <select id="assignee" multiple size="6" style="height: 140px;">
+                                    <option value="">Все исполнители</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="issue_type">📝 Типы задач</label>
+                            <select id="issue_type" multiple size="3" style="height: 70px;">
+                                <option value="">Все типы</option>
+                            </select>
+                        </div>
+                        <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                            <div class="form-group">
+                                <label for="start_date">📅 Дата начала</label>
+                                <input type="date" id="start_date">
+                            </div>
+                            <div class="form-group">
+                                <label for="end_date">📅 Дата окончания</label>
+                                <input type="date" id="end_date">
+                            </div>
+                            <div class="form-group">
+                                <label for="days">Период (дней)</label>
+                                <input type="number" id="days" value="30" min="0" max="365">
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Debug секция -->
-                    <div class="debug-section" style="margin-top: 20px;">
-                        <h3>🔍 Отладка</h3>
-                        <button class="debug-btn" onclick="showDebugRequest()">Запрос</button>
-                        <button class="debug-btn" onclick="showDebugResponse()">Ответ</button>
-                        <div id="debug_content" class="debug-content hidden"></div>
+                    <!-- Средняя колонка - Блоки отчёта -->
+                    <div class="form-column">
+                        <div class="column-title">📦 Блоки отчёта</div>
+                        <div class="checkbox-group" id="blocks_container"></div>
+                    </div>
+
+                    <!-- Правая колонка - Опции -->
+                    <div class="form-column">
+                        <div class="column-title">⚙️ Опции</div>
+                        <label class="checkbox-item" style="margin-bottom: 10px;">
+                            <input type="checkbox" id="extra_verbose">
+                            <span>Показывать ID в [скобках]</span>
+                        </label>
+
+                        <div style="margin-top: 20px;">
+                            <button class="btn btn-primary" id="generate_btn" onclick="generateReport()">📋 Сгенерировать</button>
+                            <button class="btn btn-success" onclick="openExportModal()">💾 Экспорт</button>
+                        </div>
+
+                        <!-- Debug секция -->
+                        <div class="debug-section" style="margin-top: 20px;">
+                            <h3>🔍 Отладка</h3>
+                            <button class="debug-btn" onclick="showDebugRequest()">Запрос</button>
+                            <button class="debug-btn" onclick="showDebugResponse()">Ответ</button>
+                            <div id="debug_content" class="debug-content hidden"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -581,6 +1080,10 @@
                 <div class="stat-value" id="stat_projects">0</div>
                 <div class="stat-label">Проектов</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat_tasks">0</div>
+                <div class="stat-label">Всего задач</div>
+            </div>
             <div class="stat-card success">
                 <div class="stat-value" id="stat_correct">0</div>
                 <div class="stat-label">Корректных</div>
@@ -589,50 +1092,49 @@
                 <div class="stat-value" id="stat_issues">0</div>
                 <div class="stat-label">Проблемных</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-value" id="stat_spent">0</div>
-                <div class="stat-label">Факт (ч)</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="stat_estimated">0</div>
-                <div class="stat-label">Оценка (ч)</div>
-            </div>
         </div>
 
         <!-- Вкладки с дашбордом и отчётами -->
         <div id="reports_container" class="card hidden">
             <div class="tabs">
                 <button class="tab-btn active" id="tab-btn-dashboard" onclick="switchTab('dashboard')">📈 Дашборд</button>
+                <button class="tab-btn" id="tab-btn-metrics" onclick="switchTab('metrics')">📊 Метрики</button>
                 <button class="tab-btn" id="tab-btn-summary" onclick="switchTab('summary')">📋 Сводка</button>
                 <button class="tab-btn" id="tab-btn-assignees" onclick="switchTab('assignees')">👤 Исполнители</button>
                 <button class="tab-btn" id="tab-btn-detail" onclick="switchTab('detail')">📝 Детали</button>
                 <button class="tab-btn" id="tab-btn-issues" onclick="switchTab('issues')">⚠️ Проблемы</button>
                 <button class="tab-btn" id="tab-btn-internal" onclick="switchTab('internal')">❓ Непонятное</button>
                 <button class="tab-btn" id="tab-btn-risk" onclick="switchTab('risk')">🔴 Risk Zone</button>
+                <button class="tab-btn" id="tab-btn-debug" onclick="switchTab('debug')">🐛 Отладка</button>
             </div>
 
-            <!-- Дашборд -->
+            <!-- Дашборд с графиками (всегда виден) -->
             <div id="tab-dashboard" class="tab-content active">
-                <div class="dashboard-grid">
-                    <div class="chart-container">
-                        <h3>📈 Динамика закрытия задач (по дате решения)</h3>
+                <!-- Графики -->
+                <div class="charts-grid-improved">
+                    <div class="chart-card">
+                        <div class="chart-card-title">📈 Динамика закрытия задач (по дате решения)</div>
                         <canvas id="chartClosed"></canvas>
                     </div>
-                    <div class="chart-container">
-                        <h3>📥 Динамика создания задач (по дате создания)</h3>
+                    <div class="chart-card">
+                        <div class="chart-card-title">📥 Динамика создания задач (по дате создания)</div>
                         <canvas id="chartCreated"></canvas>
                     </div>
-                    <div class="chart-container">
-                        <h3>👥 Нагрузка по исполнителям</h3>
+                    <div class="chart-card">
+                        <div class="chart-card-title">👥 Нагрузка по исполнителям</div>
                         <canvas id="chartAssignees"></canvas>
                     </div>
-                    <div class="chart-container">
-                        <h3>📊 Статусы задач</h3>
+                    <div class="chart-card">
+                        <div class="chart-card-title">📊 Статусы задач</div>
                         <canvas id="chartStatuses"></canvas>
                     </div>
-                    <div class="chart-container">
-                        <h3>🏷️ Типы задач</h3>
+                    <div class="chart-card">
+                        <div class="chart-card-title">🏷️ Типы задач</div>
                         <canvas id="chartTypes"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-card-title">⚠️ Типы проблем</div>
+                        <canvas id="chartProblems"></canvas>
                     </div>
                 </div>
             </div>
@@ -665,9 +1167,86 @@
 
             <!-- Проблемы -->
             <div id="tab-issues" class="tab-content">
-                <h2 class="section-title">Проблемные задачи <span class="badge warning" id="issues_count">0</span></h2>
+                <h2 class="section-title">
+                    <span>Проблемные задачи <span class="badge warning" id="issues_count">0</span></span>
+                </h2>
+                <div class="issues-filter-container" id="issues_filters">
+                    <!-- Фильтры генерируются динамически из /api/problem-types -->
+                    <span class="issues-filter-chip" onclick="resetIssuesFilter()">✖ Сбросить всё</span>
+                </div>
                 <div class="table-container">
                     <table id="issues_table"><thead></thead><tbody></tbody></table>
+                </div>
+            </div>
+
+            <!-- Метрики (KPI и период) -->
+            <div id="tab-metrics" class="tab-content">
+                <!-- Заголовок с выбором периода -->
+                <div class="dashboard-header">
+                    <div class="dashboard-title">📊 Метрики и KPI</div>
+                    <select class="dashboard-period-selector" id="dashboard_period" onchange="updateDashboardPeriod()">
+                        <option value="7">📅 7 дней</option>
+                        <option value="14">📅 2 недели</option>
+                        <option value="30" selected>📅 30 дней</option>
+                        <option value="90">📅 3 месяца</option>
+                    </select>
+                </div>
+
+                <!-- KPI карточки -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Всего задач</div>
+                        <div class="kpi-value" id="kpi_total_tasks">0</div>
+                        <div class="kpi-trend neutral" id="kpi_total_tasks_trend">
+                            <span>─</span> <span>нет данных</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card success">
+                        <div class="kpi-label">Закрыто</div>
+                        <div class="kpi-value" id="kpi_closed">0</div>
+                        <div class="kpi-trend up" id="kpi_closed_trend">
+                            <span>📈</span> <span>0%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card warning">
+                        <div class="kpi-label">В работе</div>
+                        <div class="kpi-value" id="kpi_in_progress">0</div>
+                        <div class="kpi-trend neutral" id="kpi_in_progress_trend">
+                            <span>─</span> <span>0%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card danger">
+                        <div class="kpi-label">Рисковые</div>
+                        <div class="kpi-value" id="kpi_risk">0</div>
+                        <div class="kpi-trend down" id="kpi_risk_trend">
+                            <span>⚠️</span> <span>+0%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Факт (часы)</div>
+                        <div class="kpi-value" id="kpi_spent">0</div>
+                        <div class="kpi-trend neutral" id="kpi_spent_trend">
+                            <span>─</span> <span>0ч</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Оценка (часы)</div>
+                        <div class="kpi-value" id="kpi_estimated">0</div>
+                        <div class="kpi-trend neutral" id="kpi_estimated_trend">
+                            <span>─</span> <span>0ч</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Zone виджет -->
+                <div class="risk-zone-widget" id="risk_zone_widget" style="display: none;">
+                    <div class="risk-zone-header">
+                        <div class="risk-zone-title">🔴 Risk Zone — Зависшие задачи</div>
+                        <button class="btn btn-sm" onclick="switchTab('risk')" style="background: #e74c3c; color: white;">Показать все →</button>
+                    </div>
+                    <ul class="risk-zone-list" id="risk_zone_list">
+                        <!-- Заполняется JS -->
+                    </ul>
                 </div>
             </div>
 
@@ -691,6 +1270,46 @@
                 <div class="table-container">
                     <table id="risk_table"><thead></thead><tbody></tbody></table>
                 </div>
+            </div>
+
+            <!-- Вкладка Отладка -->
+            <div id="tab-debug" class="tab-content">
+                <h2 class="section-title">🐛 Отладка задачи</h2>
+                <div class="form-group">
+                    <label for="debug_task_key">Ключ задачи (например, WEB-123):</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="debug_task_key" placeholder="WEB-123" style="flex: 1;">
+                        <button class="btn btn-primary" onclick="debugTaskInfo()">Найти задачу</button>
+                    </div>
+                </div>
+                <div id="debug_result" class="hidden">
+                    <div class="task-info-card">
+                        <h3 id="debug_task_title"></h3>
+                        <div class="task-basic-info" id="debug_basic_info"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="debug_show_changelog" onchange="toggleDebugChangelog()">
+                            Показать changelog (историю переходов)
+                        </label>
+                    </div>
+                    <div class="table-container">
+                        <table id="debug_fields_table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">Поле Jira</th>
+                                    <th style="width: 70%;">Значение</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div id="debug_changelog" class="hidden" style="margin-top: 20px;">
+                        <h3>📜 Changelog</h3>
+                        <div id="debug_changelog_content"></div>
+                    </div>
+                </div>
+                <div id="debug_error" class="error-message hidden" style="margin-top: 20px;"></div>
             </div>
         </div>
     </div>
@@ -750,13 +1369,18 @@
     <script>
         const BLOCKS = {{ blocks | tojson }};
         const JIRA_SERVER = "{{ JIRA_SERVER }}";
+        const PROBLEM_DESCRIPTIONS = {{ problem_descriptions | tojson }};
         let sortState = { column: null, direction: 'asc' };
         let debugData = { request: null, response: null };
         let lastReportData = null;
         let charts = {};
+        let previousReportData = null; // Для сравнения периодов
 
         // ========== Инициализация ==========
         window.onload = async function() {
+            // Отображаем режим приложения
+            displayAppMode();
+            
             // Устанавливаем даты: прошлый месяц полностью
             setDefaultDates();
 
@@ -765,36 +1389,353 @@
             for (const [key, label] of Object.entries(BLOCKS)) {
                 const item = document.createElement('label');
                 item.className = 'checkbox-item';
-                item.innerHTML = `<input type="checkbox" value="${key}" checked><span>${label}</span>`;
+                // Блоки 'internal' и 'risk_zone' не отмечены по умолчанию, 'metrics' отмечен
+                const isChecked = (key !== 'internal' && key !== 'risk_zone') ? 'checked' : '';
+                item.innerHTML = `<input type="checkbox" value="${key}" ${isChecked} onchange="updateBlocksVisibility()">
+                    <span>${label}</span>`;
                 container.appendChild(item);
             }
+
+            // Скрываем вкладки 'internal' и 'risk' по умолчанию, 'metrics' показана
+            updateBlocksVisibility();
 
             await loadProjects();
             await loadAssignees();
             await loadIssueTypes();
+            await loadProblemTypes();
             loadPresetList();
         };
+        
+        // ========== Обновление заголовка с периодом ==========
+        function updateReportPeriodDisplay(presetName) {
+            const startEl = document.getElementById('start_date');
+            const endEl = document.getElementById('end_date');
+            const displayEl = document.getElementById('report_period_display');
+            
+            if (!startEl || !endEl || !displayEl) return;
+            
+            const startDate = startEl.value;
+            const endDate = endEl.value;
+            
+            if (!startDate || !endDate) {
+                displayEl.textContent = '';
+                return;
+            }
+            
+            const startFormatted = formatDisplayDate(startDate);
+            const endFormatted = formatDisplayDate(endDate);
+            
+            let periodText = '';
+            if (presetName) {
+                periodText = `[${presetName}: ${startFormatted} — ${endFormatted}]`;
+            } else {
+                periodText = `[${startFormatted} — ${endFormatted}]`;
+            }
+            
+            displayEl.textContent = periodText;
+        }
+        
+        // ========== Отображение режима приложения ==========
+        function displayAppMode() {
+            const modeEl = document.getElementById('app_mode_badge');
+            if (!modeEl) return;
+            
+            // Получаем режим из переменной JIRA_SERVER (можно добавить другую)
+            // По умолчанию считаем dev если хост localhost или 127.0.0.1
+            const hostname = window.location.hostname;
+            const port = window.location.port;
+            
+            let mode = 'dev';
+            let modeText = 'DEV';
+
+            // TEST если порт 5000 или хост не localhost
+            if (port === '5000' || (hostname !== 'localhost' && hostname !== '127.0.0.1')) {
+                mode = 'test';
+                modeText = 'TEST';
+            }
+
+            modeEl.textContent = modeText;
+            modeEl.className = mode;
+            modeEl.title = mode === 'test' ? 'Test окружение' : 'Development режим';
+            
+            console.log(`🔧 Режим приложения: ${modeText}`);
+        }
+        
+        // ========== Быстрые пресеты ==========
+        function applyQuickPreset(preset) {
+            const today = new Date();
+            let startDate, endDate;
+            let presetName = '';
+            
+            console.log(`📅 Применение пресета: ${preset}`);
+            
+            switch(preset) {
+                case 'last_month':
+                    presetName = 'Прошлый месяц';
+                    // 1-е число — последнее число прошлого месяца
+                    const prevMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+                    const prevMonthYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+                    startDate = new Date(prevMonthYear, prevMonth, 1);
+                    endDate = new Date(prevMonthYear, prevMonth + 1, 0);
+                    console.log(`   Прошлый месяц: ${formatDate(startDate)} — ${formatDate(endDate)}`);
+                    break;
+                    
+                case 'current_month':
+                    presetName = 'Текущий месяц';
+                    // 1-е число — сегодня
+                    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    console.log(`   Текущий месяц: ${formatDate(startDate)} — ${formatDate(endDate)}`);
+                    break;
+                    
+                case 'last_week':
+                    presetName = 'Прошлая неделя';
+                    // Прошлая неделя (Пн-Вс)
+                    // getDay(): 0=Вс, 1=Пн, 2=Вт, ..., 6=Сб
+                    // Нужно найти понедельник и воскресенье прошлой недели
+                    const currentDayLastWeek = today.getDay();
+                    // Сколько дней назад был понедельник прошлой недели
+                    // Если сегодня Вс (0), то понедельник был 6 дней назад (сегодняшняя неделя)
+                    // Если сегодня Пн (1), то понедельник прошлой недели был 7 дней назад
+                    // Если сегодня Вт (2), то понедельник прошлой недели был 8 дней назад
+                    const daysSinceMonday = currentDayLastWeek === 0 ? 6 : currentDayLastWeek - 1;
+                    const thisMonday = new Date(today);
+                    thisMonday.setDate(today.getDate() - daysSinceMonday);
+                    // Прошлая неделя: от (thisMonday - 7 дней) до (thisMonday - 1 день)
+                    const lastMonday = new Date(thisMonday);
+                    lastMonday.setDate(thisMonday.getDate() - 7);
+                    const lastSunday = new Date(lastMonday);
+                    lastSunday.setDate(lastMonday.getDate() + 6);
+                    startDate = lastMonday;
+                    endDate = lastSunday;
+                    console.log(`   Прошлая неделя: ${formatDate(startDate)} — ${formatDate(endDate)} (getDay=${currentDayLastWeek})`);
+                    break;
+                    
+                case 'this_week':
+                    presetName = 'Эта неделя';
+                    // Эта неделя (Пн-сегодня)
+                    // getDay(): 0=Вс, 1=Пн, 2=Вт, ..., 6=Сб
+                    const currentDayOfWeek = today.getDay();
+                    const mondayOffset = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1; // Если Вс, то 6 дней назад
+                    const weekMonday = new Date(today);
+                    weekMonday.setDate(today.getDate() - mondayOffset);
+                    startDate = weekMonday;
+                    endDate = new Date(today);
+                    console.log(`   Эта неделя: ${formatDate(startDate)} — ${formatDate(endDate)}`);
+                    break;
+            }
+            
+            document.getElementById('start_date').value = formatDate(startDate);
+            document.getElementById('end_date').value = formatDate(endDate);
+            document.getElementById('days').value = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+            
+            // Обновляем заголовок с периодом
+            updateReportPeriodDisplay(presetName);
+            
+            // Генерируем отчёт
+            generateReport();
+        }
+        
+        // ========== Скрываемые фильтры ==========
+        function toggleFilters() {
+            const content = document.getElementById('filters_content');
+            const btnText = document.getElementById('toggle_btn_text');
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                content.classList.add('collapsed');
+                btnText.textContent = '▶ Показать фильтры';
+            } else {
+                content.classList.remove('collapsed');
+                content.classList.add('expanded');
+                btnText.textContent = '▼ Скрыть фильтры';
+            }
+        }
+        
+        // ========== Получение параметров ==========
+        function getSelectedValues(selectId) {
+            const select = document.getElementById(selectId);
+            if (!select) return [];
+            return Array.from(select.selectedOptions).map(opt => opt.value);
+        }
+        
+        function getSelectedBlocks() {
+            return Array.from(document.querySelectorAll('#blocks_container input[type="checkbox"]:checked')).map(cb => cb.value);
+        }
+        
+        function getParams() {
+            const projects = getSelectedValues('project');
+            const assignees = getSelectedValues('assignee');
+            const issueTypes = getSelectedValues('issue_type');
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+            const days = parseInt(document.getElementById('days').value) || 0;
+
+            console.log('📝 Параметры отчёта:', { projects, assignees, issueTypes, startDate, endDate, days });
+
+            return {
+                projects: projects.length > 0 ? projects : null,
+                assignees: assignees.length > 0 ? assignees : null,
+                issue_types: issueTypes.length > 0 ? issueTypes : null,
+                start_date: startDate || null,
+                end_date: endDate || null,
+                days: days,
+                blocks: getSelectedBlocks(),
+                extra_verbose: document.getElementById('extra_verbose').checked
+            };
+        }
+        function updateDashboardPeriod() {
+            const days = parseInt(document.getElementById('dashboard_period').value);
+            const today = new Date();
+            const startDate = new Date(today);
+            startDate.setDate(today.getDate() - days + 1);
+            
+            document.getElementById('start_date').value = formatDate(startDate);
+            document.getElementById('end_date').value = formatDate(today);
+            document.getElementById('days').value = days;
+            
+            generateReport();
+        }
+        
+        // ========== Обновление KPI ==========
+        function updateKPI(data, previousData) {
+            const totals = data.totals || {};
+            const prevTotals = previousData ? previousData.totals : null;
+            
+            // Всего задач
+            document.getElementById('kpi_total_tasks').textContent = totals.tasks || 0;
+            updateKpiTrend('kpi_total_tasks_trend', totals.tasks, prevTotals ? prevTotals.tasks : null);
+            
+            // Закрыто
+            document.getElementById('kpi_closed').textContent = totals.correct || 0;
+            updateKpiTrend('kpi_closed_trend', totals.correct, prevTotals ? prevTotals.correct : null, true);
+            
+            // В работе (примерно)
+            const inProgress = (totals.tasks || 0) - (totals.correct || 0);
+            document.getElementById('kpi_in_progress').textContent = inProgress;
+            updateKpiTrend('kpi_in_progress_trend', inProgress, prevTotals ? prevTotals.tasks - prevTotals.correct : null);
+            
+            // Рисковые
+            const riskCount = data.risk_zone ? data.risk_zone.length : 0;
+            document.getElementById('kpi_risk').textContent = riskCount;
+            updateKpiTrend('kpi_risk_trend', riskCount, null, false, true);
+            
+            // Факт
+            document.getElementById('kpi_spent').textContent = (totals.spent || 0).toFixed(1);
+            updateKpiTrend('kpi_spent_trend', totals.spent, prevTotals ? prevTotals.spent : null, true, false, 'ч');
+            
+            // Оценка
+            document.getElementById('kpi_estimated').textContent = (totals.estimated || 0).toFixed(1);
+            updateKpiTrend('kpi_estimated_trend', totals.estimated, prevTotals ? prevTotals.estimated : null, true, false, 'ч');
+            
+            // Risk Zone виджет
+            updateRiskZoneWidget(data.risk_zone);
+        }
+        
+        function updateKpiTrend(elementId, current, previous, isHigherBetter = false, isRisk = false, suffix = '%') {
+            const element = document.getElementById(elementId);
+            if (previous === null || previous === undefined || previous === 0) {
+                element.className = 'kpi-trend neutral';
+                element.innerHTML = '<span>─</span> <span>нет данных</span>';
+                return;
+            }
+            
+            const change = ((current - previous) / previous * 100).toFixed(1);
+            const absChange = Math.abs(change);
+            const isUp = change > 0;
+            const isDown = change < 0;
+            
+            let icon = isUp ? '📈' : '📉';
+            let trendClass = 'neutral';
+            
+            if (isRisk) {
+                // Для рисковых: рост = плохо, снижение = хорошо
+                if (isUp) {
+                    trendClass = 'down';
+                    icon = '⚠️';
+                } else {
+                    trendClass = 'up';
+                    icon = '✅';
+                }
+            } else if (isHigherBetter) {
+                // Для хороших метрик: рост = хорошо
+                trendClass = isUp ? 'up' : 'down';
+            } else {
+                // Для нейтральных: просто показываем направление
+                trendClass = isUp ? 'up' : 'down';
+            }
+            
+            element.className = `kpi-trend ${trendClass}`;
+            element.innerHTML = `<span>${icon}</span> <span>${isUp ? '+' : ''}${change}${suffix}</span>`;
+        }
+        
+        function updateRiskZoneWidget(riskZone) {
+            const widget = document.getElementById('risk_zone_widget');
+            const list = document.getElementById('risk_zone_list');
+            
+            if (!riskZone || riskZone.length === 0) {
+                widget.style.display = 'none';
+                return;
+            }
+            
+            widget.style.display = 'block';
+            list.innerHTML = '';
+            
+            // Показываем первые 5 задач
+            riskZone.slice(0, 5).forEach(task => {
+                const li = document.createElement('li');
+                li.className = 'risk-zone-item';
+                li.innerHTML = `
+                    <div class="risk-zone-item-key">${task.key || task.URL || 'N/A'}</div>
+                    <div class="risk-zone-item-summary">${task.Задача || task.summary || 'N/A'}</div>
+                    <div class="risk-zone-item-meta">
+                        ${task.Исполнитель ? `👤 ${task.Исполнитель} | ` : ''}
+                        ${task['Факторы риска'] || task.risk_factors || 'N/A'}
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+            
+            if (riskZone.length > 5) {
+                const more = document.createElement('li');
+                more.style.textAlign = 'center';
+                more.style.padding = '10px';
+                more.style.color = '#666';
+                more.textContent = `... и ещё ${riskZone.length - 5} задач`;
+                list.appendChild(more);
+            }
+        }
 
         // ========== Даты ==========
         function setDefaultDates() {
+            const startEl = document.getElementById('start_date');
+            const endEl = document.getElementById('end_date');
+            const daysEl = document.getElementById('days');
+            
+            // Если элементов нет (например, в скрытой секции), пропускаем
+            if (!startEl || !endEl || !daysEl) {
+                console.warn('⚠️  Элементы дат не найдены, пропускаем инициализацию');
+                return;
+            }
+            
             const today = new Date();
             const year = today.getFullYear();
             const month = today.getMonth();
-            
+
             // 1 число прошлого месяца
             let prevMonthYear = month === 0 ? year - 1 : year;
             let prevMonth = month === 0 ? 11 : month - 1;
             const firstDayPrevMonth = new Date(prevMonthYear, prevMonth, 1);
-            
+
             // Последний день прошлого месяца
             const lastDayPrevMonth = new Date(prevMonthYear, prevMonth + 1, 0);
-            
+
             // Количество дней в прошлом месяце
             const daysInPrevMonth = lastDayPrevMonth.getDate();
-            
-            document.getElementById('start_date').value = formatDate(firstDayPrevMonth);
-            document.getElementById('end_date').value = formatDate(lastDayPrevMonth);
-            document.getElementById('days').value = daysInPrevMonth;
+
+            startEl.value = formatDate(firstDayPrevMonth);
+            endEl.value = formatDate(lastDayPrevMonth);
+            daysEl.value = daysInPrevMonth;
         }
 
         function formatDate(date) {
@@ -860,6 +1801,81 @@
                     });
                 }
             } catch (e) { console.error('Ошибка загрузки типов:', e); }
+        }
+
+        async function loadProblemTypes() {
+            try {
+                const resp = await fetch('/api/problem-types');
+                const data = await resp.json();
+                if (data.success && data.problem_types) {
+                    window.PROBLEM_TYPES = data.problem_types;
+                    renderProblemFilters(data.problem_types);
+                }
+            } catch (e) { console.error('Ошибка загрузки типов проблем:', e); }
+        }
+
+        function renderProblemFilters(problemTypes) {
+            const container = document.getElementById('issues_filters');
+            if (!container) return;
+
+            // Сбрасываем контейнер (оставляем только кнопку сброса)
+            container.innerHTML = '';
+
+            // Словарь иконок для категорий
+            const icons = {
+                'assignee': '👤',
+                'time': '⏱️',
+                'status': '❌',
+                'deadline': '⏰',
+                'activity': '😴',
+            };
+
+            // Словарь цветов для категорий
+            const colors = {
+                'assignee': '#e53935',
+                'time': '#1e88e5',
+                'status': '#8e24aa',
+                'deadline': '#fb8c00',
+                'activity': '#fbc02d',
+            };
+
+            // Группируем по filter_name (уникальные фильтры)
+            const filterMap = new Map();
+            problemTypes.forEach(pt => {
+                const filterName = pt.filter_name;
+                if (!filterMap.has(filterName)) {
+                    filterMap.set(filterName, {
+                        name: filterName,
+                        icon: pt.icon || icons[pt.category] || '🔹',
+                        color: pt.color || colors[pt.category] || '#757575',
+                        category: pt.category,
+                    });
+                }
+            });
+
+            // Создаём чипы фильтров
+            filterMap.forEach((filter, filterName) => {
+                const chip = document.createElement('span');
+                chip.className = 'issues-filter-chip';
+                chip.setAttribute('data-filter', filterName);
+                chip.setAttribute('onclick', 'toggleIssueFilter(this)');
+
+                const countSpan = document.createElement('span');
+                countSpan.className = 'chip-count';
+                countSpan.id = `filter_count_${filterName.replace(/\s+/g, '_').toLowerCase()}`;
+                countSpan.textContent = '0';
+
+                chip.innerHTML = `${filter.icon} ${filterName} `;
+                chip.appendChild(countSpan);
+                container.appendChild(chip);
+            });
+
+            // Добавляем кнопку сброса
+            const resetChip = document.createElement('span');
+            resetChip.className = 'issues-filter-chip';
+            resetChip.setAttribute('onclick', 'resetIssuesFilter()');
+            resetChip.textContent = '✖ Сбросить всё';
+            container.appendChild(resetChip);
         }
 
         // ========== Вкладки ==========
@@ -1027,14 +2043,81 @@
         async function downloadReport() {
             const format = document.querySelector('input[name="export_format"]:checked').value;
             closeExportModal();
-            
+
             if (format === 'xlsx') {
                 await downloadExcel();
             } else if (format === 'csv') {
-                alert('CSV экспорт будет реализован в ближайшее время. Пока доступен только Excel.');
-                await downloadExcel();
+                console.log('📊 CSV экспорт...');
+                await downloadCSV();
             } else if (format === 'pdf') {
-                alert('PDF экспорт требует дополнительной настройки сервера. Пока доступен только Excel.');
+                console.log('📄 PDF экспорт...');
+                await downloadPDF();
+            }
+        }
+        
+        async function downloadPDF() {
+            const params = getParams();
+            
+            try {
+                const response = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...params, format: 'pdf' })
+                });
+                
+                if (!response.ok) {
+                    // Если PDF недоступен, пробуем Excel
+                    console.warn('PDF недоступен, пробуем Excel...');
+                    await downloadExcel();
+                    return;
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `jira_report_${new Date().toISOString().split('T')[0]}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                console.log('✅ PDF скачан');
+            } catch (e) {
+                console.error('❌ Ошибка PDF экспорта:', e);
+                alert('Ошибка при скачивании PDF. Попробуйте Excel формат.');
+                await downloadExcel();
+            }
+        }
+        
+        async function downloadCSV() {
+            const params = getParams();
+            
+            try {
+                const response = await fetch('/api/download/csv', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params)
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Ошибка скачивания CSV');
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `jira_report_${new Date().toISOString().split('T')[0]}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                console.log('✅ CSV скачан');
+            } catch (e) {
+                console.error('❌ Ошибка CSV экспорта:', e);
+                alert('Ошибка при скачивании CSV. Попробуйте Excel формат.');
                 await downloadExcel();
             }
         }
@@ -1083,10 +2166,66 @@
             return Array.from(document.querySelectorAll('#blocks_container input[type="checkbox"]:checked')).map(cb => cb.value);
         }
 
+        // Обновление видимости вкладок при изменении галочек
+        function updateBlocksVisibility() {
+            const blocks = getSelectedBlocks();
+            
+            // Вкладка 'metrics' (KPI и период)
+            const metricsTab = document.getElementById('tab-metrics');
+            const metricsBtn = document.getElementById('tab-btn-metrics');
+            if (metricsTab && metricsBtn) {
+                if (blocks.includes('metrics')) {
+                    metricsTab.style.display = '';  // Сброс к CSS по умолчанию
+                    metricsBtn.style.display = '';
+                } else {
+                    metricsTab.style.display = 'none';
+                    metricsBtn.style.display = 'none';
+                    // Если текущая вкладка 'metrics', переключаем на 'dashboard'
+                    if (metricsTab.classList.contains('active')) {
+                        switchTab('dashboard');
+                    }
+                }
+            }
+            
+            // Вкладка 'internal'
+            const internalTab = document.getElementById('tab-internal');
+            const internalBtn = document.getElementById('tab-btn-internal');
+            if (internalTab && internalBtn) {
+                if (blocks.includes('internal')) {
+                    internalTab.style.display = '';  // Сброс к CSS по умолчанию
+                    internalBtn.style.display = '';
+                } else {
+                    internalTab.style.display = 'none';
+                    internalBtn.style.display = 'none';
+                    // Если текущая вкладка 'internal', переключаем на 'dashboard'
+                    if (internalTab.classList.contains('active')) {
+                        switchTab('dashboard');
+                    }
+                }
+            }
+            
+            // Вкладка 'risk'
+            const riskTab = document.getElementById('tab-risk');
+            const riskBtn = document.getElementById('tab-btn-risk');
+            if (riskTab && riskBtn) {
+                if (blocks.includes('risk_zone')) {
+                    riskTab.style.display = '';  // Сброс к CSS по умолчанию
+                    riskBtn.style.display = '';
+                } else {
+                    riskTab.style.display = 'none';
+                    riskBtn.style.display = 'none';
+                    // Если текущая вкладка 'risk', переключаем на 'dashboard'
+                    if (riskTab.classList.contains('active')) {
+                        switchTab('dashboard');
+                    }
+                }
+            }
+        }
+
         function getParams() {
-            const projects = getSelectedValues('project');
-            const assignees = getSelectedValues('assignee');
-            const issueTypes = getSelectedValues('issue_type');
+            const projects = getSelectedValues('project').filter(v => v !== '');
+            const assignees = getSelectedValues('assignee').filter(v => v !== '');
+            const issueTypes = getSelectedValues('issue_type').filter(v => v !== '');
             const startDate = document.getElementById('start_date').value;
             const endDate = document.getElementById('end_date').value;
             const days = parseInt(document.getElementById('days').value) || 0;
@@ -1113,41 +2252,60 @@
         async function generateReport() {
             const params = getParams();
             debugData.request = params;
-            
+
+            console.log('🚀 Генерация отчёта...', params);
+
             const loading = document.getElementById('loading');
             const errorDiv = document.getElementById('error');
             const stats = document.getElementById('stats');
             const reports = document.getElementById('reports_container');
-            
+
             loading.classList.remove('hidden');
             errorDiv.classList.add('hidden');
             stats.classList.add('hidden');
             reports.classList.add('hidden');
 
             try {
+                console.log('📡 Отправка запроса на /api/report...');
+                
                 const response = await fetch('/api/report', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(params)
                 });
 
+                console.log('📥 Получен ответ:', response.status);
+
                 if (!response.ok) {
                     const error = await response.json();
+                    console.error('❌ Ошибка API:', error);
                     throw new Error(error.error || 'Ошибка генерации отчёта');
                 }
 
                 const data = await response.json();
+                console.log('✅ Данные получены:', data);
+                
                 debugData.response = data;
                 lastReportData = data;
 
+                // Получаем предыдущий период для сравнения
+                const previousData = await getPreviousPeriodData(params);
+                previousReportData = previousData;
+
+                // Обновляем заголовок с периодом (без пресета)
+                updateReportPeriodDisplay(null);
+
                 // Статистика
                 document.getElementById('stat_projects').textContent = data.totals.projects;
+                document.getElementById('stat_tasks').textContent = data.totals.tasks;
                 document.getElementById('stat_correct').textContent = data.totals.correct;
                 document.getElementById('stat_issues').textContent = data.totals.issues;
-                document.getElementById('stat_spent').textContent = data.totals.spent;
-                document.getElementById('stat_estimated').textContent = data.totals.estimated;
+
+                // Обновляем KPI на дашборде
+                updateKPI(data, previousData);
 
                 // Рендер таблиц
+                console.log('📊 Рендер таблиц...');
                 renderTable('summary', data.summary);
                 renderTable('assignees', data.assignees);
                 renderTable('detail', data.detail);
@@ -1164,16 +2322,59 @@
                 updateCount('risk', data.risk_zone);
 
                 // Графики
+                console.log('📈 Рендер графиков...');
                 renderCharts(data);
+                
+                // Обновляем счётчики фильтров проблем
+                updateIssueFilterCounts(data.issues);
 
                 stats.classList.remove('hidden');
                 reports.classList.remove('hidden');
                 switchTab('dashboard');
 
             } catch (e) {
+                console.error('❌ Ошибка генерации отчёта:', e);
                 showError(e.message);
             } finally {
                 loading.classList.add('hidden');
+            }
+        }
+        
+        // ========== Получение данных предыдущего периода ==========
+        async function getPreviousPeriodData(currentParams) {
+            try {
+                const startDate = currentParams.start_date ? new Date(currentParams.start_date) : null;
+                const endDate = currentParams.end_date ? new Date(currentParams.end_date) : null;
+                
+                if (!startDate || !endDate) return null;
+                
+                // Вычисляем предыдущий период
+                const daysDiff = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+                const prevEndDate = new Date(startDate);
+                prevEndDate.setDate(prevEndDate.getDate() - 1);
+                const prevStartDate = new Date(prevEndDate);
+                prevStartDate.setDate(prevStartDate.getDate() - daysDiff + 1);
+                
+                // Запрашиваем данные за предыдущий период
+                const prevParams = {
+                    ...currentParams,
+                    start_date: formatDate(prevStartDate),
+                    end_date: formatDate(prevEndDate),
+                    days: daysDiff
+                };
+                
+                const response = await fetch('/api/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(prevParams)
+                });
+                
+                if (!response.ok) return null;
+                
+                return await response.json();
+            } catch (e) {
+                console.warn('Не удалось получить данные предыдущего периода:', e);
+                return null;
             }
         }
 
@@ -1193,6 +2394,7 @@
             return null;
         }
 
+        // Рендер таблицы с улучшенным форматированием
         function renderTable(name, data) {
             const table = document.getElementById(`${name}_table`);
             if (!table || !data || data.length === 0) return;
@@ -1200,28 +2402,263 @@
             const thead = table.querySelector('thead');
             const tbody = table.querySelector('tbody');
 
-            const columns = Object.keys(data[0]);
+            // Определяем порядок колонок для каждой таблицы
+            let columns = [];
+            if (name === 'summary') {
+                columns = ['Клиент (Проект)', 'ID', 'Задач закрыто', 'Корректных', 'С ошибками', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
+                // Если нет ID в данных, убираем
+                if (data[0] && !('ID' in data[0])) {
+                    columns = columns.filter(c => c !== 'ID');
+                }
+            } else if (name === 'assignees') {
+                columns = ['Исполнитель', 'ID', 'Задач', 'Корректных', 'С ошибками', 'Факт (ч)', 'Оценка (ч)', 'Отклонение'];
+                // Если нет ID в данных, убираем
+                if (data[0] && !('ID' in data[0])) {
+                    columns = columns.filter(c => c !== 'ID');
+                }
+            } else if (name === 'issues') {
+                // Для проблемных задач - особая логика с развёрнутыми проблемами
+                renderIssuesTable(data);
+                return;
+            } else if (name === 'detail') {
+                columns = ['URL', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип'];
+            } else if (name === 'internal') {
+                columns = ['URL', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип'];
+            } else {
+                // Для остальных таблиц используем все доступные колонки
+                columns = Object.keys(data[0]);
+            }
 
             thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('${name}', '${col}')">${col}</th>`).join('') + '</tr>';
-            tbody.innerHTML = data.map(row =>
-                '<tr>' + columns.map(col => `<td>${formatCell(row[col], col, row)}</td>`).join('') + '</tr>'
-            ).join('');
+
+            // Рендер строк с цветовым форматированием
+            tbody.innerHTML = data.map((row, index) => {
+                const isNegative = row['Отклонение'] !== undefined && row['Отклонение'] < 0;
+                const isLargeNegative = row['Отклонение'] !== undefined && row['Отклонение'] < -10;
+
+                return '<tr>' + columns.map(col => {
+                    let cellValue = row[col];
+                    let cellHtml = '';
+
+                    // Извлекаем чистое значение и title для ячеек с [id]
+                    if (col === 'Клиент (Проект)' || col === 'Исполнитель') {
+                        const cleanValue = extractCleanValue(cellValue);
+                        const title = extractTitle(cellValue, col.toLowerCase());
+                        cellHtml = `<span title="${title}">${cleanValue}</span>`;
+                    } else if (col === 'ID' || col === 'Задач закрыто' || col === 'Задач' || col === 'Корректных' || col === 'С ошибками' || col === 'Отклонение') {
+                        // Числовые колонки — оставляем как есть
+                        cellHtml = cellValue;
+                    } else if (col === 'URL' || col === 'Проект' || col === 'Ключ' || col === 'Задача' || col === 'Статус' || col === 'Тип' || col === 'Факт (ч)' || col === 'Дата создания' || col === 'Дата исполнения' || col === 'Дата решения') {
+                        // Для detail и internal таблиц - простое форматирование
+                        cellHtml = formatCellWithTooltip(cellValue, col, row);
+                    } else {
+                        // Для остальных колонок используем formatCellWithTooltip
+                        cellHtml = formatCellWithTooltip(cellValue, col, row);
+                    }
+
+                    // Обработка колонок с процентами (Корректных и С ошибками)
+                    if (col === 'Корректных' || col === 'С ошибками') {
+                        const total = row['Задач закрыто'] || row['Задач'] || 0;
+                        const correct = row['Корректных'] || 0;
+                        const issues = row['С ошибками'] || 0;
+                        const value = col === 'Корректных' ? correct : issues;
+                        let percent = total > 0 ? Math.round((value / total) * 100) : 0;
+                        
+                        // Цвет зависит от процента
+                        let color;
+                        if (col === 'Корректных') {
+                            // Для "Корректных": больше = лучше
+                            color = percent >= 80 ? '#27ae60' : (percent >= 50 ? '#f39c12' : '#e74c3c');
+                        } else {
+                            // Для "С ошибками": меньше = лучше
+                            color = percent <= 20 ? '#27ae60' : (percent <= 50 ? '#f39c12' : '#e74c3c');
+                        }
+                        
+                        cellHtml = `${value} <span style="color: ${color}; font-weight: 500;">(${percent}%)</span>`;
+                    }
+
+                    // Подсветка отклонений
+                    if (col === 'Отклонение' && row[col] !== undefined) {
+                        const val = parseFloat(row[col]);
+                        if (val < 0) {
+                            const severity = val < -10 ? 'color: #e74c3c; font-weight: 600;' : 'color: #e67e22;';
+                            cellHtml = `<span style="${severity}">${cellValue}</span>`;
+                        } else if (val > 0) {
+                            cellHtml = `<span style="color: #27ae60;">${cellValue}</span>`;
+                        }
+                    }
+
+                    return `<td>${cellHtml}</td>`;
+                }).join('') + '</tr>';
+            }).join('');
+        }
+        
+        // Рендер таблицы проблемных задач с развёрнутыми проблемами
+        function renderIssuesTable(data) {
+            const table = document.getElementById('issues_table');
+            if (!table) return;
+
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+
+            // Определяем колонки - явно задаём порядок
+            const columnOrder = [
+                'URL',
+                'Проект',
+                'Задача',
+                'Исполнитель',
+                'Автор',
+                'Проблемы',
+                'Статус',
+                'Дата создания',
+                'Дата исполнения'
+            ];
+            
+            // Получаем все доступные колонки из данных
+            const rawColumns = data.length > 0 ? Object.keys(data[0]) : [];
+            
+            // Фильтруем только нужные колонки и сохраняем порядок
+            const columns = columnOrder.filter(col => rawColumns.includes(col));
+
+            thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('issues', '${col}')">${col}</th>`).join('') + '</tr>';
+
+            tbody.innerHTML = data.map(row => {
+                const problems = row['Проблемы'] || row.problems || '';
+                // Разбиваем проблемы на список
+                const problemList = Array.isArray(problems) ? problems : (problems || '').split(/[,;]/).filter(p => p.trim());
+
+                return '<tr>' + columns.map((col, i) => {
+                    if (col === 'Проблемы') {
+                        // Форматируем проблемы как список бейджей, каждый с новой строки
+                        if (problemList.length === 0) {
+                            return '<td>-</td>';
+                        }
+                        return `<td style="display: flex; flex-direction: column; gap: 4px;">${problemList.map(p => {
+                            const problemText = p.trim();
+                            // Используем описания из PROBLEM_DESCRIPTIONS (переданы из Python)
+                            const description = (PROBLEM_DESCRIPTIONS[problemText] || problemText).replace(/"/g, '&quot;');
+                            return `<span class="problem-badge" title="${description}">${problemText}</span>`;
+                        }).join('')}</td>`;
+                    }
+                    if (col === 'Статус') {
+                        // Статус с цветным бейджем
+                        const status = row[col] || row['Статус'] || row.status || '-';
+                        const cleanStatus = extractCleanValue(status);
+                        const title = extractTitle(status, 'status');
+
+                        // Определяем цвет статуса
+                        let bgColor = '#95a5a6';  // По умолчанию серый
+                        if (cleanStatus.toLowerCase().includes('закрыт') || cleanStatus.toLowerCase().includes('closed')) {
+                            bgColor = '#27ae60';  // Зелёный для закрытых
+                        } else if (cleanStatus.toLowerCase().includes('готово') || cleanStatus.toLowerCase().includes('done')) {
+                            bgColor = '#27ae60';  // Зелёный для готовых
+                        } else if (cleanStatus.toLowerCase().includes('в работе') || cleanStatus.toLowerCase().includes('progress')) {
+                            bgColor = '#3498db';  // Синий для в работе
+                        } else if (cleanStatus.toLowerCase().includes('открыт') || cleanStatus.toLowerCase().includes('open')) {
+                            bgColor = '#f39c12';  // Оранжевый для открытых
+                        }
+
+                        return `<td><span class="problem-badge" style="background: ${bgColor}; color: white;" title="${title}">${cleanStatus}</span></td>`;
+                    }
+                    if (col === 'URL') {
+                        // URL с 🔍 - две ссылки: скрепка и ID задачи
+                        const url = row[col] || row['URL'] || row.url || '';
+                        const cleanUrl = extractCleanValue(url);
+                        const issueKey = extractIssueKey(cleanUrl);
+                        const debugUrl = row['URL_debug'] || `/?debug=${issueKey}`;
+                        const title = extractTitle(url, 'id');
+
+                        if (cleanUrl && cleanUrl.startsWith('http')) {
+                            return `<td style="align-items: center;">
+                                <a href="${cleanUrl}" target="_blank" title="Открыть в Jira: ${issueKey}" style="text-decoration:none;">📎</a>
+                                <a href="${debugUrl}" onclick="switchToDebugTab('${issueKey}'); return false;" title="${title}" style="text-decoration:none; font-size: 12px; color: #3498db;">🔍 ${issueKey}</a>
+                            </td>`;
+                        }
+                        return `<td>${cleanUrl || '-'}</td>`;
+                    }
+                    if (col === 'Автор') {
+                        // Проверяем автора - данные могут быть в формате "name [id]"
+                        const author = row[col] || row['Автор'] || row.author || 'N/A';
+                        // Извлекаем чистое имя для отображения (убираем [id])
+                        const cleanAuthor = extractCleanValue(author);
+                        const title = extractTitle(author, 'creator');
+                        return `<td title="${title}">${cleanAuthor}</td>`;
+                    }
+                    // Для остальных колонок - форматирование с извлечением чистого значения и title
+                    return `<td>${formatCellWithTooltip(row[col], col, row)}</td>`;
+                }).join('') + '</tr>';
+            }).join('');
         }
 
-        function formatCell(value, column, row) {
+        // Извлечение чистого значения без [id], [field_name] и 🔍
+        function extractCleanValue(value) {
+            if (!value || typeof value !== 'string') return value;
+            // Удаляем 🔍 из конца строки
+            let clean = value.replace(/\s*🔍\s*$/, '').trim();
+            // Удаляем [id] и [field_name] из конца строки
+            clean = clean.replace(/\s*\[[\w-]+\]\s*$/, '').trim();
+            return clean;
+        }
+
+        // Извлечение title из значения в формате "value [field_name]" или "value 🔍"
+        function extractTitle(value, defaultField) {
+            if (!value || typeof value !== 'string') return '';
+            
+            // Проверяем на наличие 🔍 - это ID задачи
+            if (value.includes('🔍')) {
+                const issueKey = extractIssueKey(value);
+                return `id = '${issueKey}'`;
+            }
+            
+            const match = value.match(/\[([\w-]+)\]\s*$/);
+            if (match) {
+                const fieldOrId = match[1];
+                // Если это ID (число или alphanumeric), возвращаем field_name
+                if (/^\d+$/.test(fieldOrId)) {
+                    return `${defaultField} = '${fieldOrId}'`;
+                }
+                return fieldOrId;
+            }
+            return defaultField;
+        }
+        
+        // Извлечение ключа задачи из URL
+        function extractIssueKey(url) {
+            if (!url) return '';
+            const match = url.match(/\/browse\/([A-Z]+-\d+)/);
+            return match ? match[1] : '';
+        }
+
+        // Форматирование ячейки с tooltip
+        function formatCellWithTooltip(value, column, row) {
             if (value === null || value === undefined) return '';
-            
-            // URL - иконка скрепки со ссылкой
-            if (column === 'URL' && value.startsWith('http')) {
-                const issueKey = value.split('/browse/')[1] || '';
-                return `<a href="${value}" target="_blank" title="${issueKey}" style="text-decoration:none;">📎</a>`;
+
+            const cleanValue = extractCleanValue(value);
+            const title = extractTitle(value, column);
+
+            // URL с 🔍 - иконка скрепки со ссылкой и tooltip (возвращаем только содержимое, не <td>)
+            if (column === 'URL' && cleanValue.startsWith('http')) {
+                const issueKey = extractIssueKey(cleanValue);
+                const debugUrl = row['URL_debug'] || `/?debug=${issueKey}`;
+                return `<div style="display: flex; gap: 8px; align-items: center;">
+                    <a href="${cleanValue}" target="_blank" title="Открыть в Jira: ${issueKey}" style="text-decoration:none;">📎</a>
+                    <a href="${debugUrl}" onclick="switchToDebugTab('${issueKey}'); return false;" title="${title}" style="text-decoration:none; font-size: 12px; color: #3498db;">🔍 ${issueKey}</a>
+                </div>`;
             }
-            
+
             // Форматирование дат YYYY.MM.DD
-            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-                return formatDisplayDate(value);
+            if (typeof cleanValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(cleanValue)) {
+                const formatted = formatDisplayDate(cleanValue);
+                return `<span title="${title}">${formatted}</span>`;
             }
-            return value;
+
+            // Числа (Факт, Оценка)
+            if (typeof cleanValue === 'string' && /^[\d.,]+$/.test(cleanValue)) {
+                return `<span title="${title}">${cleanValue}</span>`;
+            }
+
+            // Текст с tooltip
+            return `<span title="${title}">${cleanValue}</span>`;
         }
 
         function sortTable(name, column) {
@@ -1275,6 +2712,134 @@
             rows.forEach(row => tbody.appendChild(row));
         }
 
+        // ========== Фильтрация проблемных задач ==========
+        let issuesFilters = new Set(); // Множество активных фильтров
+        let issuesDataForFilter = null; // Кэш данных для фильтрации
+        
+        function toggleIssueFilter(chip) {
+            const filterText = chip.getAttribute('data-filter');
+            
+            // Если кликнули на "Сбросить всё"
+            if (!filterText) {
+                resetIssuesFilter();
+                return;
+            }
+            
+            // Переключаем фильтр
+            if (issuesFilters.has(filterText)) {
+                issuesFilters.delete(filterText);
+                chip.classList.remove('active');
+            } else {
+                issuesFilters.add(filterText);
+                chip.classList.add('active');
+            }
+            
+            applyIssuesFilter();
+        }
+        
+        function applyIssuesFilter() {
+            const table = document.getElementById('issues_table');
+            const tbody = table.querySelector('tbody');
+            const thead = table.querySelector('thead');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            // Если фильтров нет - показываем все
+            if (issuesFilters.size === 0) {
+                rows.forEach(row => row.style.display = '');
+                console.log('🔍 Фильтр проблем: все');
+                return;
+            }
+
+            // Находим индекс колонки "Проблемы" по заголовку
+            const headers = Array.from(thead.querySelectorAll('th'));
+            const problemsIndex = headers.findIndex(th => 
+                th.textContent.includes('Проблемы') || th.textContent.includes('Проблемы')
+            );
+
+            if (problemsIndex === -1) {
+                console.error('❌ Колонка "Проблемы" не найдена');
+                return;
+            }
+
+            // Фильтруем строки
+            rows.forEach((row, index) => {
+                const problemsCell = row.children[problemsIndex];
+                const problemsText = problemsCell.textContent.toLowerCase();
+
+                // Показываем если хотя бы один фильтр совпадает
+                const matches = Array.from(issuesFilters).some(filter =>
+                    problemsText.includes(filter.toLowerCase())
+                );
+
+                row.style.display = matches ? '' : 'none';
+            });
+
+            console.log(`🔍 Фильтр проблем: ${Array.from(issuesFilters).join(', ') || 'все'}`);
+        }
+        
+        function resetIssuesFilter() {
+            issuesFilters.clear();
+            issuesDataForFilter = null;
+            
+            // Сбрасываем активные классы
+            document.querySelectorAll('.issues-filter-chip').forEach(chip => {
+                chip.classList.remove('active');
+            });
+            
+            // Показываем все строки
+            const table = document.getElementById('issues_table');
+            const tbody = table.querySelector('tbody');
+            Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+                row.style.display = '';
+            });
+            
+            console.log('🔍 Фильтр проблем: сброшен');
+        }
+        
+        // ========== Подсчёт количества проблем для фильтра ==========
+        function updateIssueFilterCounts(issuesData) {
+            if (!issuesData || issuesData.length === 0) {
+                // Сброс счётчиков - находим все элементы chip-count
+                document.querySelectorAll('.chip-count').forEach(el => {
+                    el.textContent = '0';
+                    el.style.display = 'none';
+                });
+                return;
+            }
+
+            // Инициализируем счётчики для всех фильтров
+            const counts = {};
+            document.querySelectorAll('.issues-filter-chip[data-filter]').forEach(chip => {
+                const filterName = chip.getAttribute('data-filter');
+                counts[filterName] = 0;
+            });
+
+            issuesData.forEach(task => {
+                const problems = task['Проблемы'] || task.problems || '';
+                const problemList = problems.split(/[,;]/).map(p => p.trim()).filter(p => p);
+
+                problemList.forEach(problem => {
+                    // Проверяем совпадение с каждым фильтром
+                    for (const filterName of Object.keys(counts)) {
+                        if (problem.includes(filterName)) {
+                            counts[filterName]++;
+                            break; // Считаем только один раз на задачу
+                        }
+                    }
+                });
+            });
+
+            // Обновляем счётчики
+            for (const [filterName, count] of Object.entries(counts)) {
+                const elId = `filter_count_${filterName.replace(/\s+/g, '_').toLowerCase()}`;
+                const el = document.getElementById(elId);
+                if (el) {
+                    el.textContent = count > 0 ? count : '';
+                    el.style.display = count > 0 ? 'inline-block' : 'none';
+                }
+            }
+        }
+        
         // ========== Графики ==========
         function renderCharts(data) {
             // Динамика по duedate (плановая дата исполнения)
@@ -1299,14 +2864,14 @@
                 createChart('chartClosed', 'line', {
                     labels: Object.keys(dueByDate).sort(),
                     datasets: [{
-                        label: 'Задач с дедлайном',
+                        label: 'Задач',
                         data: Object.keys(dueByDate).sort().map(d => dueByDate[d]),
                         borderColor: '#27ae60',
                         backgroundColor: 'rgba(39, 174, 96, 0.1)',
                         fill: true,
                         tension: 0.3
                     }]
-                }, 'Задач с дедлайном по дням');
+                }, 'Задач по дням');
 
                 createChart('chartCreated', 'line', {
                     labels: Object.keys(createdByDate).sort(),
@@ -1358,7 +2923,7 @@
                     const type = task['Тип'] || 'Unknown';
                     byType[type] = (byType[type] || 0) + 1;
                 });
-                
+
                 createChart('chartTypes', 'pie', {
                     labels: Object.keys(byType),
                     datasets: [{
@@ -1366,6 +2931,35 @@
                         backgroundColor: ['#3498db', '#27ae60', '#e74c3c', '#f39c12', '#9b59b6', '#95a5a6']
                     }]
                 }, 'Типы задач');
+            }
+            
+            // Типы проблем (круговая диаграмма)
+            if (data.issues && data.issues.length > 0) {
+                const byProblem = {};
+                data.issues.forEach(task => {
+                    const problems = task['Проблемы'] || '';
+                    const problemList = problems.split(/[,;]/).map(p => p.trim()).filter(p => p);
+                    problemList.forEach(problem => {
+                        // Группировка проблем для диаграммы
+                        let simplified = problem;
+                        if (problem.includes('Без исполнителя')) simplified = 'Без исполнителя';
+                        else if (problem.includes('Просрочена') || problem.includes('позже дедлайна')) simplified = 'Просрочена';
+                        else if (problem.includes('фактического')) simplified = 'Нет факта';
+                        else if (problem.includes('Статус')) simplified = 'Некорректный статус';
+                        else if (problem.includes('даты решения')) simplified = 'Нет даты решения';
+                        else if (problem.includes('двигается')) simplified = 'Не двигается';
+                        
+                        byProblem[simplified] = (byProblem[simplified] || 0) + 1;
+                    });
+                });
+
+                createChart('chartProblems', 'doughnut', {
+                    labels: Object.keys(byProblem),
+                    datasets: [{
+                        data: Object.values(byProblem),
+                        backgroundColor: ['#e53935', '#fb8c00', '#1e88e5', '#8e24aa', '#3498db', '#fbc02d']
+                    }]
+                }, 'Типы проблем');
             }
         }
 
@@ -1427,6 +3021,161 @@
                 .then(r => r.json())
                 .then(d => alert(JSON.stringify(d, null, 2)))
                 .catch(e => alert('Ошибка: ' + e.message));
+        }
+
+        // ========== Debug Task Info ==========
+        // Функция для переключения на вкладку Отладка и заполнения ключа задачи
+        function switchToDebugTab(taskKey) {
+            // Переключаем на вкладку Отладка
+            switchTab('debug');
+            
+            // Заполняем поле ключа задачи
+            const taskKeyInput = document.getElementById('debug_task_key');
+            if (taskKeyInput) {
+                taskKeyInput.value = taskKey;
+            }
+            
+            // Автоматически запускаем поиск задачи
+            setTimeout(() => {
+                debugTaskInfo();
+            }, 100);
+        }
+        
+        async function debugTaskInfo() {
+            const taskKey = document.getElementById('debug_task_key').value.trim();
+            const resultDiv = document.getElementById('debug_result');
+            const errorDiv = document.getElementById('debug_error');
+            
+            if (!taskKey) {
+                errorDiv.textContent = 'Введите ключ задачи';
+                errorDiv.classList.remove('hidden');
+                resultDiv.classList.add('hidden');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/task-info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task_key: taskKey })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    errorDiv.textContent = data.error || 'Ошибка получения данных';
+                    errorDiv.classList.remove('hidden');
+                    resultDiv.classList.add('hidden');
+                    return;
+                }
+
+                const taskInfo = data.task_info;
+                
+                // Заголовок
+                document.getElementById('debug_task_title').textContent = 
+                    `${taskInfo.key}: ${taskInfo.fields.summary || 'Без названия'}`;
+
+                // Базовая информация с ID
+                const basicInfo = document.getElementById('debug_basic_info');
+                
+                // Формируем значения с ID
+                const statusText = taskInfo.status 
+                    ? `${taskInfo.status.name} [${taskInfo.status.id}]`
+                    : (taskInfo.fields.status || '-');
+                
+                const assigneeText = taskInfo.assignee
+                    ? `${taskInfo.assignee.displayName} [${taskInfo.assignee.id}]`
+                    : (taskInfo.fields.assignee || 'Без исполнителя');
+                
+                const typeText = taskInfo.issuetype
+                    ? `${taskInfo.issuetype.name} [${taskInfo.issuetype.id}]`
+                    : (taskInfo.fields.issuetype || '-');
+                
+                const priorityText = taskInfo.priority
+                    ? `${taskInfo.priority.name} [${taskInfo.priority.id}]`
+                    : (taskInfo.fields.priority || '-');
+                
+                basicInfo.innerHTML = `
+                    <div class="task-info-field">
+                        <div class="task-info-label">Статус</div>
+                        <div class="task-info-value">${statusText}</div>
+                    </div>
+                    <div class="task-info-field">
+                        <div class="task-info-label">Исполнитель</div>
+                        <div class="task-info-value">${assigneeText}</div>
+                    </div>
+                    <div class="task-info-field">
+                        <div class="task-info-label">Тип</div>
+                        <div class="task-info-value">${typeText}</div>
+                    </div>
+                    <div class="task-info-field">
+                        <div class="task-info-label">Приоритет</div>
+                        <div class="task-info-value">${priorityText}</div>
+                    </div>
+                `;
+
+                // Таблица полей
+                const tbody = document.querySelector('#debug_fields_table tbody');
+                tbody.innerHTML = '';
+                
+                for (const [fieldName, fieldValue] of Object.entries(taskInfo.fields)) {
+                    if (!fieldName.startsWith('_') && fieldValue !== null && fieldValue !== undefined) {
+                        const row = tbody.insertRow();
+                        const cellName = row.insertCell(0);
+                        const cellValue = row.insertCell(1);
+                        cellName.textContent = fieldName;
+                        cellValue.textContent = String(fieldValue);
+                    }
+                }
+
+                // Changelog
+                const changelogDiv = document.getElementById('debug_changelog');
+                const changelogContent = document.getElementById('debug_changelog_content');
+                
+                if (taskInfo.changelog && taskInfo.changelog.length > 0) {
+                    document.getElementById('debug_show_changelog').parentElement.style.display = 'block';
+                    changelogContent.innerHTML = '';
+                    
+                    for (const history of taskInfo.changelog) {
+                        const entry = document.createElement('div');
+                        entry.className = 'changelog-entry';
+                        
+                        const items = history.items.map(item => 
+                            `<div class="changelog-item">
+                                <span class="changelog-field">${item.field}:</span>
+                                <span class="changelog-from">${item.from || '∅'}</span> → 
+                                <span class="changelog-to">${item.to || '∅'}</span>
+                            </div>`
+                        ).join('');
+
+                        entry.innerHTML = `
+                            <div class="changelog-header">
+                                <span class="changelog-author">${history.author}</span>
+                                <span class="changelog-date">${new Date(history.created).toLocaleString('ru-RU')}</span>
+                            </div>
+                            ${items}
+                        `;
+                        changelogContent.appendChild(entry);
+                    }
+                } else {
+                    document.getElementById('debug_show_changelog').parentElement.style.display = 'none';
+                    changelogDiv.classList.add('hidden');
+                }
+
+                errorDiv.classList.add('hidden');
+                resultDiv.classList.remove('hidden');
+
+            } catch (e) {
+                errorDiv.textContent = 'Ошибка: ' + e.message;
+                errorDiv.classList.remove('hidden');
+                resultDiv.classList.add('hidden');
+            }
+        }
+
+        function toggleDebugChangelog() {
+            const checkbox = document.getElementById('debug_show_changelog');
+            const changelogDiv = document.getElementById('debug_changelog');
+            changelogDiv.classList.toggle('hidden', !checkbox.checked);
         }
     </script>
 </body>

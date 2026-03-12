@@ -5,19 +5,21 @@ Jira Report System — Ядро отчётов
 Модуль для сбора, обработки и выгрузки данных из Jira.
 Поддерживает консольный режим и работу через Web-интерфейс.
 """
-from typing import Optional, List, Dict, Any, Tuple, Union
+import re
+from typing import Optional, List, Dict, Any, Tuple, Union, Callable
 from jira import JIRA, JIRAError
 import pandas as pd
 import warnings
 from urllib3.exceptions import InsecureRequestWarning
 from datetime import datetime, timedelta
-import argparse
 import os
 import sys
 import logging
 import io
 from dateutil.relativedelta import relativedelta
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import requests
+from requests.auth import HTTPBasicAuth
 
 # Импортируем настройки из core.config
 from core.config import (
@@ -28,12 +30,20 @@ from core.config import (
     INTERNAL_PROJECTS,
     CLOSED_STATUS_IDS,
     EXCLUDED_ASSIGNEE_CLOSE,
+    EXCLUDED_PROJECTS_NO_TIMESPENT,
     SSL_VERIFY,
     REPORT_BLOCKS,
     LOG_LEVEL,
     LOG_FORMAT,
-    LOG_DATE_FORMAT
+    LOG_DATE_FORMAT,
+    MAX_REPORT_DAYS,
+    RISK_ZONE_INACTIVITY_THRESHOLD,
+    MAX_SEARCH_RESULTS,
+    MAX_EXCEL_ROWS
 )
+
+# Импортируем утилиты
+from core.utils import sanitize_jql_identifier, sanitize_jql_string_literal
 
 # --- НАСТРОЙКА ЛОГИРОВАНИЯ ---
 logging.basicConfig(
@@ -46,8 +56,8 @@ logger = logging.getLogger(__name__)
 # --- НАСТРОЙКА SSL ---
 if not SSL_VERIFY:
     logger.warning("⚠️  Проверка SSL отключена (SSL_VERIFY=false)")
-    os.environ['REQUESTS_CA_BUNDLE'] = ''
-    os.environ['CURL_CA_BUNDLE'] = ''
+    # SSL отключается только для подключения к Jira через options={'verify': False}
+    # Глобальные переменные окружения НЕ изменяются для безопасности
     warnings.simplefilter('ignore', InsecureRequestWarning)
 else:
     logger.info("✅ Проверка SSL включена")
@@ -71,6 +81,12 @@ def validate_config() -> Tuple[bool, List[str]]:
     return (len(errors) == 0, errors)
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((ConnectionError, JIRAError)),
+    reraise=True
+)
 def get_jira_connection() -> JIRA:
     """
     Устанавливает соединение с Jira с автоматическими повторными попытками.
@@ -81,18 +97,9 @@ def get_jira_connection() -> JIRA:
     Raises:
         ConnectionError: При ошибке подключения после всех попыток
     """
-    return _get_jira_connection_impl()
-
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    retry=retry_if_exception_type((ConnectionError, JIRAError)),
-    reraise=True
-)
-def _get_jira_connection_impl() -> JIRA:
     try:
         logger.info(f"🔌 Подключение к Jira: {JIRA_SERVER}")
-        
+
         if not SSL_VERIFY:
             jira = JIRA(
                 server=JIRA_SERVER,
@@ -104,18 +111,72 @@ def _get_jira_connection_impl() -> JIRA:
                 server=JIRA_SERVER,
                 basic_auth=(JIRA_USER, JIRA_PASS)
             )
-        
+
         # Проверка подключения
         jira.myself()
         logger.info("✅ Успешное подключение к Jira")
         return jira
-        
+
     except JIRAError as e:
         logger.error(f"❌ Ошибка подключения к Jira: {e.text}")
         raise ConnectionError(f"Не удалось подключиться к Jira: {e.text}")
     except Exception as e:
         logger.error(f"❌ Неизвестная ошибка подключения: {e}")
         raise ConnectionError(f"Ошибка подключения: {e}")
+
+
+def check_jira_availability() -> Tuple[bool, str]:
+    """
+    Быстрая проверка доступности Jira без использования jira-client.
+    Делает HTTP GET запрос на /rest/api/2/serverInfo.
+
+    Returns:
+        Tuple[bool, str]: (доступна, сообщение об ошибке)
+    """
+    import requests
+    from requests.auth import HTTPBasicAuth
+    from urllib3.exceptions import InsecureRequestWarning
+
+    try:
+        # Отключаем предупреждения о SSL
+        if not SSL_VERIFY:
+            requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+        response = requests.get(
+            f'{JIRA_SERVER}/rest/api/2/serverInfo',
+            auth=HTTPBasicAuth(JIRA_USER, JIRA_PASS),
+            verify=SSL_VERIFY,
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            logger.info(f"✅ Jira доступна: {JIRA_SERVER}")
+            return True, ''
+        elif response.status_code == 502:
+            msg = f"Jira недоступна (502 Bad Gateway): {JIRA_SERVER}"
+            logger.error(f"❌ {msg}")
+            return False, msg
+        elif response.status_code == 503:
+            msg = f"Jira недоступна (503 Service Unavailable): {JIRA_SERVER}"
+            logger.error(f"❌ {msg}")
+            return False, msg
+        else:
+            msg = f"Jira вернула код {response.status_code}: {JIRA_SERVER}"
+            logger.error(f"❌ {msg}")
+            return False, msg
+
+    except requests.exceptions.ConnectionError as e:
+        msg = f"Нет подключения к Jira: {JIRA_SERVER} ({e})"
+        logger.error(f"❌ {msg}")
+        return False, msg
+    except requests.exceptions.Timeout:
+        msg = f"Превышено время ожидания от Jira: {JIRA_SERVER}"
+        logger.error(f"❌ {msg}")
+        return False, msg
+    except Exception as e:
+        msg = f"Ошибка проверки Jira: {JIRA_SERVER} ({e})"
+        logger.error(f"❌ {msg}")
+        return False, msg
 
 def get_default_start_date() -> datetime:
     """
@@ -134,10 +195,10 @@ def get_default_start_date() -> datetime:
 def convert_seconds_to_hours(seconds: Optional[int]) -> float:
     """
     Конвертирует секунды в часы.
-    
+
     Args:
         seconds: Время в секундах
-        
+
     Returns:
         float: Время в часах
     """
@@ -146,17 +207,167 @@ def convert_seconds_to_hours(seconds: Optional[int]) -> float:
     return round(seconds / 3600, 2)
 
 
+def normalize_filter(
+    value: Optional[Union[str, List[str]]],
+    upper: bool = False
+) -> List[str]:
+    """
+    Нормализует значение фильтра: строку превращает в список, None в пустой список.
+
+    Args:
+        value: Значение фильтра (строка, список или None)
+        upper: Преобразовать ли в верхний регистр
+
+    Returns:
+        List[str]: Нормализованный список значений
+    """
+    if isinstance(value, str):
+        value = value.upper() if upper else value
+        return [value]
+    elif value is None:
+        return []
+    else:
+        return [v.upper() if upper else v for v in value]
+
+
+def search_all_issues(
+    jira: JIRA,
+    jql: str,
+    fields: str = '*all',
+    expand: Optional[str] = None,
+    batch_size: int = 100
+) -> List[Any]:
+    """
+    Выполняет поиск задач с пагинацией для получения более 5000 результатов.
+
+    Jira API ограничивает максимальное количество результатов до 5000 за запрос.
+    Эта функция разбивает запрос на батчи по batch_size задач.
+
+    Args:
+        jira: Подключение к Jira
+        jql: JQL-запрос
+        fields: Поля для получения (по умолчанию '*all')
+        expand: Дополнительные данные (например, 'changelog')
+        batch_size: Размер батча (по умолчанию 100)
+
+    Returns:
+        List[Any]: Список всех задач
+    """
+    all_issues: List[Any] = []
+    start_at = 0
+
+    logger.info(f"Выполнение поиска с пагинацией: {jql[:100]}...")
+    
+    while True:
+        batch = jira.search_issues(
+            jql,
+            startAt=start_at,
+            maxResults=batch_size,
+            fields=fields,
+            expand=expand
+        )
+        
+        if not batch:
+            break
+            
+        all_issues.extend(batch)
+        logger.debug(f"Получено {len(batch)} задач (всего: {len(all_issues)})")
+        
+        # Если получили меньше, чем запросили — это последняя страница
+        if len(batch) < batch_size:
+            break
+            
+        start_at += batch_size
+    
+    logger.info(f"Поиск завершён. Всего получено задач: {len(all_issues)}")
+    return all_issues
+
+
+def fetch_issues_via_rest(
+    jira: JIRA,
+    jql: str,
+    batch_size: int = 100
+) -> List[Dict[str, Any]]:
+    """
+    Получает задачи через REST API с полем creator.
+    
+    Jira Python client не возвращает creator корректно, поэтому используем
+    прямой REST API запрос с expand=names,schema.
+    
+    Args:
+        jira: Подключение к Jira
+        jql: JQL-запрос
+        batch_size: Размер батча
+        
+    Returns:
+        List[Dict]: Список задач с полями
+    """
+    all_issues = []
+    start_at = 0
+    
+    logger.info(f"REST API запрос: {jql[:100]}...")
+    
+    # Используем сессию для аутентификации
+    session = requests.Session()
+    session.auth = HTTPBasicAuth(JIRA_USER, JIRA_PASS)
+    if not SSL_VERIFY:
+        urllib3 = requests.packages.urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    
+    while True:
+        url = f"{JIRA_SERVER}/rest/api/2/search"
+        params = {
+            'jql': jql,
+            'startAt': start_at,
+            'maxResults': batch_size,
+            'fields': 'summary,assignee,timespent,timeoriginalestimate,resolutiondate,issuetype,duedate,status,created,updated,creator,priority,project',
+            'expand': 'names'  # Для получения имён полей
+        }
+        
+        response = session.get(url, params=params, verify=SSL_VERIFY)
+        response.raise_for_status()
+        
+        data = response.json()
+        issues = data.get('issues', [])
+        
+        if not issues:
+            break
+        
+        all_issues.extend(issues)
+        logger.debug(f"Получено {len(issues)} задач (всего: {len(all_issues)})")
+        
+        if len(issues) < batch_size:
+            break
+            
+        start_at += batch_size
+    
+    logger.info(f"REST API запрос завершён. Всего получено задач: {len(all_issues)}")
+    return all_issues
+
+
 def get_closed_status_ids() -> List[str]:
     """
     Автоматически определяет ID статуса "Закрыт" в Jira.
     Кэширует результат в .env для последующих запусков.
-    
+    Также использует MetadataCache для кэширования в памяти.
+
     Returns:
         List[str]: Список ID статусов
     """
+    # Проверяем .env сначала
     if CLOSED_STATUS_IDS and CLOSED_STATUS_IDS[0] != '':
         logger.info(f"✅ ID статуса 'Закрыт' загружен из .env: {CLOSED_STATUS_IDS}")
         return CLOSED_STATUS_IDS
+
+    # Проверяем кэш в памяти
+    from core.services.cache_service import get_metadata_cache
+    cache = get_metadata_cache()
+    cache_key = 'closed_status_ids'
+    
+    cached_ids = cache.get(cache_key)
+    if cached_ids is not None:
+        logger.debug(f"Closed status IDs cache hit: {cache_key}")
+        return cached_ids
 
     logger.info("🔍 Определение ID статуса 'Закрыт' в Jira...")
 
@@ -166,13 +377,15 @@ def get_closed_status_ids() -> List[str]:
 
         closed_ids = []
         for status in statuses:
-            if status.name.lower() in ['закрыт', 'closed', 'закрыто']:
+            if status.name.lower() in ['закрыт', 'closed', 'закрыто', 'готово', 'done']:
                 closed_ids.append(status.id)
                 logger.info(f"   📌 Найден статус: {status.name} (ID: {status.id})")
 
         if closed_ids:
             save_closed_status_ids(closed_ids)
-            logger.info(f"✅ ID сохранены в .env: {closed_ids}")
+            # Сохраняем в кэш
+            cache.set(cache_key, closed_ids)
+            logger.info(f"✅ ID сохранены в .env и кэше: {closed_ids}")
             return closed_ids
         else:
             logger.warning("⚠️  Статус 'Закрыт' не найден.")
@@ -225,105 +438,19 @@ def save_closed_status_ids(status_ids: List[str]) -> None:
     with open(env_path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(env_content)
 
-def validate_issue(issue: Any, jira: Optional[JIRA] = None, closed_status_ids: Optional[List[str]] = None) -> List[str]:
-    """
-    Проверяет задачу на корректность заполнения.
-
-    Args:
-        issue: Объект задачи Jira
-        jira: Объект подключения к Jira (нужен для проверки changelog)
-        closed_status_ids: Список ID закрытых статусов (опционально)
-
-    Returns:
-        List[str]: Список проблем
-    """
-    problems = []
-
-    # Используем переданный список или глобальный
-    status_ids = closed_status_ids if closed_status_ids else CLOSED_STATUS_IDS
-
-    # Проверка даты решения
-    if not issue.fields.resolutiondate:
-        problems.append('Нет даты решения')
-
-    # Проверка фактического времени
-    if issue.fields.timespent is None or issue.fields.timespent == 0:
-        problems.append('Нет фактического времени')
-
-    # Проверка: дата создания больше duedate на 7+ дней (просрочка планирования)
-    if issue.fields.created and issue.fields.duedate:
-        try:
-            created_date = datetime.strptime(issue.fields.created[:10], '%Y-%m-%d')
-            due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
-            days_diff = (created_date - due_date).days
-            if days_diff >= 7:
-                problems.append(f'Создана на {days_diff} дн. позже дедлайна')
-        except Exception:
-            pass  # Если не удалось сравнить даты — не считаем проблемой
-
-    # Проверка статуса "Закрыт" по ID
-    if issue.fields.status:
-        status_id = issue.fields.status.id
-        status_name = issue.fields.status.name
-
-        # Проверяем changelog ТОЛЬКО если статус "Закрыт"
-        if status_id in status_ids:
-            is_correct_close = False
-
-            # Проверяем, не является ли исполнитель исключением (holin и т.п.)
-            assignee_name = ''
-            if issue.fields.assignee:
-                assignee_name = issue.fields.assignee.name if hasattr(issue.fields.assignee, 'name') else issue.fields.assignee.displayName
-
-            for exc in EXCLUDED_ASSIGNEE_CLOSE:
-                if exc.lower() in assignee_name.lower():
-                    is_correct_close = True
-                    break
-
-            # Если не исключение, проверяем changelog (кто перевёл в "Закрыт")
-            # Используем предзагруженный changelog из issues_normal (экономия запросов к API)
-            if not is_correct_close:
-                try:
-                    # Проверяем, есть ли changelog в предзагруженном объекте
-                    if hasattr(issue, 'changelog') and issue.changelog:
-                        # Ищем последний переход в статус "Закрыт"
-                        found_correct_close = False
-                        for history in reversed(issue.changelog.histories):
-                            for item in history.items:
-                                if item.field == 'status' and item.toString:
-                                    # Проверяем, был ли это переход в закрытый статус
-                                    if hasattr(item, 'to') and item.to in CLOSED_STATUS_IDS:
-                                        # Проверяем, кто сделал переход
-                                        author_name = ''
-                                        if hasattr(history, 'author') and history.author:
-                                            author_name = history.author.name if hasattr(history.author, 'name') else history.author.displayName
-
-                                        # Если переход сделал пользователь демона — это корректно
-                                        if JIRA_USER and JIRA_USER.lower() in author_name.lower():
-                                            is_correct_close = True
-                                            found_correct_close = True
-                                        break
-                            if found_correct_close:
-                                break
-                    else:
-                        # Changelog отсутствует — это проблема
-                        logger.warning(f"⚠️  Отсутствует changelog для {issue.key}")
-                        problems.append('Не удалось проверить историю переходов')
-                except Exception as e:
-                    # Если не удалось получить changelog, считаем это проблемой
-                    logger.warning(f"⚠️  Ошибка при проверке changelog для {issue.key}: {e}")
-                    problems.append('Не удалось проверить историю переходов')
-
-            # Если статус "Закрыт" и не корректно закрыт — это проблема
-            if not is_correct_close:
-                problems.append(f"Статус '{status_name}' (ID: {status_id})")
-
-    return problems
+# Импортируем функции проверки проблем из справочника
+# (используются в IssueValidator)
+from core.problems_dict import (
+    PROBLEM_TYPES,
+)
 
 
 def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
     """
     Возвращает порядок колонок для каждого блока.
+
+    В extra_verbose режиме заголовки не меняются, ID добавляются
+    к значениям полей в квадратных скобках.
 
     Args:
         block: Название блока отчёта
@@ -331,28 +458,24 @@ def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
 
     Returns:
         List[str]: Список названий колонок
+
+    Raises:
+        ValueError: Если блок не найден
     """
     if block == 'summary':
-        if extra_verbose:
-            return ['Клиент (Проект)', 'ID', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
         return ['Клиент (Проект)', 'Задач закрыто', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
     elif block == 'assignees':
-        if extra_verbose:
-            return ['Исполнитель', 'ID', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
         return ['Исполнитель', 'Задач', 'Корректных', 'С ошибками', 'Оценка (ч)', 'Факт (ч)', 'Отклонение']
     elif block == 'detail':
-        if extra_verbose:
-            return ['URL', 'ID', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
         return ['URL', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип']
     elif block == 'issues':
-        if extra_verbose:
-            return ['URL', 'ID', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
         return ['URL', 'Дата исполнения', 'Дата создания', 'Проект', 'Задача', 'Исполнитель', 'Автор', 'Проблемы']
     elif block == 'internal':
-        if extra_verbose:
-            return ['URL', 'ID', 'Проект ID', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
         return ['URL', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип']
+    elif block == 'risk_zone':
+        return ['URL', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факторы риска', 'Приоритет']
     else:
+        logger.warning(f"⚠️  Неизвестный блок '{block}', используются колонки по умолчанию")
         return ['Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Дата создания', 'Дата исполнения', 'Факт (ч)', 'Оценка (ч)']
         
 def generate_report(
@@ -385,28 +508,21 @@ def generate_report(
     Returns:
         Dict[str, Any]: Словарь с данными отчёта
     """
+    # ===== ПРОВЕРКА ДОСТУПНОСТИ JIRA ПЕРЕД ГЕНЕРАЦИЕЙ =====
+    jira_available, error_msg = check_jira_availability()
+    if not jira_available:
+        raise ConnectionError(f"Jira недоступна: {error_msg}")
+    # =======================================================
+
     # Авто-определение ID статуса "Закрыт" (локальная переменная, не мутим глобальную)
     closed_status_ids = CLOSED_STATUS_IDS
     if not closed_status_ids or closed_status_ids[0] == '':
         closed_status_ids = get_closed_status_ids()
 
     # Нормализация множественных фильтров
-    if isinstance(project_keys, str):
-        project_keys = [project_keys.upper()]
-    elif project_keys is None:
-        project_keys = []
-    else:
-        project_keys = [p.upper() for p in project_keys]
-
-    if isinstance(assignee_filter, str):
-        assignee_filter = [assignee_filter]
-    elif assignee_filter is None:
-        assignee_filter = []
-
-    if isinstance(issue_types, str):
-        issue_types = [issue_types]
-    elif issue_types is None:
-        issue_types = []
+    project_keys = normalize_filter(project_keys, upper=True)
+    assignee_filter = normalize_filter(assignee_filter)
+    issue_types = normalize_filter(issue_types)
 
     # Обработка дат: end_date имеет приоритет над days
     if start_date:
@@ -437,6 +553,10 @@ def generate_report(
 
     jira = get_jira_connection()
 
+    # Санизируем даты для JQL (нужны до получения проектов)
+    start_date_safe = sanitize_jql_string_literal(start_date_str)
+    issues_end_safe = sanitize_jql_string_literal(issues_end_str)
+
     # Список проектов
     if project_keys and len(project_keys) > 0:
         # Фильтр по выбранным проектам
@@ -458,203 +578,348 @@ def generate_report(
                 logger.warning(f"Проект {proj_key} не найден")
         projects_keys = list(projects_map.keys())  # Обновляем список ключей
     else:
-        # Все проекты
-        all_projects = jira.projects()
+        # Все активные проекты - получаем через JQL для экономии запросов
+        # Jira.projects() делает много запросов, поэтому используем search_issues
+        logger.info("📋 Получение списка активных проектов...")
+        
+        # Запрос для получения всех проектов за период (по одному разу)
+        jql_all_projects = (
+            f"created >= '{start_date_safe}' "
+            f"AND created <= '{issues_end_safe}' "
+            f"ORDER BY created DESC"
+        )
+        
+        # Получаем все задачи за период для определения проектов
+        all_issues_temp = search_all_issues(
+            jira,
+            jql_all_projects,
+            fields='project',
+            batch_size=100
+        )
+        
+        # Извлекаем уникальные проекты из задач
         projects_map = {}
-        for proj in all_projects:
-            if proj.key in EXCLUDED_PROJECTS:
-                continue
-            if hasattr(proj, 'archived') and proj.archived:
-                continue
-            projects_map[proj.key] = proj.name
+        seen_projects = set()
+        
+        for issue in all_issues_temp:
+            if hasattr(issue, 'fields') and issue.fields:
+                project = issue.fields.project
+                if project and project.key not in seen_projects:
+                    seen_projects.add(project.key)
+                    
+                    # Пропускаем исключённые проекты
+                    if project.key in EXCLUDED_PROJECTS:
+                        continue
+                    
+                    # Пропускаем "закрытые" проекты по ключу (если есть в EXCLUDED_PROJECTS)
+                    # Дополнительные проверки на archived можно добавить здесь
+                    projects_map[project.key] = project.name
+        
         projects_keys = list(projects_map.keys())
+        logger.info(f"✅ Найдено {len(projects_keys)} активных проектов")
 
     all_issues_data = []
     summary_data = []
     issues_with_problems = []
+    all_issues_normal = []  # Список всех задач для Risk Zone
 
     # Формируем фильтр по типам задач для JQL
     issue_type_filter = ''
     if issue_types and len(issue_types) > 0:
-        issue_type_filter = ' AND issuetype IN (' + ','.join(issue_types) + ')'
-    
+        # Санизируем каждый тип задачи (только разрешённые символы)
+        sanitized_types = []
+        for t in issue_types:
+            try:
+                sanitized_types.append(sanitize_jql_identifier(t))
+            except ValueError as e:
+                logging.warning(f"Пропущен недопустимый тип задачи '{t}': {e}")
+        if sanitized_types:
+            issue_type_filter = ' AND issuetype IN (' + ','.join(sanitized_types) + ')'
+
     # Формируем фильтр по исполнителям для JQL
     assignee_filter_jql = ''
     if assignee_filter and len(assignee_filter) > 0:
-        # assignee_filter содержит username (key), используем напрямую
-        assignee_list = assignee_filter
-        assignee_filter_jql = ' AND assignee IN (' + ','.join(assignee_list) + ')'
+        # Санизируем каждый username (только разрешённые символы)
+        sanitized_assignees = []
+        for a in assignee_filter:
+            try:
+                sanitized_assignees.append(sanitize_jql_identifier(a))
+            except ValueError as e:
+                logging.warning(f"Пропущен недопустимый пользователь '{a}': {e}")
+        if sanitized_assignees:
+            assignee_filter_jql = ' AND assignee IN (' + ','.join(sanitized_assignees) + ')'
 
-    for proj_key in projects_keys:
-        proj_name = projects_map.get(proj_key, proj_key)
+    # ========== ОПТИМИЗАЦИЯ: 2 глобальных запроса вместо 2×N проектов ==========
+    # Санизируем end_date (start_date_safe и issues_end_safe уже определены выше)
+    end_date_safe = sanitize_jql_string_literal(end_date_str)
 
-        # Обычные отчёты - фильтр по duedate (плановая дата исполнения)
-        if days > 0:
-            jql_normal = (f"project = {proj_key} "
-                          f"AND duedate >= '{start_date_str}' "
-                          f"AND duedate <= '{end_date_str}' "
+    # Формируем список проектов для JQL
+    projects_jql = ','.join([sanitize_jql_identifier(p) for p in projects_keys])
+    project_filter = f"project IN ({projects_jql})" if projects_keys else ""
+
+    # Глобальный JQL для обычных отчётов (фильтр по duedate)
+    if days > 0:
+        jql_normal_global = (f"{project_filter} "
+                          f"AND duedate >= '{start_date_safe}' "
+                          f"AND duedate <= '{end_date_safe}' "
                           f"AND duedate is not null"
                           f"{issue_type_filter}"
                           f"{assignee_filter_jql} "
                           f"ORDER BY duedate ASC")
-        else:
-            # Без ограничений по датам
-            jql_normal = (f"project = {proj_key} "
+    else:
+        jql_normal_global = (f"{project_filter} "
                           f"AND duedate is not null"
                           f"{issue_type_filter}"
                           f"{assignee_filter_jql} "
                           f"ORDER BY duedate DESC")
 
-        # Проблемные задачи - фильтр по created + 2 месяца
-        if days > 0:
-            jql_issues = (f"project = {proj_key} "
-                          f"AND created >= '{start_date_str}' "
-                          f"AND created <= '{issues_end_str}'"
+    # Глобальный JQL для проблемных задач (фильтр по created + 2 месяца)
+    if days > 0:
+        jql_issues_global = (f"{project_filter} "
+                          f"AND created >= '{start_date_safe}' "
+                          f"AND created <= '{issues_end_safe}'"
                           f"{issue_type_filter}"
                           f"{assignee_filter_jql} "
                           f"ORDER BY created ASC")
-        else:
-            jql_issues = (f"project = {proj_key} "
+    else:
+        jql_issues_global = (f"{project_filter} "
                           f"AND created is not null"
                           f"{issue_type_filter}"
                           f"{assignee_filter_jql} "
                           f"ORDER BY created DESC")
 
-        # Получаем все задачи для проблемных (больший период)
-        # Добавляем expand='changelog' для предзагрузки истории переходов (экономия запросов)
-        # Добавляем поле 'updated' для Risk Zone
-        issues_all = jira.search_issues(jql_issues, maxResults=False,
-                                        fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated, creator',
-                                        expand='changelog')
+    # ========== ПОЛНАЯ ОПТИМИЗАЦИЯ: 2 REST API запроса + 1 проход ==========
 
-        # Получаем задачи для обычных отчётов (меньший период)
-        # Добавляем expand='changelog' для предзагрузки истории переходов (экономия запросов)
-        # Добавляем поле 'updated' для Risk Zone
-        issues_normal = jira.search_issues(jql_normal, maxResults=False,
-                                           fields='summary, assignee, timespent, timeoriginalestimate, resolutiondate, issuetype, duedate, status, created, updated',
-                                           expand='changelog')
-        
-        # Обработка для обычных отчётов
-        proj_spent = 0.0
-        proj_estimated = 0.0
-        proj_correct = 0
-        proj_issues = 0
-        
-        for issue in issues_normal:
-            spent = convert_seconds_to_hours(issue.fields.timespent)
-            estimated = convert_seconds_to_hours(issue.fields.timeoriginalestimate)
-            
-            issue_type = issue.fields.issuetype.name if issue.fields.issuetype else 'Задача'
-            assignee = issue.fields.assignee.displayName if issue.fields.assignee else 'Без исполнителя'
-            duedate = issue.fields.duedate[:10] if issue.fields.duedate else '-'
-            resolved = issue.fields.resolutiondate[:10] if issue.fields.resolutiondate else '-'
-            created = issue.fields.created[:10] if issue.fields.created else '-'
-            
-            status_name = issue.fields.status.name if issue.fields.status else '-'
-            status_category = issue.fields.status.statusCategory.key if issue.fields.status and issue.fields.status.statusCategory else '-'
-            status_full = f"{status_name} ({status_category})"
-            
-            issue_url = f"{JIRA_SERVER}/browse/{issue.key}"
-            issue_id = issue.id if extra_verbose else None
+    logger.info(f"🚀 Оптимизация: выполнение 2 REST API запросов вместо {len(projects_keys) * 2}")
 
-            problems = validate_issue(issue, jira, closed_status_ids)
+    # Получаем все задачи через REST API (с creator!)
+    issues_all_global = fetch_issues_via_rest(jira, jql_issues_global)
+    issues_normal_global = fetch_issues_via_rest(jira, jql_normal_global)
 
-            # Фильтр по исполнителю теперь в JQL
-            
-            # Формируем отображаемые значения с ID если нужно
-            project_display = f"{proj_name} [{getattr(issue.fields, 'project', None).id}]" if extra_verbose and hasattr(issue.fields, 'project') and getattr(issue.fields, 'project', None) and hasattr(getattr(issue.fields, 'project', None), 'id') else proj_name
-            status_display = f"{status_full} [{issue.fields.status.id}]" if extra_verbose and issue.fields.status and hasattr(issue.fields.status, 'id') else status_full
-            issue_type_display = f"{issue_type} [{issue.fields.issuetype.id}]" if extra_verbose and issue.fields.issuetype and hasattr(issue.fields.issuetype, 'id') else issue_type
-            assignee_display = f"{assignee} [{issue.fields.assignee.id}]" if extra_verbose and issue.fields.assignee and hasattr(issue.fields.assignee, 'id') else assignee
-            
-            issue_data = {
-                'URL': issue_url,
-                'ID': issue_id,
-                'Проект': project_display,
-                'Ключ': issue.key,
-                'Тип': issue_type_display,
-                'Задача': issue.fields.summary,
-                'Исполнитель': assignee_display,
-                'Статус': status_display,
-                'Дата создания': created,
-                'Дата исполнения': duedate,
-                'Дата решения': resolved,
-                'Факт (ч)': spent,
-                'Оценка (ч)': estimated,
-                'Проблемы': ', '.join(problems) if problems else ''
-            }
-            
-            all_issues_data.append(issue_data)
-            
-            if not problems:
-                proj_spent += spent
-                proj_estimated += estimated
-                proj_correct += 1
-            else:
-                proj_issues += 1
-            
-            if problems:
-                # Для проблемных задач берём СОЗДАТЕЛЯ задачи (creator)
-                author = 'N/A'
-                author_id = ''
-                if hasattr(issue.fields, 'creator') and issue.fields.creator:
-                    author = issue.fields.creator.displayName if hasattr(issue.fields.creator, 'displayName') else str(issue.fields.creator)
-                    author_id = issue.fields.creator.id if hasattr(issue.fields.creator, 'id') else ''
-                elif hasattr(issue.fields, 'author') and issue.fields.author:
-                    author = issue.fields.author.displayName if hasattr(issue.fields.author, 'displayName') else str(issue.fields.author)
-                    author_id = issue.fields.author.id if hasattr(issue.fields.author, 'id') else ''
+    # Добавляем все задачи normal в список для Risk Zone
+    all_issues_normal.extend(issues_normal_global)
 
-                # Формируем имя автора с ID если нужно
-                author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
+    # ========== Обработка ВСЕХ задач за ОДИН проход ==========
+    # Словарь для агрегации по проектам: proj_key -> {spent, estimated, correct, issues}
+    project_stats = {}
 
-                issue_data = {
-                    'URL': issue_url,
-                    'Проект': proj_name,
-                    'Задача': issue.fields.summary,
-                    'Исполнитель': assignee,
-                    'Автор': author_display,
-                    'Дата создания': created,
-                    'Дата исполнения': duedate,
-                    'Проблемы': ', '.join(problems)
-                }
-                # Добавляем ID задачи для extra_verbose
-                if extra_verbose:
-                    issue_data_with_id = {'ID': issue.id}
-                    issue_data_with_id.update(issue_data)
-                    issue_data = issue_data_with_id
-                issues_with_problems.append(issue_data)
-        
-        if proj_correct > 0 or proj_issues > 0:
-            # Добавляем ID проекта для extra_verbose
+    for issue_data in issues_normal_global:
+        # REST API возвращает dict, а не объект
+        fields = issue_data.get('fields', {})
+        proj_key = fields.get('project', {}).get('key', '')
+        proj_name = projects_map.get(proj_key, proj_key)
+
+        # Получаем значения полей из REST API ответа
+        timespent = fields.get('timespent')
+        timeoriginalestimate = fields.get('timeoriginalestimate')
+        spent = convert_seconds_to_hours(timespent)
+        estimated = convert_seconds_to_hours(timeoriginalestimate)
+
+        issuetype = fields.get('issuetype', {})
+        issue_type = issuetype.get('name', 'Задача') if issuetype else 'Задача'
+
+        assignee = fields.get('assignee', {}).get('displayName', 'Без исполнителя') if fields.get('assignee') else 'Без исполнителя'
+
+        duedate = fields.get('duedate', '-') or '-'
+        if duedate and duedate != '-':
+            duedate = duedate[:10]
+
+        resolutiondate = fields.get('resolutiondate', '-') or '-'
+        if resolutiondate and resolutiondate != '-':
+            resolutiondate = resolutiondate[:10]
+
+        created = fields.get('created', '-') or '-'
+        if created and created != '-':
+            created = created[:10]
+
+        status = fields.get('status', {})
+        status_id = status.get('id', '')
+        status_name = status.get('name', '-') if status else '-'
+        status_category = status.get('statusCategory', {}).get('key', '-') if status else '-'
+        status_full = f"{status_name} ({status_category})"
+
+        issue_key = issue_data.get('key', '')
+        # Формируем URL с 🔍 при extra_verbose
+        issue_url = f"{JIRA_SERVER}/browse/{issue_key}"
+        if extra_verbose:
+            issue_url = f"{issue_url} 🔍"
+
+        # Создаём DTO для валидации
+        from core.dtos import IssueDTO
+        from core.services.issue_validator import IssueValidator
+        mock_issue = IssueDTO.from_dict(issue_data)
+        validator = IssueValidator(closed_status_ids=closed_status_ids)
+        problems = validator.validate(mock_issue, proj_key)
+
+        # Формируем отображаемые значения
+        project_display = proj_name
+        status_display = f"{status_name} ({status_category})"
+        issue_type_display = issue_type
+        assignee_display = assignee
+        spent_display = str(spent)
+        estimated_display = str(estimated)
+        created_display = created
+        duedate_display = duedate
+        resolutiondate_display = resolutiondate
+
+        # Форматирование с ID при extra_verbose
+        if extra_verbose:
+            from core.formatters import VerboseFormatter
+            formatter = VerboseFormatter(extra_verbose=True)
+            
+            project_display = formatter.format_with_id(proj_name, fields.get('project', {}).get('id', ''))
+            status_display = formatter.format_with_id(status_full, status_id)
+            issue_type_display = formatter.format_with_id(issue_type, issuetype.get('id', ''))
+            assignee_display = formatter.format_with_id(assignee, fields.get('assignee', {}).get('accountId', ''))
+            created_display = formatter.format_date(created, 'created', is_empty=(created in [None, '-', '']))
+            duedate_display = formatter.format_date(duedate, 'duedate', is_empty=(duedate in [None, '-', '']))
+            resolutiondate_display = formatter.format_date(resolutiondate, 'resolutiondate', is_empty=(resolutiondate in [None, '-', '']))
+            spent_display = formatter.format_number(spent, 'timespent')
+            estimated_display = formatter.format_number(estimated, 'timeoriginalestimate')
+
+        issue_data = {
+            'URL': issue_url,
+            'Проект': project_display,
+            'Ключ': issue_key,
+            'Тип': issue_type_display,
+            'Задача': fields.get('summary', ''),
+            'Исполнитель': assignee_display,
+            'Статус': status_display,
+            'Дата создания': created_display,
+            'Дата исполнения': duedate_display,
+            'Дата решения': resolutiondate_display,
+            'Факт (ч)': spent_display,
+            'Оценка (ч)': estimated_display,
+            'Проблемы': ', '.join(problems) if problems else ''
+        }
+
+        all_issues_data.append(issue_data)
+
+        # Агрегация статистики по проекту
+        if proj_key not in project_stats:
+            project_stats[proj_key] = {'name': proj_name, 'spent': 0.0, 'estimated': 0.0, 'correct': 0, 'issues': 0}
+
+        if not problems:
+            project_stats[proj_key]['spent'] += spent
+            project_stats[proj_key]['estimated'] += estimated
+            project_stats[proj_key]['correct'] += 1
+        else:
+            project_stats[proj_key]['issues'] += 1
+
+        # Проблемные задачи — берём creator из REST API
+        if problems:
+            creator = fields.get('creator', {})
+            author = creator.get('displayName', 'N/A') if creator else 'N/A'
+            author_id = creator.get('accountId', '') if creator else ''
+
+            if not creator:
+                logger.warning(f"⚠️  Creator не доступен для {issue_key}")
+
+            # URL с 🔍 при extra_verbose
+            issues_url = issue_url
             if extra_verbose:
-                # Берём ID проекта из первой задачи
-                proj_id = getattr(issues_normal[0].fields, 'project', None).id if issues_normal and hasattr(issues_normal[0].fields, 'project') else ''
-                summary_row = {
-                    'Клиент (Проект)': proj_name,
-                    'ID': proj_id,
-                    'Задач закрыто': proj_correct + proj_issues,
-                    'Корректных': proj_correct,
-                    'С ошибками': proj_issues,
-                    'Оценка (ч)': round(proj_estimated, 2),
-                    'Факт (ч)': round(proj_spent, 2),
-                    'Отклонение': round(proj_estimated - proj_spent, 2)
-                }
-            else:
-                summary_row = {
-                    'Клиент (Проект)': proj_name,
-                    'Задач закрыто': proj_correct + proj_issues,
-                    'Корректных': proj_correct,
-                    'С ошибками': proj_issues,
-                    'Оценка (ч)': round(proj_estimated, 2),
-                    'Факт (ч)': round(proj_spent, 2),
-                    'Отклонение': round(proj_estimated - proj_spent, 2)
-                }
+                issues_url = f"{issue_url} 🔍"
+            
+            # Проект с ID
+            project_display = proj_name
+            if extra_verbose:
+                project_id = fields.get('project', {}).get('id', '')
+                if project_id:
+                    project_display = f"{proj_name} [{project_id}]"
+            
+            # Исполнитель с ID
+            assignee_display = assignee
+            if extra_verbose:
+                assignee_id = fields.get('assignee', {}).get('accountId', '')
+                if assignee_id:
+                    assignee_display = f"{assignee} [{assignee_id}]"
+            
+            # Автор с ID
+            author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
+
+            # Статус
+            status = fields.get('status', {})
+            status_name = status.get('name', '-') if status else '-'
+            status_category = status.get('statusCategory', {}).get('name', '-') if status else '-'
+            status_display = f"{status_name} ({status_category})"
+            if extra_verbose:
+                status_id = status.get('id', '')
+                status_display = f"{status_display} [{status_id}]"
+
+            # Даты с [field_name]
+            created_display = created
+            duedate_display = duedate
+            if extra_verbose:
+                if created and created != '-':
+                    created_display = f"{created} [created]"
+                if duedate and duedate != '-':
+                    duedate_display = f"{duedate} [duedate]"
+
+            issue_data_probs = {
+                'URL': issues_url,
+                'URL_debug': f"/?debug={issue_key}",
+                'Проект': project_display,
+                'Задача': fields.get('summary', ''),
+                'Исполнитель': assignee_display,
+                'Автор': author_display,
+                'Статус': status_display,
+                'Дата создания': created_display,
+                'Дата исполнения': duedate_display,
+                'Проблемы': ', '.join(problems)
+            }
+            issues_with_problems.append(issue_data_probs)
+
+    # Формируем summary из агрегированной статистики
+    for proj_key, stats in project_stats.items():
+        if stats['correct'] > 0 or stats['issues'] > 0:
+            # Берём ID проекта из первой задачи
+            proj_issues_list = [i for i in issues_normal_global if i.get('fields', {}).get('project', {}).get('key') == proj_key]
+            proj_id = proj_issues_list[0].get('fields', {}).get('project', {}).get('id', '') if proj_issues_list else ''
+            
+            proj_name_display = stats['name']
+            estimated_display = round(stats['estimated'], 2)
+            spent_display = round(stats['spent'], 2)
+            
+            if extra_verbose:
+                # Проект с ID
+                if proj_id:
+                    proj_name_display = f"{stats['name']} [{proj_id}]"
+                # Числа с [field_name]
+                estimated_display = f"{estimated_display} [timeoriginalestimate]"
+                spent_display = f"{spent_display} [timespent]"
+            
+            summary_row = {
+                'Клиент (Проект)': proj_name_display,
+                'Задач закрыто': stats['correct'] + stats['issues'],
+                'Корректных': stats['correct'],
+                'С ошибками': stats['issues'],
+                'Оценка (ч)': estimated_display,
+                'Факт (ч)': spent_display,
+                'Отклонение': round(stats['estimated'] - stats['spent'], 2)
+            }
             summary_data.append(summary_row)
     
     df_detail = pd.DataFrame(all_issues_data)
     df_summary = pd.DataFrame(summary_data)
+
+    # Преобразуем числовые колонки в df_summary в числовой тип (на случай если там строки с суффиксами из extra_verbose)
+    if not df_summary.empty:
+        def extract_number(s):
+            """Извлекает число из строки вида '1.5 [timespent]' или возвращает исходное значение если это уже число"""
+            if isinstance(s, (int, float)):
+                return s
+            match = re.match(r'^([\d.]+)', str(s))
+            if match:
+                return float(match.group(1))
+            return 0.0
+
+        df_summary['Оценка (ч)'] = df_summary['Оценка (ч)'].apply(extract_number)
+        df_summary['Факт (ч)'] = df_summary['Факт (ч)'].apply(extract_number)
+        df_summary['Отклонение'] = df_summary['Оценка (ч)'] - df_summary['Факт (ч)']
+        df_summary = df_summary.round(2)
+
     df_issues = pd.DataFrame(issues_with_problems)
-    
+
     # Сортировка и группировка
     if not df_detail.empty:
         df_detail = df_detail.sort_values(by=['Тип', 'Проект', 'Дата решения'], ascending=[True, True, True])
@@ -663,14 +928,30 @@ def generate_report(
         if not df_detail.empty:
             # Фильтруем только задачи с исполнителем (не "Без исполнителя")
             df_with_assignee = df_detail[~df_detail['Исполнитель'].str.contains('Без исполнителя', na=False)]
-            
+
             if not df_with_assignee.empty:
+                # Сначала извлекаем числа из колонок (на случай extra_verbose суффиксов)
+                # чтобы groupby().sum() корректно суммировал числа, а не конкатенировал строки
+                df_with_assignee = df_with_assignee.copy()
+                
+                def extract_number_safe(s):
+                    """Извлекает первое число из строки или возвращает 0.0"""
+                    if isinstance(s, (int, float)):
+                        return s
+                    match = re.match(r'^([\d.]+)', str(s))
+                    if match:
+                        return float(match.group(1))
+                    return 0.0
+                
+                df_with_assignee['Факт (ч)_num'] = df_with_assignee['Факт (ч)'].apply(extract_number_safe)
+                df_with_assignee['Оценка (ч)_num'] = df_with_assignee['Оценка (ч)'].apply(extract_number_safe)
+                
                 df_assignees = df_with_assignee.groupby('Исполнитель').agg(
                     tasks_count=('Ключ', 'count'),
                     correct_count=('Проблемы', lambda x: (x == '').sum()),
                     issues_count=('Проблемы', lambda x: (x != '').sum()),
-                    fact_sum=('Факт (ч)', 'sum'),
-                    estimate_sum=('Оценка (ч)', 'sum')
+                    fact_sum=('Факт (ч)_num', 'sum'),
+                    estimate_sum=('Оценка (ч)_num', 'sum')
                 ).reset_index()
                 # Переименовываем колонки обратно в кириллицу для отображения
                 df_assignees = df_assignees.rename(columns={
@@ -749,7 +1030,7 @@ def generate_report(
 
     result = {
         'period': f"{start_date_str} — {end_date_str}",
-        'blocks': blocks or list(REPORT_BLOCKS.keys()),
+        'blocks': blocks if blocks else list(REPORT_BLOCKS.keys()),
         'total_projects': len(df_summary),
         'total_tasks': len(df_detail),
         'total_correct': len(df_detail[df_detail['Проблемы'] == '']) if not df_detail.empty else 0,
@@ -768,6 +1049,11 @@ def generate_report(
         result['issues'] = df_issues
     if 'internal' in result['blocks']:
         result['internal'] = df_internal
+    
+    # Инициализируем risk_issues перед использованием
+    risk_issues = []
+    if 'risk_zone' in result['blocks']:
+        result['risk_zone'] = pd.DataFrame()
 
     # Фильтрация колонок для каждого блока
     if 'summary' in result['blocks'] and not result['summary'].empty:
@@ -795,50 +1081,107 @@ def generate_report(
         available_cols = [c for c in cols if c in result['internal'].columns]
         result['internal'] = result['internal'][available_cols]
 
+    if 'risk_zone' in result['blocks'] and not result['risk_zone'].empty:
+        cols = get_column_order('risk_zone', extra_verbose)
+        available_cols = [c for c in cols if c in result['risk_zone'].columns]
+        result['risk_zone'] = result['risk_zone'][available_cols]
+
     # ========== БЛОК "RISK ZONE" - ЗАВИСШИЕ ЗАДАЧИ ==========
     if include_risk_zone:
         risk_issues = []
         today = datetime.now()
 
-        # Проверяем, что issues_normal определён и не пуст
-        if 'issues_normal' in locals() and issues_normal:
-            for issue in issues_normal:
+        logger.info(f"🔍 Проверка Risk Zone... all_issues_normal: {len(all_issues_normal)} задач")
+
+        # Проверяем все задачи из всех проектов
+        if all_issues_normal:
+            logger.info(f"   Найдено {len(all_issues_normal)} задач для проверки")
+            for issue_data in all_issues_normal:
+                # REST API возвращает dict, а не объект
+                fields = issue_data.get('fields', {})
+                issue_key = issue_data.get('key', '')
+
                 risk_factors = []
 
+                # Получаем статус для проверки
+                status = fields.get('status', {})
+                status_id = status.get('id', '')
+                status_name = status.get('name', '')
+
                 # 1. Задачи без исполнителя
-                if not issue.fields.assignee:
+                assignee = fields.get('assignee')
+                if not assignee:
                     risk_factors.append('Без исполнителя')
 
                 # 2. Задачи с истёкшим сроком (Due Date)
-                if issue.fields.duedate:
-                    due_date = datetime.strptime(issue.fields.duedate[:10], '%Y-%m-%d')
-                    if due_date < today and issue.fields.status.name.lower() not in ['закрыт', 'closed', 'done']:
-                        days_overdue = (today - due_date).days
+                # Проверка: duedate < сегодня И статус НЕ закрытый
+                duedate = fields.get('duedate')
+                if duedate:
+                    due_date = datetime.strptime(duedate[:10], '%Y-%m-%d')
+                    # Используем сервис для проверки закрытого статуса
+                    from core.services.closed_status_service import is_status_closed
+
+                    if due_date.date() < today.date() and not is_status_closed(status_name=status_name, status_id=status_id):
+                        days_overdue = (today.date() - due_date.date()).days
                         risk_factors.append(f'Просрочена на {days_overdue} дн.')
 
-                # 3. Задачи, которые не двигались > 5 дней
-                if hasattr(issue.fields, 'updated') and issue.fields.updated:
-                    updated = datetime.strptime(issue.fields.updated[:19], '%Y-%m-%dT%H:%M:%S')
-                    days_inactive = (today - updated).days
-                    if days_inactive > 5 and issue.fields.status.name.lower() not in ['закрыт', 'closed', 'done']:
+                # 3. Задачи, которые не двигались > порога неактивности
+                # Проверка: не обновлялась N дней И статус НЕ закрытый
+                updated = fields.get('updated')
+                if updated:
+                    updated_dt = datetime.strptime(updated[:19], '%Y-%m-%dT%H:%M:%S')
+                    days_inactive = (today - updated_dt).days
+                    # Используем сервис для проверки закрытого статуса
+                    from core.services.closed_status_service import is_status_closed
+
+                    if days_inactive > RISK_ZONE_INACTIVITY_THRESHOLD and not is_status_closed(status_name=status_name, status_id=status_id):
                         risk_factors.append(f'Не двигается {days_inactive} дн.')
 
                 # Если есть факторы риска - добавляем в отчёт
                 if risk_factors:
-                    assignee = issue.fields.assignee.displayName if issue.fields.assignee else 'Без исполнителя'
-                    risk_issues.append({
-                        'URL': f"{JIRA_SERVER}/browse/{issue.key}",
-                        'Ключ': issue.key,
-                        'Задача': issue.fields.summary,
-                        'Исполнитель': assignee,
-                        'Статус': issue.fields.status.name,
-                    'Факторы риска': '; '.join(risk_factors),
-                    'Приоритет': issue.fields.priority.name if issue.fields.priority else 'Normal'
-                })
-        
-        if risk_issues:
-            result['risk_zone'] = pd.DataFrame(risk_issues)
-            result['risk_zone'] = result['risk_zone'].sort_values('Приоритет', ascending=False)
+                    assignee_name = assignee.get('displayName', 'Без исполнителя') if assignee else 'Без исполнителя'
+                    priority = fields.get('priority', {})
+                    priority_name = priority.get('name', 'Normal') if priority else 'Normal'
+
+                    # Формируем URL с иконкой 🔍 при extra_verbose
+                    issue_url = f"{JIRA_SERVER}/browse/{issue_key}"
+                    if extra_verbose:
+                        issue_url = f"{issue_url} 🔍"
+
+                    # Формируем данные с ID при extra_verbose
+                    row = {
+                        'URL': issue_url,
+                        'Ключ': issue_key,
+                        'Задача': fields.get('summary', ''),
+                        'Исполнитель': assignee_name,
+                        'Статус': status_name,
+                        'Факторы риска': '; '.join(risk_factors),
+                        'Приоритет': priority_name
+                    }
+
+                    if extra_verbose:
+                        # Добавляем ID к полям
+                        if assignee and 'id' in assignee:
+                            row['Исполнитель'] = f"{assignee_name} [{assignee['id']}]"
+                        if status_id:
+                            row['Статус'] = f"{status_name} [{status_id}]"
+                        if priority and 'id' in priority:
+                            row['Приоритет'] = f"{priority_name} [{priority['id']}]"
+
+                    risk_issues.append(row)
+
+            logger.info(f"   Найдено {len(risk_issues)} рисковых задач")
+        else:
+            logger.warning("   ⚠️  all_issues_normal пуст")
+
+        # Обновляем result['risk_zone'] с отсортированными данными только если блок запрошен
+        if 'risk_zone' in result['blocks']:
+            if risk_issues:
+                result['risk_zone'] = pd.DataFrame(risk_issues)
+                result['risk_zone'] = result['risk_zone'].sort_values('Приоритет', ascending=False)
+                logger.info(f"✅ Risk Zone заполнен: {len(risk_issues)} задач")
+            else:
+                logger.info("ℹ️  Risk Zone пуст (нет рисковых задач)")
 
     return result
 
@@ -852,10 +1195,26 @@ def generate_excel(report_data: Dict[str, Any], output: Optional[Union[str, io.B
 
     Returns:
         Union[str, io.BytesIO]: Имя файла или BytesIO объект
+        
+    Raises:
+        ValueError: Если отчёт превышает MAX_EXCEL_ROWS строк
     """
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
+
+    # Проверка на максимальный размер
+    total_rows = 0
+    for key in ['summary', 'assignees', 'detail', 'issues', 'internal', 'risk_zone']:
+        df = report_data.get(key)
+        if df is not None and not df.empty:
+            total_rows += len(df)
     
+    if total_rows > MAX_EXCEL_ROWS:
+        raise ValueError(
+            f'Отчёт слишком большой: {total_rows} строк (максимум {MAX_EXCEL_ROWS}). '
+            'Разбейте отчёт на несколько периодов.'
+        )
+
     if output is None:
         output = f"jira_report_{report_data['period'].replace(' — ', '_to_').replace(' ', '')}.xlsx"
 
@@ -910,106 +1269,3 @@ def generate_excel(report_data: Dict[str, Any], output: Optional[Union[str, io.B
         writer.close()
 
     return output
-
-# =============================================
-# КОНСОЛЬНЫЙ ЗАПУСК
-# =============================================
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description='Генерация отчёта по закрытым задачам из Jira',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='''
-БЛОКИ ОТЧЁТА:
-  summary   - Сводка по проектам
-  assignees - Нагрузка по исполнителям
-  detail    - Детализация по задачам
-  issues    - Проблемные задачи
-
-ПРИМЕРЫ:
-  python3 jira_report.py -e
-  python3 jira_report.py -b summary,assignees -e
-  python3 jira_report.py -p WEB -a "Иванов" -b detail -e
-  python3 jira_report.py -b issues -vv
-        '''
-    )
-    parser.add_argument('-p', '--project', type=str, help='Ключ проекта')
-    parser.add_argument('-s', '--start-date', type=str, help='Дата начала (ГГГГ-ММ-ДД)')
-    parser.add_argument('-d', '--days', type=int, default=30, help='Период в днях')
-    parser.add_argument('-a', '--assignee', type=str, help='Фильтр по исполнителю')
-    parser.add_argument('-b', '--blocks', type=str, help='Блоки отчёта (через запятую)')
-    parser.add_argument('-e', '--excel', action='store_true', help='Выгрузка в Excel')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Режим отладки')
-    parser.add_argument('-vv', '--extra-verbose', action='store_true', help='Показывать ID задач во всех отчётах')
-    args = parser.parse_args()
-    
-    blocks = None
-    if args.blocks:
-        blocks = [b.strip() for b in args.blocks.split(',')]
-        invalid = [b for b in blocks if b not in REPORT_BLOCKS]
-        if invalid:
-            print(f"❌ Неверные блоки: {invalid}")
-            print(f"Доступные: {list(REPORT_BLOCKS.keys())}")
-            sys.exit(1)
-    
-    # Авто-определение статуса перед запуском (локальная переменная)
-    closed_status_ids = CLOSED_STATUS_IDS
-    if not closed_status_ids or closed_status_ids[0] == '':
-        closed_status_ids = get_closed_status_ids()
-
-    print(f"🔌 Генерация отчёта...")
-    if args.blocks:
-        print(f"📦 Блоки: {', '.join(blocks)}")
-
-    report = generate_report(
-        project_keys=args.project,
-        start_date=args.start_date,
-        days=args.days,
-        assignee_filter=args.assignee,
-        blocks=blocks,
-        verbose=args.verbose,
-        extra_verbose=args.extra_verbose,
-        closed_status_ids=closed_status_ids
-    )
-    
-    print("\n" + "="*100)
-    print(f"📋 ОТЧЁТ ЗА {report['period']}")
-    print("="*100)
-    
-    if 'summary' in report:
-        print("\n📊 СВОДКА ПО ПРОЕКТАМ:")
-        print("="*100)
-        print(report['summary'].to_string(index=False))
-    
-    if 'assignees' in report and not report['assignees'].empty:
-        print("\n👤 НАГРУЗКА ПО ИСПОЛНИТЕЛЯМ:")
-        print("="*100)
-        print(report['assignees'].to_string(index=False))
-    
-    if 'detail' in report and not report['detail'].empty:
-        if args.verbose:
-            print("\n📝 ДЕТАЛИЗАЦИЯ ПО ЗАДАЧАМ:")
-            print("="*100)
-            pd.set_option('display.max_columns', None)
-            pd.set_option('display.width', None)
-            print(report['detail'].to_string(index=False))
-    
-    if 'issues' in report and not report['issues'].empty:
-        print("\n⚠️ ПРОБЛЕМНЫЕ ЗАДАЧИ:")
-        print("="*100)
-        pd.set_option('display.max_columns', None)
-        pd.set_option('display.width', None)
-        print(report['issues'].to_string(index=False))
-    
-    print("\n" + "="*100)
-    print(f"💰 ВСЕГО ПРОЕКТОВ: {report['total_projects']}")
-    print(f"📦 ВСЕГО ЗАДАЧ:    {report['total_tasks']}")
-    print(f"✅ КОРЕКТНЫХ:      {report['total_correct']}")
-    print(f"⚠️  ПРОБЛЕМНЫХ:     {report['total_issues']}")
-    print(f"⏱️  ВСЕГО ФАКТ:     {report['total_spent']:.2f} ч.")
-    print(f"📏 ВСЕГО ОЦЕНКА:    {report['total_estimated']:.2f} ч.")
-    print("="*100)
-    
-    if args.excel:
-        filename = generate_excel(report)
-        print(f"\n✅ Отчёт сохранён: {filename}")
