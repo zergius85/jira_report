@@ -2347,6 +2347,10 @@
                 // Для проблемных задач - особая логика с развёрнутыми проблемами
                 renderIssuesTable(data);
                 return;
+            } else if (name === 'detail') {
+                columns = ['URL', 'Дата решения', 'Дата исполнения', 'Дата создания', 'Проект', 'Статус', 'Задача', 'Исполнитель', 'Факт (ч)', 'Тип'];
+            } else if (name === 'internal') {
+                columns = ['URL', 'Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Факт (ч)', 'Дата создания', 'Дата исполнения', 'Тип'];
             } else {
                 // Для остальных таблиц используем все доступные колонки
                 columns = Object.keys(data[0]);
@@ -2361,18 +2365,22 @@
 
                 return '<tr>' + columns.map(col => {
                     let cellValue = row[col];
+                    let cellHtml = '';
 
                     // Извлекаем чистое значение и title для ячеек с [id]
                     if (col === 'Клиент (Проект)' || col === 'Исполнитель') {
                         const cleanValue = extractCleanValue(cellValue);
                         const title = extractTitle(cellValue, col.toLowerCase());
-                        cellValue = `<span title="${title}">${cleanValue}</span>`;
+                        cellHtml = `<span title="${title}">${cleanValue}</span>`;
                     } else if (col === 'ID' || col === 'Задач закрыто' || col === 'Задач' || col === 'Корректных' || col === 'С ошибками' || col === 'Отклонение') {
                         // Числовые колонки — оставляем как есть
-                        cellValue = cellValue;
+                        cellHtml = cellValue;
+                    } else if (col === 'URL' || col === 'Проект' || col === 'Ключ' || col === 'Задача' || col === 'Статус' || col === 'Тип' || col === 'Факт (ч)' || col === 'Дата создания' || col === 'Дата исполнения' || col === 'Дата решения') {
+                        // Для detail и internal таблиц - простое форматирование
+                        cellHtml = formatCellWithTooltip(cellValue, col, row);
                     } else {
                         // Для остальных колонок используем formatCellWithTooltip
-                        cellValue = formatCellWithTooltip(cellValue, col, row);
+                        cellHtml = formatCellWithTooltip(cellValue, col, row);
                     }
 
                     // Обработка колонок с процентами (Корректных и С ошибками)
@@ -2383,7 +2391,7 @@
                         const value = col === 'Корректных' ? correct : issues;
                         let percent = total > 0 ? Math.round((value / total) * 100) : 0;
                         const color = percent >= 80 ? '#27ae60' : (percent >= 50 ? '#f39c12' : '#e74c3c');
-                        cellValue = `${value} <span style="color: ${color}; font-weight: 500;">(${percent}%)</span>`;
+                        cellHtml = `${value} <span style="color: ${color}; font-weight: 500;">(${percent}%)</span>`;
                     }
 
                     // Подсветка отклонений
@@ -2391,18 +2399,18 @@
                         const val = parseFloat(row[col]);
                         if (val < 0) {
                             const severity = val < -10 ? 'color: #e74c3c; font-weight: 600;' : 'color: #e67e22;';
-                            cellValue = `<span style="${severity}">${cellValue}</span>`;
+                            cellHtml = `<span style="${severity}">${cellValue}</span>`;
                         } else if (val > 0) {
-                            cellValue = `<span style="color: #27ae60;">${cellValue}</span>`;
+                            cellHtml = `<span style="color: #27ae60;">${cellValue}</span>`;
                         }
                     }
 
                     // Подсветка "С ошибками"
                     if (col === 'С ошибками' && row[col] > 0) {
-                        cellValue = `<span style="color: #e74c3c; font-weight: 600;">${cellValue}</span>`;
+                        cellHtml = `<span style="color: #e74c3c; font-weight: 600;">${cellValue}</span>`;
                     }
 
-                    return `<td>${cellValue}</td>`;
+                    return `<td>${cellHtml}</td>`;
                 }).join('') + '</tr>';
             }).join('');
         }
@@ -2533,14 +2541,14 @@
             const cleanValue = extractCleanValue(value);
             const title = extractTitle(value, column);
 
-            // URL с 🔍 - иконка скрепки со ссылкой и tooltip
+            // URL с 🔍 - иконка скрепки со ссылкой и tooltip (возвращаем только содержимое, не <td>)
             if (column === 'URL' && cleanValue.startsWith('http')) {
                 const issueKey = extractIssueKey(cleanValue);
                 const debugUrl = row['URL_debug'] || `/?debug=${issueKey}`;
-                return `<td style="display: flex; gap: 8px; align-items: center;">
+                return `<div style="display: flex; gap: 8px; align-items: center;">
                     <a href="${cleanValue}" target="_blank" title="Открыть в Jira: ${issueKey}" style="text-decoration:none;">📎</a>
                     <a href="${debugUrl}" onclick="switchToDebugTab('${issueKey}'); return false;" title="${title}" style="text-decoration:none; font-size: 12px; color: #3498db;">🔍 ${issueKey}</a>
-                </td>`;
+                </div>`;
             }
 
             // Форматирование дат YYYY.MM.DD
