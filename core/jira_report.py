@@ -808,13 +808,13 @@ def generate_report(
             project_stats[proj_key]['issues'] += 1
 
         # Проблемные задачи — берём creator из REST API
+        # Инициализируем author_display для всех задач
+        creator = fields.get('creator', {})
+        author = creator.get('displayName', 'N/A') if creator else 'N/A'
+        author_id = creator.get('accountId', '') if creator else ''
+        author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
+        
         if problems:
-            creator = fields.get('creator', {})
-            author = creator.get('displayName', 'N/A') if creator else 'N/A'
-            author_id = creator.get('accountId', '') if creator else ''
-
-            if not creator:
-                logger.warning(f"⚠️  Creator не доступен для {issue_key}")
 
             # URL с 🔍 при extra_verbose
             issues_url = issue_url
@@ -834,9 +834,6 @@ def generate_report(
                 assignee_id = fields.get('assignee', {}).get('accountId', '')
                 if assignee_id:
                     assignee_display = f"{assignee} [{assignee_id}]"
-            
-            # Автор с ID
-            author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
 
             # Статус
             status = fields.get('status', {})
