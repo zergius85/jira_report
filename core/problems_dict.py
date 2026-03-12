@@ -18,7 +18,10 @@
 
 from typing import Dict, List, Any, Optional, Callable
 from datetime import datetime, timedelta
+import logging
 from core.config import EXCLUDED_ASSIGNEE_CLOSE, JIRA_USER
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================
