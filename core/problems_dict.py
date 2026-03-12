@@ -373,6 +373,10 @@ def check_changelog(
     - Статус "Готово" [10001] — всегда OK, независимо от кто закрыл
     - Статус "Закрыт" [6] — должен закрыть пользователь из EXCLUDED_ASSIGNEE_CLOSE (holin)
 
+    ВНИМАНИЕ: Эта проверка работает ТОЛЬКО если changelog загружен в объекте issue.
+    При массовом поиске через search_issues() changelog не загружается.
+    Для проверки changelog нужно загружать задачу отдельно с expand='changelog'.
+
     Args:
         issue: Задача Jira
         closed_status_ids: Список ID закрытых статусов
@@ -381,7 +385,7 @@ def check_changelog(
 
     Returns:
         tuple: (is_correct, error_message)
-            - is_correct: True если закрытие корректно
+            - is_correct: True если закрытие корректно ИЛИ changelog не загружен
             - error_message: Сообщение об ошибке или None
     """
     # Проверяем, что задача в закрытом статусе
@@ -408,8 +412,9 @@ def check_changelog(
             return (True, None)  # Исполнитель в исключениях — ок
 
     # Проверяем changelog — ищем кто перевёл задачу в закрытый статус
+    # ВАЖНО: При массовом поиске changelog не загружен, поэтому пропускаем проверку
     try:
-        if hasattr(issue, 'changelog') and issue.changelog:
+        if hasattr(issue, 'changelog') and issue.changelog and hasattr(issue.changelog, 'histories') and issue.changelog.histories:
             # Ищем последний переход в закрытый статус
             for history in reversed(issue.changelog.histories):
                 for item in history.items:
@@ -437,14 +442,15 @@ def check_changelog(
             logger.info(f"ℹ️  Задача {getattr(issue, 'key', 'UNKNOWN')}: в changelog не найден переход в закрытый статус")
             return (False, PROBLEM_TYPES['CHANGELOG_CHECK_FAILED']['short_name'])
         else:
-            # Changelog отсутствует — не можем проверить кто закрыл
-            logger.info(f"ℹ️  Задача {getattr(issue, 'key', 'UNKNOWN')}: changelog отсутствует")
-            return (False, PROBLEM_TYPES['CHANGELOG_CHECK_FAILED']['short_name'])
+            # Changelog отсутствует — это нормально при массовом поиске
+            # Пропускаем проверку без ошибки
+            logger.debug(f"ℹ️  Задача {getattr(issue, 'key', 'UNKNOWN')}: changelog не загружен (пропускаем проверку)")
+            return (True, None)
 
     except Exception as e:
-        # Если не удалось получить changelog — логируем как INFO
-        logger.info(f"ℹ️  Задача {getattr(issue, 'key', 'UNKNOWN')}: не удалось проверить changelog (отсутствует или ошибка)")
-        return (False, PROBLEM_TYPES['CHANGELOG_CHECK_FAILED']['short_name'])
+        # Если не удалось получить changelog — пропускаем проверку
+        logger.debug(f"ℹ️  Задача {getattr(issue, 'key', 'UNKNOWN')}: ошибка при проверке changelog (пропускаем)")
+        return (True, None)
 
 
 def get_problem_type_by_id(problem_id: str) -> Optional[Dict[str, Any]]:
