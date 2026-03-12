@@ -53,14 +53,14 @@ JIRA_PASS=your_password_or_token
 ### 3. Инициализация базы данных (для Dashboard 2.0)
 
 ```bash
-python scripts/init_db.py
+python3 scripts/init_db.py
 ```
 
 ### 4. Запуск веб-приложения
 
 **Dev-режим (порт 5001, debug):**
 ```bash
-python app.py
+python3 app.py
 ```
 Откройте в браузере: http://localhost:5001
 
@@ -73,7 +73,7 @@ FLASK_ENV=production
 
 Запустите:
 ```bash
-python app.py
+python3 app.py
 ```
 Откройте в браузере: http://localhost:5000
 
