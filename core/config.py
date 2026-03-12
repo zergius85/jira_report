@@ -87,6 +87,7 @@ SSL_VERIFY = os.getenv('SSL_VERIFY', 'true').lower() == 'true'
 # ОТЧЁТЫ
 # =============================================
 REPORT_BLOCKS = {
+    'metrics': 'Метрики и KPI',
     'summary': 'Сводка по проектам',
     'assignees': 'Нагрузка по исполнителям',
     'detail': 'Детализация по задачам',
