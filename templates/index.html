@@ -1377,9 +1377,13 @@
                 item.className = 'checkbox-item';
                 // Блоки 'internal' и 'risk_zone' не отмечены по умолчанию
                 const isChecked = (key !== 'internal' && key !== 'risk_zone') ? 'checked' : '';
-                item.innerHTML = `<input type="checkbox" value="${key}" ${isChecked}><span>${label}</span>`;
+                item.innerHTML = `<input type="checkbox" value="${key}" ${isChecked} onchange="updateBlocksVisibility()">
+                    <span>${label}</span>`;
                 container.appendChild(item);
             }
+
+            // Скрываем вкладки 'internal' и 'risk' по умолчанию
+            updateBlocksVisibility();
 
             await loadProjects();
             await loadAssignees();
@@ -2149,6 +2153,45 @@
             return Array.from(document.querySelectorAll('#blocks_container input[type="checkbox"]:checked')).map(cb => cb.value);
         }
 
+        // Обновление видимости вкладок при изменении галочек
+        function updateBlocksVisibility() {
+            const blocks = getSelectedBlocks();
+            
+            // Вкладка 'internal'
+            const internalTab = document.getElementById('tab-internal');
+            const internalBtn = document.getElementById('tab-btn-internal');
+            if (internalTab && internalBtn) {
+                if (blocks.includes('internal')) {
+                    internalTab.style.display = 'block';
+                    internalBtn.style.display = 'block';
+                } else {
+                    internalTab.style.display = 'none';
+                    internalBtn.style.display = 'none';
+                    // Если текущая вкладка 'internal', переключаем на 'dashboard'
+                    if (internalTab.classList.contains('active')) {
+                        switchTab('dashboard');
+                    }
+                }
+            }
+            
+            // Вкладка 'risk'
+            const riskTab = document.getElementById('tab-risk');
+            const riskBtn = document.getElementById('tab-btn-risk');
+            if (riskTab && riskBtn) {
+                if (blocks.includes('risk_zone')) {
+                    riskTab.style.display = 'block';
+                    riskBtn.style.display = 'block';
+                } else {
+                    riskTab.style.display = 'none';
+                    riskBtn.style.display = 'none';
+                    // Если текущая вкладка 'risk', переключаем на 'dashboard'
+                    if (riskTab.classList.contains('active')) {
+                        switchTab('dashboard');
+                    }
+                }
+            }
+        }
+
         function getParams() {
             const projects = getSelectedValues('project').filter(v => v !== '');
             const assignees = getSelectedValues('assignee').filter(v => v !== '');
@@ -2474,7 +2517,7 @@
                         const title = extractTitle(url, 'id');
 
                         if (cleanUrl && cleanUrl.startsWith('http')) {
-                            return `<td style="display: flex; gap: 8px; align-items: center;">
+                            return `<td style="align-items: center;">
                                 <a href="${cleanUrl}" target="_blank" title="Открыть в Jira: ${issueKey}" style="text-decoration:none;">📎</a>
                                 <a href="${debugUrl}" onclick="switchToDebugTab('${issueKey}'); return false;" title="${title}" style="text-decoration:none; font-size: 12px; color: #3498db;">🔍 ${issueKey}</a>
                             </td>`;
