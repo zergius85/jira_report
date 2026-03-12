@@ -853,6 +853,7 @@ def generate_report(
                 'Задача': fields.get('summary', ''),
                 'Исполнитель': assignee_display,
                 'Автор': author_display,
+                'Статус': status_display,
                 'Дата создания': created_display,
                 'Дата исполнения': duedate_display,
                 'Проблемы': ', '.join(problems)

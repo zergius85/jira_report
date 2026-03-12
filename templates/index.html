@@ -736,6 +736,7 @@
             color: #666;
             user-select: none;
             position: relative;
+            border-left: 3px solid #757575;  /* Цвет по умолчанию */
         }
         .issues-filter-chip:hover {
             border-color: #3498db;
@@ -746,6 +747,7 @@
         .issues-filter-chip.active {
             color: white;
             border-color: transparent;
+            border-left-color: transparent;
         }
         .issues-filter-chip .chip-count {
             margin-left: 6px;
@@ -2503,7 +2505,8 @@
                 'Задача': 'Задача',
                 'Исполнитель': 'Исполнитель',
                 'Автор': 'Автор',
-                'Проблемы': 'Проблемы'
+                'Проблемы': 'Проблемы',
+                'Статус': 'Статус'
             };
 
             // Получаем колонки из первой строки
@@ -2533,6 +2536,26 @@
                             const description = (PROBLEM_DESCRIPTIONS[problemText] || problemText).replace(/"/g, '&quot;');
                             return `<span class="problem-badge" title="${description}">${problemText}</span>`;
                         }).join('')}</td>`;
+                    }
+                    if (baseCol === 'Статус') {
+                        // Статус с цветным бейджем
+                        const status = row[col] || row['Статус'] || row.status || '-';
+                        const cleanStatus = extractCleanValue(status);
+                        const title = extractTitle(status, 'status');
+                        
+                        // Определяем цвет статуса
+                        let bgColor = '#95a5a6';  // По умолчанию серый
+                        if (cleanStatus.toLowerCase().includes('закрыт') || cleanStatus.toLowerCase().includes('closed')) {
+                            bgColor = '#27ae60';  // Зелёный для закрытых
+                        } else if (cleanStatus.toLowerCase().includes('готово') || cleanStatus.toLowerCase().includes('done')) {
+                            bgColor = '#27ae60';  // Зелёный для готовых
+                        } else if (cleanStatus.toLowerCase().includes('в работе') || cleanStatus.toLowerCase().includes('progress')) {
+                            bgColor = '#3498db';  // Синий для в работе
+                        } else if (cleanStatus.toLowerCase().includes('открыт') || cleanStatus.toLowerCase().includes('open')) {
+                            bgColor = '#f39c12';  // Оранжевый для открытых
+                        }
+                        
+                        return `<td><span class="problem-badge" style="background: ${bgColor}; color: white;" title="${title}">${cleanStatus}</span></td>`;
                     }
                     if (baseCol === 'URL') {
                         // URL с 🔍 - две ссылки: скрепка и ID задачи
