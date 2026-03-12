@@ -1087,7 +1087,8 @@
         <!-- Вкладки с дашбордом и отчётами -->
         <div id="reports_container" class="card hidden">
             <div class="tabs">
-                <button class="tab-btn active" id="tab-btn-metrics" onclick="switchTab('metrics')">📊 Метрики</button>
+                <button class="tab-btn active" id="tab-btn-dashboard" onclick="switchTab('dashboard')">📈 Дашборд</button>
+                <button class="tab-btn" id="tab-btn-metrics" onclick="switchTab('metrics')">📊 Метрики</button>
                 <button class="tab-btn" id="tab-btn-summary" onclick="switchTab('summary')">📋 Сводка</button>
                 <button class="tab-btn" id="tab-btn-assignees" onclick="switchTab('assignees')">👤 Исполнители</button>
                 <button class="tab-btn" id="tab-btn-detail" onclick="switchTab('detail')">📝 Детали</button>
@@ -1097,76 +1098,8 @@
                 <button class="tab-btn" id="tab-btn-debug" onclick="switchTab('debug')">🐛 Отладка</button>
             </div>
 
-            <!-- Метрики (бывший Дашборд) -->
-            <div id="tab-metrics" class="tab-content">
-                <!-- Заголовок -->
-                <div class="dashboard-header">
-                    <div class="dashboard-title">📊 Jira Report Metrics</div>
-                    <select class="dashboard-period-selector" id="dashboard_period" onchange="updateDashboardPeriod()">
-                        <option value="7">📅 7 дней</option>
-                        <option value="14">📅 2 недели</option>
-                        <option value="30" selected>📅 30 дней</option>
-                        <option value="90">📅 3 месяца</option>
-                    </select>
-                </div>
-
-                <!-- KPI карточки -->
-                <div class="kpi-grid">
-                    <div class="kpi-card">
-                        <div class="kpi-label">Всего задач</div>
-                        <div class="kpi-value" id="kpi_total_tasks">0</div>
-                        <div class="kpi-trend neutral" id="kpi_total_tasks_trend">
-                            <span>─</span> <span>нет данных</span>
-                        </div>
-                    </div>
-                    <div class="kpi-card success">
-                        <div class="kpi-label">Закрыто</div>
-                        <div class="kpi-value" id="kpi_closed">0</div>
-                        <div class="kpi-trend up" id="kpi_closed_trend">
-                            <span>📈</span> <span>0%</span>
-                        </div>
-                    </div>
-                    <div class="kpi-card warning">
-                        <div class="kpi-label">В работе</div>
-                        <div class="kpi-value" id="kpi_in_progress">0</div>
-                        <div class="kpi-trend neutral" id="kpi_in_progress_trend">
-                            <span>─</span> <span>0%</span>
-                        </div>
-                    </div>
-                    <div class="kpi-card danger">
-                        <div class="kpi-label">Рисковые</div>
-                        <div class="kpi-value" id="kpi_risk">0</div>
-                        <div class="kpi-trend down" id="kpi_risk_trend">
-                            <span>⚠️</span> <span>+0%</span>
-                        </div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-label">Факт (часы)</div>
-                        <div class="kpi-value" id="kpi_spent">0</div>
-                        <div class="kpi-trend neutral" id="kpi_spent_trend">
-                            <span>─</span> <span>0ч</span>
-                        </div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-label">Оценка (часы)</div>
-                        <div class="kpi-value" id="kpi_estimated">0</div>
-                        <div class="kpi-trend neutral" id="kpi_estimated_trend">
-                            <span>─</span> <span>0ч</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Risk Zone виджет -->
-                <div class="risk-zone-widget" id="risk_zone_widget" style="display: none;">
-                    <div class="risk-zone-header">
-                        <div class="risk-zone-title">🔴 Risk Zone — Зависшие задачи</div>
-                        <button class="btn btn-sm" onclick="switchTab('risk')" style="background: #e74c3c; color: white;">Показать все →</button>
-                    </div>
-                    <ul class="risk-zone-list" id="risk_zone_list">
-                        <!-- Заполняется JS -->
-                    </ul>
-                </div>
-                
+            <!-- Дашборд с графиками (всегда виден) -->
+            <div id="tab-dashboard" class="tab-content active">
                 <!-- Графики -->
                 <div class="charts-grid-improved">
                     <div class="chart-card">
@@ -1233,6 +1166,77 @@
                 </div>
                 <div class="table-container">
                     <table id="issues_table"><thead></thead><tbody></tbody></table>
+                </div>
+            </div>
+
+            <!-- Метрики (KPI и период) -->
+            <div id="tab-metrics" class="tab-content">
+                <!-- Заголовок с выбором периода -->
+                <div class="dashboard-header">
+                    <div class="dashboard-title">📊 Метрики и KPI</div>
+                    <select class="dashboard-period-selector" id="dashboard_period" onchange="updateDashboardPeriod()">
+                        <option value="7">📅 7 дней</option>
+                        <option value="14">📅 2 недели</option>
+                        <option value="30" selected>📅 30 дней</option>
+                        <option value="90">📅 3 месяца</option>
+                    </select>
+                </div>
+
+                <!-- KPI карточки -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Всего задач</div>
+                        <div class="kpi-value" id="kpi_total_tasks">0</div>
+                        <div class="kpi-trend neutral" id="kpi_total_tasks_trend">
+                            <span>─</span> <span>нет данных</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card success">
+                        <div class="kpi-label">Закрыто</div>
+                        <div class="kpi-value" id="kpi_closed">0</div>
+                        <div class="kpi-trend up" id="kpi_closed_trend">
+                            <span>📈</span> <span>0%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card warning">
+                        <div class="kpi-label">В работе</div>
+                        <div class="kpi-value" id="kpi_in_progress">0</div>
+                        <div class="kpi-trend neutral" id="kpi_in_progress_trend">
+                            <span>─</span> <span>0%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card danger">
+                        <div class="kpi-label">Рисковые</div>
+                        <div class="kpi-value" id="kpi_risk">0</div>
+                        <div class="kpi-trend down" id="kpi_risk_trend">
+                            <span>⚠️</span> <span>+0%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Факт (часы)</div>
+                        <div class="kpi-value" id="kpi_spent">0</div>
+                        <div class="kpi-trend neutral" id="kpi_spent_trend">
+                            <span>─</span> <span>0ч</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Оценка (часы)</div>
+                        <div class="kpi-value" id="kpi_estimated">0</div>
+                        <div class="kpi-trend neutral" id="kpi_estimated_trend">
+                            <span>─</span> <span>0ч</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Zone виджет -->
+                <div class="risk-zone-widget" id="risk_zone_widget" style="display: none;">
+                    <div class="risk-zone-header">
+                        <div class="risk-zone-title">🔴 Risk Zone — Зависшие задачи</div>
+                        <button class="btn btn-sm" onclick="switchTab('risk')" style="background: #e74c3c; color: white;">Показать все →</button>
+                    </div>
+                    <ul class="risk-zone-list" id="risk_zone_list">
+                        <!-- Заполняется JS -->
+                    </ul>
                 </div>
             </div>
 
@@ -1375,14 +1379,14 @@
             for (const [key, label] of Object.entries(BLOCKS)) {
                 const item = document.createElement('label');
                 item.className = 'checkbox-item';
-                // Блоки 'metrics', 'internal' и 'risk_zone' не отмечены по умолчанию
-                const isChecked = (key !== 'metrics' && key !== 'internal' && key !== 'risk_zone') ? 'checked' : '';
+                // Блоки 'internal' и 'risk_zone' не отмечены по умолчанию, 'metrics' отмечен
+                const isChecked = (key !== 'internal' && key !== 'risk_zone') ? 'checked' : '';
                 item.innerHTML = `<input type="checkbox" value="${key}" ${isChecked} onchange="updateBlocksVisibility()">
                     <span>${label}</span>`;
                 container.appendChild(item);
             }
 
-            // Скрываем вкладки 'metrics', 'internal' и 'risk' по умолчанию
+            // Скрываем вкладки 'internal' и 'risk' по умолчанию, 'metrics' показана
             updateBlocksVisibility();
 
             await loadProjects();
@@ -2157,7 +2161,7 @@
         function updateBlocksVisibility() {
             const blocks = getSelectedBlocks();
             
-            // Вкладка 'metrics'
+            // Вкладка 'metrics' (KPI и период)
             const metricsTab = document.getElementById('tab-metrics');
             const metricsBtn = document.getElementById('tab-btn-metrics');
             if (metricsTab && metricsBtn) {
@@ -2167,15 +2171,9 @@
                 } else {
                     metricsTab.style.display = 'none';
                     metricsBtn.style.display = 'none';
-                    // Если текущая вкладка 'metrics', переключаем на первую видимую
+                    // Если текущая вкладка 'metrics', переключаем на 'dashboard'
                     if (metricsTab.classList.contains('active')) {
-                        // Переключаем на 'summary' если есть, иначе на 'detail'
-                        const summaryBtn = document.getElementById('tab-btn-summary');
-                        if (summaryBtn && summaryBtn.style.display !== 'none') {
-                            switchTab('summary');
-                        } else {
-                            switchTab('detail');
-                        }
+                        switchTab('dashboard');
                     }
                 }
             }
@@ -2190,9 +2188,9 @@
                 } else {
                     internalTab.style.display = 'none';
                     internalBtn.style.display = 'none';
-                    // Если текущая вкладка 'internal', переключаем на 'metrics'
+                    // Если текущая вкладка 'internal', переключаем на 'dashboard'
                     if (internalTab.classList.contains('active')) {
-                        switchTab('metrics');
+                        switchTab('dashboard');
                     }
                 }
             }
@@ -2207,9 +2205,9 @@
                 } else {
                     riskTab.style.display = 'none';
                     riskBtn.style.display = 'none';
-                    // Если текущая вкладка 'risk', переключаем на 'metrics'
+                    // Если текущая вкладка 'risk', переключаем на 'dashboard'
                     if (riskTab.classList.contains('active')) {
-                        switchTab('metrics');
+                        switchTab('dashboard');
                     }
                 }
             }
@@ -2323,7 +2321,7 @@
 
                 stats.classList.remove('hidden');
                 reports.classList.remove('hidden');
-                switchTab('metrics');
+                switchTab('dashboard');
 
             } catch (e) {
                 console.error('❌ Ошибка генерации отчёта:', e);
