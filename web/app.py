@@ -590,7 +590,7 @@ def api_task_info_batch():
 
 @app.route('/api/report', methods=['POST'])
 @validate_json_request
-@conditional_cache(timeout=300)  # Кэш на 5 минут для production
+# Без кэширования — каждый отчёт уникален
 def api_report():
     from core.utils import Timer, LogContext, log_with_context
     
