@@ -696,6 +696,43 @@ def api_report():
         logger.error(f"Ошибка генерации отчёта: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@app.route('/api/no-duedate', methods=['POST'])
+@validate_json_request
+def api_no_duedate():
+    """Получить задачи без даты решения."""
+    try:
+        data = request.get_json()
+        projects_raw = data.get('projects', []) or data.get('project', '').strip() or None
+        assignees_raw = data.get('assignees', []) or data.get('assignee', '').strip() or None
+        issue_types_raw = data.get('issue_types', []) or data.get('issue_type', '').strip() or None
+        limit = int(data.get('limit', 500))
+
+        # Нормализация фильтров
+        projects = normalize_filter(projects_raw, upper=True) if projects_raw else []
+        assignees = normalize_filter(assignees_raw) if assignees_raw else []
+        issue_types = normalize_filter(issue_types_raw) if issue_types_raw else []
+
+        from core.jira_report import get_no_duedate_issues
+
+        issues = get_no_duedate_issues(
+            project_keys=projects if projects else None,
+            issue_types=issue_types if issue_types else None,
+            assignee_filter=assignees if assignees else None,
+            limit=limit
+        )
+
+        return jsonify({
+            'success': True,
+            'count': len(issues),
+            'issues': issues
+        })
+
+    except Exception as e:
+        logger.error(f"Ошибка получения задач без duedate: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/download', methods=['POST'])
 @validate_json_request
 def api_download():
