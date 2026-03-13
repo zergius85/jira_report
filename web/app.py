@@ -706,6 +706,11 @@ def api_no_duedate():
         projects_raw = data.get('projects', []) or data.get('project', '').strip() or None
         assignees_raw = data.get('assignees', []) or data.get('assignee', '').strip() or None
         issue_types_raw = data.get('issue_types', []) or data.get('issue_type', '').strip() or None
+        
+        # Параметры периода
+        start_date = data.get('start_date', '').strip() or None
+        end_date = data.get('end_date', '').strip() or None
+        days = int(data.get('days', 0) or 0)
         limit = int(data.get('limit', 500))
 
         # Нормализация фильтров
@@ -713,19 +718,25 @@ def api_no_duedate():
         assignees = normalize_filter(assignees_raw) if assignees_raw else []
         issue_types = normalize_filter(issue_types_raw) if issue_types_raw else []
 
-        from core.jira_report import get_no_duedate_issues
+        from core.services.issue_fetcher import IssueFetcher
 
-        issues = get_no_duedate_issues(
+        fetcher = IssueFetcher(
             project_keys=projects if projects else None,
-            issue_types=issue_types if issue_types else None,
+            start_date=start_date,
+            end_date=end_date,
+            days=days,
             assignee_filter=assignees if assignees else None,
-            limit=limit
+            issue_types=issue_types if issue_types else None
         )
+        fetcher.connect()
+        
+        # Используем новый метод разделения задач
+        result = fetcher.fetch_issues_split_by_duedate()
 
         return jsonify({
             'success': True,
-            'count': len(issues),
-            'issues': issues
+            'count': len(result['without_duedate']),
+            'issues': result['without_duedate']
         })
 
     except Exception as e:

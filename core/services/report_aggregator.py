@@ -20,22 +20,55 @@ logger = logging.getLogger(__name__)
 class ReportAggregator:
     """
     Сервис для агрегации данных отчёта.
-    
+
     Агрегирует:
     - Статистику по проектам
     - Статистику по исполнителям
     - Список проблемных задач
     """
-    
+
     def __init__(self, extra_verbose: bool = False):
         """
         Инициализация агрегатора.
-        
+
         Args:
             extra_verbose: Показывать ID объектов
         """
         self.extra_verbose = extra_verbose
         self.formatter = VerboseFormatter(extra_verbose=extra_verbose)
+
+    @staticmethod
+    def _has_duedate(issue: Dict[str, Any]) -> bool:
+        """
+        Проверяет наличие duedate у задачи.
+
+        Args:
+            issue: Данные задачи
+
+        Returns:
+            bool: True если есть duedate
+        """
+        return bool(issue.get('duedate'))
+
+    def _filter_issues_with_duedate(
+        self,
+        issues_data: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Фильтрует задачи, оставляя только с duedate.
+
+        Args:
+            issues_data: Список задач
+
+        Returns:
+            List[Dict]: Задачи с duedate
+        """
+        filtered = [
+            i for i in issues_data
+            if self._has_duedate(i)
+        ]
+        logger.debug(f"Фильтрация duedate: {len(issues_data)} → {len(filtered)} задач с duedate")
+        return filtered
     
     def aggregate_by_projects(
         self,
@@ -44,23 +77,26 @@ class ReportAggregator:
     ) -> List[Dict[str, Any]]:
         """
         Агрегировать статистику по проектам.
-        
+
         Args:
             issues_data: Список обработанных задач
             projects_map: {project_key: project_name}
-            
+
         Returns:
             List[Dict]: Статистика по проектам
         """
-        project_stats: Dict[str, Dict[str, Any]] = {}
+        # Фильтруем только задачи с duedate для метрик
+        issues_for_metrics = self._filter_issues_with_duedate(issues_data)
         
-        for issue_data in issues_data:
+        project_stats: Dict[str, Dict[str, Any]] = {}
+
+        for issue_data in issues_for_metrics:
             proj_key = issue_data.get('project_key', '')
             proj_name = projects_map.get(proj_key, proj_key)
             problems = issue_data.get('problems', [])
             spent = issue_data.get('spent', 0.0)
             estimated = issue_data.get('estimated', 0.0)
-            
+
             if proj_key not in project_stats:
                 project_stats[proj_key] = {
                     'name': proj_name,
@@ -69,21 +105,21 @@ class ReportAggregator:
                     'correct': 0,
                     'issues': 0
                 }
-            
+
             if not problems:
                 project_stats[proj_key]['spent'] += spent
                 project_stats[proj_key]['estimated'] += estimated
                 project_stats[proj_key]['correct'] += 1
             else:
                 project_stats[proj_key]['issues'] += 1
-        
+
         # Формируем результат
         summary_data = []
         for proj_key, stats in project_stats.items():
             if stats['correct'] > 0 or stats['issues'] > 0:
-                row = self._format_summary_row(proj_key, stats, issues_data)
+                row = self._format_summary_row(proj_key, stats, issues_for_metrics)
                 summary_data.append(row)
-        
+
         return summary_data
     
     def _format_summary_row(
@@ -136,31 +172,34 @@ class ReportAggregator:
     ) -> List[Dict[str, Any]]:
         """
         Агрегировать статистику по исполнителям.
-        
+
         Args:
             issues_data: Список обработанных задач
-            
+
         Returns:
             List[Dict]: Статистика по исполнителям
         """
+        # Фильтруем только задачи с duedate для метрик
+        issues_for_metrics = self._filter_issues_with_duedate(issues_data)
+        
         # Фильтруем задачи без исполнителя
         issues_with_assignee = [
-            i for i in issues_data
+            i for i in issues_for_metrics
             if 'Без исполнителя' not in i.get('assignee', '')
         ]
-        
+
         if not issues_with_assignee:
             return []
-        
+
         # Агрегация
         assignee_stats: Dict[str, Dict[str, Any]] = {}
-        
+
         for issue_data in issues_with_assignee:
             assignee = issue_data.get('assignee', '')
             problems = issue_data.get('problems', [])
             spent = issue_data.get('spent', 0.0)
             estimated = issue_data.get('estimated', 0.0)
-            
+
             if assignee not in assignee_stats:
                 assignee_stats[assignee] = {
                     'tasks': 0,
@@ -169,7 +208,7 @@ class ReportAggregator:
                     'spent': 0.0,
                     'estimated': 0.0
                 }
-            
+
             assignee_stats[assignee]['tasks'] += 1
             if not problems:
                 assignee_stats[assignee]['correct'] += 1
@@ -177,7 +216,7 @@ class ReportAggregator:
                 assignee_stats[assignee]['estimated'] += estimated
             else:
                 assignee_stats[assignee]['issues'] += 1
-        
+
         # Формируем результат
         assignees_data = []
         for assignee, stats in assignee_stats.items():
@@ -191,10 +230,10 @@ class ReportAggregator:
                 'Отклонение': round(stats['estimated'] - stats['spent'], 2)
             }
             assignees_data.append(row)
-        
+
         # Сортировка по факту
         assignees_data.sort(key=lambda x: x.get('Факт (ч)', 0), reverse=True)
-        
+
         # Добавляем ID для extra_verbose
         if self.extra_verbose:
             for row in assignees_data:
@@ -202,7 +241,7 @@ class ReportAggregator:
                 if '[' in assignee and ']' in assignee:
                     row_id = assignee.split('[')[-1].split(']')[0]
                     row['ID'] = row_id
-        
+
         return assignees_data
     
     def collect_problem_issues(

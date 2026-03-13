@@ -89,7 +89,7 @@ class ReportOrchestrator:
     def generate(self) -> Dict[str, Any]:
         """
         Сгенерировать отчёт.
-        
+
         Returns:
             Dict[str, Any]: Данные отчёта
         """
@@ -98,45 +98,46 @@ class ReportOrchestrator:
         jira_available, error_msg = check_jira_availability()
         if not jira_available:
             raise ConnectionError(f"Jira недоступна: {error_msg}")
-        
+
         # 2. Получение проектов
         self.projects_map = self.fetcher.get_projects()
-        
-        # 3. Получение задач
-        issues_normal = self.fetcher.fetch_issues(date_field='duedate')
-        issues_all = self.fetcher.fetch_issues(date_field='created')
-        
-        # 4. Обработка задач
-        self.issues_data = self._process_issues(issues_normal, issues_all)
-        
-        # 5. Агрегация
+
+        # 3. Получение задач с разделением по duedate
+        split_result = self.fetcher.fetch_issues_split_by_duedate()
+        issues_with_duedate = split_result['with_duedate']
+        issues_without_duedate = split_result['without_duedate']
+
+        # 4. Обработка задач ТОЛЬКО с duedate (для метрик)
+        self.issues_data = self._process_issues(issues_with_duedate, issues_with_duedate)
+
+        # 5. Агрегация (фильтрация по duedate уже встроена в ReportAggregator)
         summary_data = self.aggregator.aggregate_by_projects(
             self.issues_data, self.projects_map
         )
         assignees_data = self.aggregator.aggregate_by_assignees(self.issues_data)
         problem_issues = self.aggregator.collect_problem_issues(self.issues_data)
-        
+
         # 6. Формирование DataFrame
         df_summary = pd.DataFrame(summary_data) if summary_data else pd.DataFrame()
         df_assignees = pd.DataFrame(assignees_data) if assignees_data else pd.DataFrame()
         df_detail = pd.DataFrame([i['detail'] for i in self.issues_data]) if self.issues_data else pd.DataFrame()
         df_issues = pd.DataFrame(problem_issues) if problem_issues else pd.DataFrame()
-        
+
         # 7. Сортировка
         if not df_detail.empty:
             df_detail = df_detail.sort_values(
                 by=['Тип', 'Проект', 'Дата решения'],
                 ascending=[True, True, True]
             )
-        
-        # 8. Risk Zone
+
+        # 8. Risk Zone (только задачи с duedate)
         df_risk = pd.DataFrame()
         if self.include_risk_zone and 'risk_zone' in (self.blocks or []):
-            risk_data = self._generate_risk_zone(issues_normal)
+            risk_data = self._generate_risk_zone(issues_with_duedate)
             if risk_data:
                 df_risk = pd.DataFrame(risk_data)
                 df_risk = df_risk.sort_values('Приоритет', ascending=False)
-        
+
         # 9. Формирование результата
         result = {
             'period': f"{self.fetcher.start_date_str} — {self.fetcher.end_date_str}",
@@ -148,7 +149,7 @@ class ReportOrchestrator:
             'total_spent': df_summary['Факт (ч)'].sum() if not df_summary.empty else 0,
             'total_estimated': df_summary['Оценка (ч)'].sum() if not df_summary.empty else 0,
         }
-        
+
         # Добавляем блоки
         if 'summary' in (self.blocks or []):
             result['summary'] = df_summary
@@ -160,30 +161,30 @@ class ReportOrchestrator:
             result['issues'] = df_issues
         if 'risk_zone' in (self.blocks or []):
             result['risk_zone'] = df_risk
-        
+
         return result
     
     def _process_issues(
         self,
-        issues_normal: List[Dict],
-        issues_all: List[Dict]
+        issues_with_duedate: List[Dict],
+        issues_all: List[Dict] = None
     ) -> List[Dict[str, Any]]:
         """
         Обработать задачи.
-        
+
         Args:
-            issues_normal: Задачи для detail/summary
-            issues_all: Все задачи для проблемных
-            
+            issues_with_duedate: Задачи с duedate для обработки
+            issues_all: Все задачи (устаревший параметр, игнорируется)
+
         Returns:
             List[Dict]: Обработанные задачи
         """
         result = []
-        
-        for issue_data in issues_normal:
+
+        for issue_data in issues_with_duedate:
             processed = self._process_single_issue(issue_data)
             result.append(processed)
-        
+
         return result
     
     def _process_single_issue(self, issue_data: Dict) -> Dict[str, Any]:

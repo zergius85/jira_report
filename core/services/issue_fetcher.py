@@ -276,5 +276,36 @@ class IssueFetcher:
         logger.info(f"🚀 Получение задач: {date_field}...")
         issues = fetch_issues_via_rest(self.jira, jql)
         logger.info(f"✅ Получено {len(issues)} задач")
-        
+
         return issues
+
+    def fetch_issues_split_by_duedate(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Получает задачи, созданные в [start, end+2months],
+        и разделяет на две группы: с duedate и без.
+
+        Returns:
+            Dict[str, List[Dict]]: {
+                'with_duedate': [...],      # для метрик и отчётов
+                'without_duedate': [...]    # для вкладки Без даты
+            }
+        """
+        # 1. Получаем ВСЕ задачи по created + 2 месяца
+        all_issues = self.fetch_issues(date_field='created')
+
+        # 2. Разделяем на группы
+        with_duedate = [
+            i for i in all_issues
+            if hasattr(i, 'fields') and hasattr(i.fields, 'duedate') and i.fields.duedate
+        ]
+        without_duedate = [
+            i for i in all_issues
+            if not hasattr(i, 'fields') or not hasattr(i.fields, 'duedate') or not i.fields.duedate
+        ]
+
+        logger.info(f"✅ Разделение задач: {len(with_duedate)} с duedate, {len(without_duedate)} без duedate")
+
+        return {
+            'with_duedate': with_duedate,
+            'without_duedate': without_duedate
+        }
