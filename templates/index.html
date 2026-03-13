@@ -420,6 +420,15 @@
             white-space: nowrap;
             max-width: 300px;
         }
+        /* Разрешить перенос текста в колонке "Задача" */
+        th.col-task, td.col-task {
+            white-space: normal;
+            word-wrap: break-word;
+            word-break: break-word;
+            max-width: none;
+            min-width: 300px;
+            vertical-align: top;
+        }
         th {
             background: #f5f5f5;
             font-weight: 600;
@@ -2496,7 +2505,10 @@
                 columns = Object.keys(data[0]);
             }
 
-            thead.innerHTML = '<tr>' + columns.map(col => `<th onclick="sortTable('${name}', '${col}')">${col}</th>`).join('') + '</tr>';
+            thead.innerHTML = '<tr>' + columns.map(col => {
+                const className = col === 'Задача' ? 'col-task' : '';
+                return `<th class="${className}" onclick="sortTable('${name}', '${col}')">${col}</th>`;
+            }).join('') + '</tr>';
 
             // Рендер строк с цветовым форматированием
             tbody.innerHTML = data.map((row, index) => {
@@ -2555,7 +2567,8 @@
                         }
                     }
 
-                    return `<td>${cellHtml}</td>`;
+                    const tdClass = col === 'Задача' ? 'col-task' : '';
+                    return `<td class="${tdClass}">${cellHtml}</td>`;
                 }).join('') + '</tr>';
             }).join('');
         }
