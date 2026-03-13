@@ -621,6 +621,7 @@ def generate_report(
     all_issues_data = []
     summary_data = []
     issues_with_problems = []
+    issues_no_duedate = []  # Задачи без даты решения
     all_issues_normal = []  # Список всех задач для Risk Zone
 
     # Формируем фильтр по типам задач для JQL
@@ -752,6 +753,12 @@ def generate_report(
         validator = IssueValidator(closed_status_ids=closed_status_ids)
         problems = validator.validate(mock_issue, proj_key)
 
+        # Инициализируем author_display для всех задач
+        creator = fields.get('creator', {})
+        author = creator.get('displayName', 'N/A') if creator else 'N/A'
+        author_id = creator.get('accountId', '') if creator else ''
+        author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
+
         # Формируем отображаемые значения
         project_display = proj_name
         status_display = f"{status_name} ({status_category})"
@@ -807,14 +814,32 @@ def generate_report(
         else:
             project_stats[proj_key]['issues'] += 1
 
+        # Разделяем задачи: без duedate — в отдельный список
+        has_duedate = duedate and duedate != '-'
+        
         # Проблемные задачи — берём creator из REST API
         # Инициализируем author_display для всех задач
         creator = fields.get('creator', {})
         author = creator.get('displayName', 'N/A') if creator else 'N/A'
         author_id = creator.get('accountId', '') if creator else ''
         author_display = f"{author} [{author_id}]" if extra_verbose and author_id else author
-        
-        if problems:
+
+        if not has_duedate:
+            # Задачи без даты решения — в отдельный список
+            issues_no_duedate.append({
+                'URL': issue_url,
+                'URL_debug': f"/?debug={issue_key}",
+                'Проект': project_display,
+                'Задача': fields.get('summary', ''),
+                'Исполнитель': assignee_display,
+                'Автор': author_display,
+                'Статус': status_display,
+                'Дата создания': created_display,
+                'Дата исполнения': '-',
+                'Проблемы': 'Нет даты решения'
+            })
+        elif problems:
+            # Задачи с duedate и проблемами — в issues_with_problems
 
             # URL с 🔍 при extra_verbose
             issues_url = issue_url
@@ -1045,6 +1070,8 @@ def generate_report(
         result['detail'] = df_detail
     if 'issues' in result['blocks']:
         result['issues'] = df_issues
+    if 'no_duedate' in result['blocks']:
+        result['no_duedate'] = pd.DataFrame(issues_no_duedate) if issues_no_duedate else pd.DataFrame()
     if 'internal' in result['blocks']:
         result['internal'] = df_internal
     
@@ -1078,6 +1105,11 @@ def generate_report(
         cols = get_column_order('internal', extra_verbose)
         available_cols = [c for c in cols if c in result['internal'].columns]
         result['internal'] = result['internal'][available_cols]
+
+    if 'no_duedate' in result['blocks'] and not result['no_duedate'].empty:
+        cols = get_column_order('issues', extra_verbose)  # Используем тот же порядок что и для issues
+        available_cols = [c for c in cols if c in result['no_duedate'].columns]
+        result['no_duedate'] = result['no_duedate'][available_cols]
 
     if 'risk_zone' in result['blocks'] and not result['risk_zone'].empty:
         cols = get_column_order('risk_zone', extra_verbose)

@@ -92,12 +92,13 @@ REPORT_BLOCKS = {
     'assignees': 'Нагрузка по исполнителям',
     'detail': 'Детализация по задачам',
     'issues': 'Проблемные задачи',
+    'no_duedate': 'Без даты решения',
     'internal': 'Непонятное (NEW, local)',
     'risk_zone': 'Зависшие задачи (Risk Zone)'
 }
 
 # Блоки, которые скрыты по умолчанию
-HIDDEN_BLOCKS_BY_DEFAULT = ['internal', 'risk_zone']
+HIDDEN_BLOCKS_BY_DEFAULT = ['internal', 'risk_zone', 'no_duedate']
 
 # =============================================
 # КОНСТАНТЫ ДЛЯ ОТЧЁТОВ
