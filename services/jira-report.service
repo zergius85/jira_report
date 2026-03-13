@@ -1,0 +1,40 @@
+﻿# =============================================
+# Шаблон службы Jira Report
+# Копируется в /etc/systemd/system/ при установке
+# =============================================
+[Unit]
+Description=Jira Report Web Application
+After=network.target
+
+[Service]
+Type=simple
+# Пользователь и группа (заменить на нужные)
+User=kit02
+Group=kit02
+
+# Рабочая директория (заменить на путь к проекту)
+WorkingDirectory=/home/kit02/jira_report
+
+# Переменные окружения
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+# Режим: development или production (устанавливается скриптом install-service.sh)
+Environment="FLASK_ENV=development"
+
+# Команда запуска (из корня проекта)
+ExecStart=/usr/bin/python3 /home/kit02/jira_report/app.py
+
+# Автоматический перезапуск
+Restart=always
+RestartSec=10
+
+# Логирование
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jira-report
+
+# Лимиты ресурсов (опционально)
+# LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

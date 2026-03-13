@@ -1,0 +1,22 @@
+[Unit]
+Description=Jira Report Web Application
+After=network.target
+
+[Service]
+Type=simple
+User=kit02
+Group=kit02
+WorkingDirectory=/home/kit02/jira_report
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+Environment="FLASK_ENV=production"
+# Gunicorn с 4 worker'ами для production
+ExecStart=/usr/local/bin/gunicorn -w 4 -b 0.0.0.0:5000 web.app:app --timeout 120 --max-requests 1000 --max-requests-jitter 100
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jira-report
+
+[Install]
+WantedBy=multi-user.target
