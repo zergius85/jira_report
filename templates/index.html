@@ -1193,6 +1193,10 @@
             <!-- Детали -->
             <div id="tab-detail" class="tab-content">
                 <h2 class="section-title">Детализация по задачам <span class="badge" id="detail_count">0</span></h2>
+                <!-- Фильтры по статусам -->
+                <div class="issues-filter-container" id="detail_status_filters" style="margin-bottom: 15px;">
+                    <span class="issues-filter-chip" onclick="resetDetailStatusFilter()">✖ Сбросить всё</span>
+                </div>
                 <div class="table-container">
                     <table id="detail_table"><thead></thead><tbody></tbody></table>
                 </div>
@@ -2357,6 +2361,9 @@
                 renderTable('internal', data.internal);
                 renderTable('risk', data.risk_zone);
 
+                // Генерируем фильтры статусов для вкладки Детали
+                generateDetailStatusFilters(data.detail);
+
                 // Счётчики
                 updateCount('summary', data.summary);
                 updateCount('assignees', data.assignees);
@@ -2858,6 +2865,8 @@
 
         // ========== Фильтрация проблемных задач ==========
         let issuesFilters = new Set(); // Множество активных фильтров
+        let detailStatusFilters = new Set(); // Множество активных фильтров статусов
+        let detailDataForFilter = null; // Данные для фильтрации
         let issuesDataForFilter = null; // Кэш данных для фильтрации
         
         function toggleIssueFilter(chip) {
@@ -2939,7 +2948,113 @@
             
             console.log('🔍 Фильтр проблем: сброшен');
         }
-        
+
+        // ========== Фильтрация по статусам (вкладка Детали) ==========
+        function generateDetailStatusFilters(data) {
+            if (!data || data.length === 0) return;
+            
+            detailDataForFilter = data;
+            const container = document.getElementById('detail_status_filters');
+            
+            // Собираем уникальные статусы
+            const statusSet = new Set();
+            data.forEach(row => {
+                const status = row['Статус'] || row.status || '-';
+                if (status && status !== '-') {
+                    statusSet.add(status);
+                }
+            });
+            
+            const statuses = Array.from(statusSet).sort();
+            
+            // Очищаем контейнер (оставляем только кнопку сброса)
+            container.innerHTML = '<span class="issues-filter-chip" onclick="resetDetailStatusFilter()">✖ Сбросить всё</span>';
+            
+            // Создаём чипы для каждого статуса
+            statuses.forEach(status => {
+                const chip = document.createElement('span');
+                chip.className = 'issues-filter-chip';
+                chip.setAttribute('data-status', status);
+                chip.setAttribute('onclick', 'toggleDetailStatusFilter(this)');
+                
+                // Цвет для статуса
+                let color = '#757575';
+                const statusLower = status.toLowerCase();
+                if (statusLower.includes('закрыт') || statusLower.includes('closed') || statusLower.includes('готово') || statusLower.includes('done')) {
+                    color = '#27ae60';
+                } else if (statusLower.includes('в работе') || statusLower.includes('progress') || statusLower.includes('open')) {
+                    color = '#3498db';
+                } else if (statusLower.includes('открыт') || statusLower.includes('new')) {
+                    color = '#f39c12';
+                }
+                
+                chip.style.cssText = `border-left: 3px solid ${color};`;
+                chip.textContent = status;
+                container.appendChild(chip);
+            });
+        }
+
+        function toggleDetailStatusFilter(chip) {
+            const status = chip.getAttribute('data-status');
+
+            // Переключаем фильтр
+            if (detailStatusFilters.has(status)) {
+                detailStatusFilters.delete(status);
+                chip.classList.remove('active');
+            } else {
+                detailStatusFilters.add(status);
+                chip.classList.add('active');
+            }
+
+            applyDetailStatusFilter();
+        }
+
+        function applyDetailStatusFilter() {
+            const table = document.getElementById('detail_table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            // Если фильтров нет - показываем все
+            if (detailStatusFilters.size === 0) {
+                rows.forEach(row => row.style.display = '');
+                console.log('🔍 Фильтр статусов: все');
+                return;
+            }
+
+            // Фильтруем строки
+            rows.forEach((row, index) => {
+                const rowData = detailDataForFilter[index];
+                const status = rowData['Статус'] || rowData.status || '-';
+
+                // Показываем если статус совпадает с любым из выбранных
+                const matches = detailStatusFilters.has(status);
+                row.style.display = matches ? '' : 'none';
+            });
+
+            console.log(`🔍 Фильтр статусов: ${Array.from(detailStatusFilters).join(', ') || 'все'}`);
+        }
+
+        function resetDetailStatusFilter() {
+            detailStatusFilters.clear();
+            detailDataForFilter = null;
+
+            // Сбрасываем активные классы
+            document.querySelectorAll('#detail_status_filters .issues-filter-chip').forEach(chip => {
+                if (chip.getAttribute('onclick') !== 'resetDetailStatusFilter()') {
+                    chip.classList.remove('active');
+                }
+            });
+
+            // Показываем все строки
+            const table = document.getElementById('detail_table');
+            const tbody = table.querySelector('tbody');
+            Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+                row.style.display = '';
+            });
+
+            console.log('🔍 Фильтр статусов: сброшен');
+        }
+
         // ========== Подсчёт количества проблем для фильтра ==========
         function updateIssueFilterCounts(issuesData) {
             if (!issuesData || issuesData.length === 0) {
