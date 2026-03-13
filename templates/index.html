@@ -429,6 +429,24 @@
             min-width: 300px;
             vertical-align: top;
         }
+        /* Ручка для изменения ширины столбца */
+        th.resizable {
+            position: relative;
+            padding-right: 20px;
+        }
+        th .resizer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 5px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 10;
+        }
+        th .resizer:hover, th .resizer.resizing {
+            background: #3498db;
+        }
         th {
             background: #f5f5f5;
             font-weight: 600;
@@ -2507,8 +2525,16 @@
 
             thead.innerHTML = '<tr>' + columns.map(col => {
                 const className = col === 'Задача' ? 'col-task' : '';
-                return `<th class="${className}" onclick="sortTable('${name}', '${col}')">${col}</th>`;
+                const resizable = col !== 'URL' && col !== 'ID' ? 'resizable' : '';
+                const resizer = resizable ? '<div class="resizer"></div>' : '';
+                return `<th class="${className} ${resizable}" onclick="sortTable('${name}', '${col}')">${col}${resizer}</th>`;
             }).join('') + '</tr>';
+
+            // Добавляем обработчики для изменения ширины столбцов
+            const resizers = thead.querySelectorAll('.resizer');
+            resizers.forEach(resizer => {
+                resizer.addEventListener('mousedown', createResizer(resizer));
+            });
 
             // Рендер строк с цветовым форматированием
             tbody.innerHTML = data.map((row, index) => {
@@ -2739,6 +2765,44 @@
 
             // Текст с tooltip
             return `<span title="${title}">${cleanValue}</span>`;
+        }
+
+        // ========== Изменение ширины столбцов ==========
+        function createResizer(resizer) {
+            let x = 0;
+            let w = 0;
+            
+            const mouseDownHandler = function(e) {
+                x = e.clientX;
+                const th = resizer.parentElement;
+                const rect = th.getBoundingClientRect();
+                w = rect.width;
+                
+                resizer.classList.add('resizing');
+                
+                document.addEventListener('mousemove', mouseMoveHandler);
+                document.addEventListener('mouseup', mouseUpHandler);
+                
+                // Отключаем выделение текста во время перетаскивания
+                document.body.style.userSelect = 'none';
+                document.body.style.cursor = 'col-resize';
+            };
+            
+            const mouseMoveHandler = function(e) {
+                const dx = e.clientX - x;
+                const th = resizer.parentElement;
+                th.style.width = `${w + dx}px`;
+            };
+            
+            const mouseUpHandler = function() {
+                resizer.classList.remove('resizing');
+                document.removeEventListener('mousemove', mouseMoveHandler);
+                document.removeEventListener('mouseup', mouseUpHandler);
+                document.body.style.userSelect = '';
+                document.body.style.cursor = '';
+            };
+            
+            return mouseDownHandler;
         }
 
         function sortTable(name, column) {
