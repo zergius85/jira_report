@@ -477,7 +477,80 @@ def get_column_order(block: str, extra_verbose: bool = False) -> List[str]:
     else:
         logger.warning(f"⚠️  Неизвестный блок '{block}', используются колонки по умолчанию")
         return ['Проект', 'Ключ', 'Задача', 'Исполнитель', 'Статус', 'Дата создания', 'Дата исполнения', 'Факт (ч)', 'Оценка (ч)']
-        
+
+
+def get_no_duedate_issues(
+    project_keys: Optional[Union[str, List[str]]] = None,
+    issue_types: Optional[Union[str, List[str]]] = None,
+    assignee_filter: Optional[Union[str, List[str]]] = None,
+    limit: int = 500
+) -> List[Dict[str, Any]]:
+    """
+    Получает задачи без даты решения (duedate = null).
+
+    Args:
+        project_keys: Проекты для фильтрации
+        issue_types: Типы задач для фильтрации
+        assignee_filter: Исполнители для фильтрации
+        limit: Максимальное количество задач
+
+    Returns:
+        List[Dict]: Список задач без duedate
+    """
+    jira = get_jira_connection()
+
+    # Фильтр по проектам
+    if project_keys:
+        projects_list = [project_keys] if isinstance(project_keys, str) else project_keys
+        projects_jql = ','.join([sanitize_jql_identifier(p) for p in projects_list])
+        project_filter = f"project IN ({projects_jql})"
+    else:
+        project_filter = ""
+
+    # Фильтр по типам задач
+    issue_type_filter = ''
+    if issue_types:
+        types_list = [issue_types] if isinstance(issue_types, str) else issue_types
+        sanitized_types = [sanitize_jql_identifier(t) for t in types_list]
+        issue_type_filter = ' AND issuetype IN (' + ','.join(sanitized_types) + ')'
+
+    # Фильтр по исполнителям
+    assignee_filter_jql = ''
+    if assignee_filter:
+        assignees_list = [assignee_filter] if isinstance(assignee_filter, str) else assignees_list
+        assignees_jql = []
+        for a in assignees_list:
+            if a.lower() in ['none', 'null', 'empty', '']:
+                assignees_jql.append('assignee is EMPTY')
+            else:
+                assignees_jql.append(f'assignee in ("{sanitize_jql_string_literal(a)}")')
+        if assignees_jql:
+            assignee_filter_jql = ' AND (' + ' OR '.join(assignees_jql) + ')'
+
+    # JQL для задач без duedate
+    jql_no_duedate = (
+        f"{project_filter} "
+        f"AND duedate is null"
+        f"{issue_type_filter}"
+        f"{assignee_filter_jql} "
+        f"ORDER BY created DESC"
+    )
+
+    logger.info(f"📅 Получение задач без даты решения...")
+
+    # Получаем задачи через REST API
+    issues = fetch_issues_via_rest(jira, jql_no_duedate)
+
+    # Ограничиваем количество
+    if limit > 0 and len(issues) > limit:
+        issues = issues[:limit]
+        logger.info(f"   Ограничено до {limit} задач")
+
+    logger.info(f"✅ Найдено {len(issues)} задач без даты решения")
+
+    return issues
+
+
 def generate_report(
     project_keys: Optional[Union[str, List[str]]] = None,
     start_date: Optional[str] = None,
@@ -658,20 +731,21 @@ def generate_report(
     projects_jql = ','.join([sanitize_jql_identifier(p) for p in projects_keys])
     project_filter = f"project IN ({projects_jql})" if projects_keys else ""
 
-    # Глобальный JQL для обычных отчётов (фильтр по duedate)
+    # Глобальный JQL для обычных отчётов (фильтр по duedate в периоде)
+    # Только задачи С датой исполнения
     if days > 0:
         jql_normal_global = (f"{project_filter} "
-                          f"AND (duedate >= '{start_date_safe}' "
-                          f"OR duedate is null)"
+                          f"AND duedate >= '{start_date_safe}' "
+                          f"AND duedate <= '{end_date_safe}'"
                           f"{issue_type_filter}"
                           f"{assignee_filter_jql} "
                           f"ORDER BY duedate ASC")
     else:
         jql_normal_global = (f"{project_filter} "
-                          f"AND duedate is null"
+                          f"AND duedate is not null"
                           f"{issue_type_filter}"
                           f"{assignee_filter_jql} "
-                          f"ORDER BY created DESC")
+                          f"ORDER BY duedate DESC")
 
     # Глобальный JQL для проблемных задач (фильтр по created + 2 месяца)
     if days > 0:

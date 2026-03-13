@@ -1053,6 +1053,11 @@
                             <button class="btn btn-primary" id="generate_btn" onclick="generateReport()">📋 Сгенерировать</button>
                             <button class="btn btn-success" onclick="openExportModal()">💾 Экспорт</button>
                         </div>
+                        
+                        <!-- Кнопка для задач без duedate -->
+                        <div style="margin-top: 15px;">
+                            <button class="btn btn-warning" onclick="getNoDuedateTasks()">📅 Задачи без даты решения</button>
+                        </div>
 
                         <!-- Debug секция -->
                         <div class="debug-section" style="margin-top: 20px;">
@@ -2405,6 +2410,55 @@
                 return new Date(parts[0], parts[1] - 1, parts[2]);
             }
             return null;
+        }
+
+        // ========== Задачи без даты решения ==========
+        async function getNoDuedateTasks() {
+            const params = getParams();
+            
+            console.log('📅 Получение задач без даты решения...');
+            
+            const loading = document.getElementById('loading');
+            const loadingText = loading.querySelector('div:nth-child(2)');
+            const oldText = loadingText.textContent;
+            loadingText.textContent = 'Получение задач без даты решения...';
+            loading.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/api/no-duedate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projects: params.projects,
+                        assignees: params.assignees,
+                        issue_types: params.issue_types,
+                        limit: 500
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    console.log(`✅ Получено ${data.count} задач без даты решения`);
+                    
+                    // Рендерим во вкладку no_duedate
+                    renderTable('no_duedate', data.issues);
+                    updateCount('no_duedate', data.issues);
+                    
+                    // Переключаем на вкладку
+                    switchTab('no_duedate');
+                    
+                    alert(`📅 Найдено ${data.count} задач без даты решения`);
+                } else {
+                    showError(data.error || 'Ошибка получения задач');
+                }
+            } catch (e) {
+                console.error('❌ Ошибка:', e);
+                showError(e.message);
+            } finally {
+                loading.classList.add('hidden');
+                loadingText.textContent = oldText;
+            }
         }
 
         // Рендер таблицы с улучшенным форматированием
